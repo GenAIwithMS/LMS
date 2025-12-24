@@ -1,14 +1,19 @@
 from src.services.assignment_submission import submit_assignment,get_submissions_by_assignment,get_submissions_by_student,update_submission,delete_submission
 from flask import Blueprint, request, jsonify
+from src.schemas.assignment_submission import AssignmentSubmissionSchema
+from marshmallow import ValidationError
 
 
 assignment_submission_bp = Blueprint("assignment_submission", __name__)
 
 @assignment_submission_bp.route("/api/submit/assignment", methods=["POST"])
 def submit_assign():
-    data = request.get_json(silent=True)
-    if data is None:
-        data = request.form
+    
+    try:
+        data = AssignmentSubmissionSchema().load(request.form)
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    
     student_id = data.get("student_id")
     assignment_id = data.get("assignment_id")
     submission_text = data.get("submission_text")

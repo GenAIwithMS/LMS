@@ -10,7 +10,6 @@ class Student(db.Model):
     password = db.Column(db.String(255), nullable=False)
     section_id = db.Column(db.BigInteger, db.ForeignKey("sections.id") , nullable=False)
 
-    teacher = db.relationship('Teacher',secondary="student_teacher", backref='assigned_students', lazy=True)
     course = db.relationship('Course', secondary='enrollment', backref='study_students', lazy=True)
     section = db.relationship('Section', backref='section_students', lazy=True)
 

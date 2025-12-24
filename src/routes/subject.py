@@ -1,12 +1,17 @@
 from src.services.subject import create_subject, get_all_subjects, get_subject_by_id, delete_subject,update_subject
-
+from src.schemas.subject import subjectSchema
+from marshmallow import ValidationError
 from flask import Blueprint, request, jsonify
 
 subject_bp = Blueprint("subject", __name__)
 
 @subject_bp.route("/api/create_subject", methods=["POST"])
 def create_subj():
-    data = request.get_json()
+    try:
+        data = subjectSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    
     name = data.get("name")
     teacher_id = data.get("teacher_id")
     course_code = data.get("course_code")

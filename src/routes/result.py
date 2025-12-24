@@ -1,12 +1,18 @@
 from src.services.result import add_result, get_result_by_id, get_all_results, edit_result, delete_result
 from flask import Blueprint, request, jsonify
+from marshmallow import ValidationError
+from src.schemas.result import ResultSchema
 
 result_bp = Blueprint("result", __name__)
 
 @result_bp.route("/api/create/result", methods=["POST"])
 def create_res():
+    try:
+        data = ResultSchema().load(request.get_json())
 
-    data = request.get_json()
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+
     subject_id = data.get("subject_id")
     student_id = data.get("student_id")
     total_marks = data.get("total_marks")

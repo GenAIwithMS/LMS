@@ -1,12 +1,17 @@
 from src.services.assignment import create_assignment, get_assignment_by_id,get_all_assignments,edit_assignment,delete_assignment
 from flask import Blueprint, request, jsonify
+from src.schemas.assignment import assignmentSchema
+from marshmallow import ValidationError
 
 assignment_bp = Blueprint("assignment", __name__)
 
 @assignment_bp.route("/api/create/assignments", methods=["POST"])
 def create_assign():
-
-    data = request.get_json()
+    try:
+        data = assignmentSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    
     title = data.get("title")
     description = data.get("description")
     due_date = data.get("due_date")

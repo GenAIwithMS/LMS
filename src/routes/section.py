@@ -1,12 +1,17 @@
 from src.services.section import add_section,get_all_sections,get_section_by_id,edit_section,delete_section
 from flask import Blueprint, request, jsonify
+from src.schemas.section import SectionSchema
+from marshmallow import ValidationError
 
 section_bp = Blueprint("section", __name__)
 
 @section_bp.route("/api/add_section", methods=["POST"])
 def add_sec():
-
-    data = request.get_json()
+    try:
+        data = SectionSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    
     name = data.get("name")
     teacher_id = data.get("teacher_id")
     

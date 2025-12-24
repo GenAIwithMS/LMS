@@ -27,11 +27,6 @@ def add_student():
         email=data.get('email'),
     )
     
-    # add_user(
-    #     email=data['email'],
-    #     password=data['password'],
-    #     user_role='student'
-    #     )
 
     return result
    

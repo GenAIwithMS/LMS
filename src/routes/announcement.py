@@ -1,24 +1,28 @@
 from src.services.announsment import create_announcement,get_all_announcements,get_announcement_by_id,edit_announcement,delete_announcement
 from flask import jsonify,request,Blueprint
+from src.schemas.announcement import AnnouncementSchema
+from marshmallow import ValidationError
 
 announcement_bp = Blueprint("announcement",__name__)
 
 @announcement_bp.route("/api/create-announcement", methods=["POST"])
 def create_announce():
-
-    data = request.get_json()
+    try:
+        data = AnnouncementSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
     title = data.get("title")
     content = data.get("content")
     target_audience = data.get("target_audience", "all")
     section_id = data.get("section_id")
-    posted_by_role = data.get("posted_by_role")
+    teacher_id = data.get("teacher_id")
 
     result = create_announcement(
         title=title,
         content=content,
         target_audience=target_audience,
         section_id=section_id,
-        posted_by_role=posted_by_role
+        teacher_id=teacher_id
     )
     return result
 

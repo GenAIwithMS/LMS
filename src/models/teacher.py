@@ -9,7 +9,6 @@ class Teacher(db.Model):
     email = db.Column(db.String(255), nullable=False)
     password = db.Column(db.String(255), nullable=False)
     subject = db.Column(db.String(255), nullable=False)
-    # section_name = db.Column(db.String(255), nullable=False)
 
     students = db.relationship('Student', secondary='student_teacher', backref='teachers', lazy=True)
 

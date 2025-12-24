@@ -4,14 +4,13 @@ from src.models.admin import Admin
 from flask import jsonify
 from src.db import db
   
-def create_announcement(title, content, posted_by_role, section_id,target_audience='all', created_at=None):
-
+def create_announcement(title, content, teacher_id, section_id,target_audience='all', created_at=None):
     new_announcement = Announcement(
         title=title,
         content=content,
         target_audience=target_audience,
         section_id=section_id,
-        posted_by_role= posted_by_role
+        teacher_id=teacher_id
     )
     if created_at:
         new_announcement.created_at = created_at
@@ -25,8 +24,8 @@ def create_announcement(title, content, posted_by_role, section_id,target_audien
     })
 
 def get_all_announcements():
+    
     announcements = Announcement.query.all()
-
 
     announcement_list = []
     for announcement in announcements:
@@ -38,7 +37,7 @@ def get_all_announcements():
             "target_audience": announcement.target_audience,
             "section_id": announcement.section_id,
             "created_at": announcement.created_at,
-            "posted_by_role": announcement.posted_by_role
+            "teacher_id": announcement.teacher_id
         }
         announcement_list.append(announcement_data)
     return jsonify(announcement_list)
@@ -58,7 +57,7 @@ def get_announcement_by_id(announcement_id):
         "target_audience": announcement.target_audience,
         "section_id": announcement.section_id,
         "created_at": announcement.created_at,
-        "posted_by_role": announcement.posted_by_role
+        "teacher_id": announcement.teacher_id
     }
     return jsonify(announcement_data)
 
