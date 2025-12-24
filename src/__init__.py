@@ -11,6 +11,7 @@ from src.routes.subject import subject_bp
 from src.routes.result import result_bp
 from src.routes.section import section_bp
 from src.routes.assignment_submission import assignment_submission_bp
+from src.routes.announcement import announcement_bp
 from src.db import db
 from src.extention import bcrypt , jwt
 
@@ -59,6 +60,7 @@ def create_app():
     app.register_blueprint(result_bp)
     app.register_blueprint(section_bp)
     app.register_blueprint(assignment_submission_bp)
+    app.register_blueprint(announcement_bp)
     # app.register_blueprint(jwt)
     # app.register_blueprint(bcrypt)
 

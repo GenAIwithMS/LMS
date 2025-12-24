@@ -1,0 +1,98 @@
+from src.models.announcement import Announcement
+from src.models.teacher import Teacher
+from src.models.admin import Admin
+from flask import jsonify
+from src.db import db
+  
+def create_announcement(title, content, posted_by_role, section_id,target_audience='all', created_at=None):
+
+    new_announcement = Announcement(
+        title=title,
+        content=content,
+        target_audience=target_audience,
+        section_id=section_id,
+        posted_by_role= posted_by_role
+    )
+    if created_at:
+        new_announcement.created_at = created_at
+
+    db.session.add(new_announcement)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Announcement created successfully",
+        "status": "success"
+    })
+
+def get_all_announcements():
+    announcements = Announcement.query.all()
+
+
+    announcement_list = []
+    for announcement in announcements:
+       
+        announcement_data = {
+            "id": announcement.id,
+            "title": announcement.title,
+            "content": announcement.content,
+            "target_audience": announcement.target_audience,
+            "section_id": announcement.section_id,
+            "created_at": announcement.created_at,
+            "posted_by_role": announcement.posted_by_role
+        }
+        announcement_list.append(announcement_data)
+    return jsonify(announcement_list)
+
+def get_announcement_by_id(announcement_id):
+    announcement = Announcement.query.get(announcement_id)
+    if not announcement:
+        return jsonify({
+            "message": "Announcement not found",
+            "status": "error"
+        }), 400
+
+    announcement_data = {
+        "id": announcement.id,
+        "title": announcement.title,
+        "content": announcement.content,
+        "target_audience": announcement.target_audience,
+        "section_id": announcement.section_id,
+        "created_at": announcement.created_at,
+        "posted_by_role": announcement.posted_by_role
+    }
+    return jsonify(announcement_data)
+
+def edit_announcement(announcement_id, **kwargs):
+    announcement = Announcement.query.get(announcement_id)
+    if not announcement:
+        return jsonify({
+            "message": "Announcement not found",
+            "status": "error"
+        }), 400
+
+    for key, value in kwargs.items():
+        if hasattr(announcement, key):
+            setattr(announcement, key, value)
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Announcement updated successfully",
+        "status": "success"
+    })
+
+def delete_announcement(announcement_id):
+    announcement = Announcement.query.get(announcement_id)
+    if not announcement:
+        return jsonify({
+            "message": "Announcement not found",
+            "status": "error"
+        }), 400
+
+    db.session.delete(announcement)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Announcement deleted successfully",
+        "status": "success"
+    })
