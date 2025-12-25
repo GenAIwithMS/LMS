@@ -1,15 +1,32 @@
 from src.models.teacher import Teacher
+from src.models.student import Student
 from src.db import db
 from flask import jsonify
 
-def add_teacher(name,subject, username,email,password_hash):
-
+def add_teacher(name,subject, username,email,password_hash, student_id):
+    #check email or username already exists
+    existing_email = Teacher.query.filter_by(email=email).first()
+    if existing_email:
+        return jsonify({
+            "message":"Email already exists",
+            "status":"failed"
+        }), 400
+    existing_username = Teacher.query.filter_by(username=username).first()
+    if existing_username:
+        return jsonify({
+            "message":"Username already exists",
+            "status":"failed"
+        }), 400
+    
     new_teacher = Teacher(
         name=name,
         subject=subject,
         username=username,
         email=email
     )
+    student = Student.query.get(student_id)
+    new_teacher.students.append(student)
+
     new_teacher.set_password(password_hash)
     db.session.add(new_teacher)
     db.session.commit()

@@ -2,7 +2,7 @@ from src.models.assignment import Assignment
 from flask import jsonify
 from src.db import db
 
-def create_assignment(title, description,student_id, due_date,subject_id, total_marks):
+def add_assignment(title, description,student_id, due_date,subject_id, total_marks):
     new_assignment = Assignment(
         title=title,
         description=description,

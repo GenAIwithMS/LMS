@@ -9,3 +9,11 @@ class assignmentSchema(Schema):
     due_date = fields.Date(required=True)
     description = fields.String(required=True)
     total_marks = fields.Decimal(as_string=True)
+
+class UpdateAssignmentSchema(Schema):
+    title = fields.String(required=False, validate=validate.Length(min=1, max=255))
+    subject_id = fields.Integer(required=False)
+    student_id = fields.Integer(required=False)
+    due_date = fields.Date(required=False)
+    description = fields.String(required=False)
+    total_marks = fields.Decimal(as_string=True, required=False)

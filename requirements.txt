@@ -6,3 +6,8 @@ flask-jwt-extended
 marshmallow
 flask-cors
 cryptography
+langgraph 
+langchain-core 
+langchain-groq 
+langchain
+lanchain-community

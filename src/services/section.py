@@ -3,7 +3,14 @@ from flask import jsonify
 from src.db import db
 
 def add_section(name, teacher_id):
-
+    #check if section name already exists
+    existing_section = Section.query.filter_by(name=name).first()
+    if existing_section:
+        return jsonify({
+            "message":"Section name already exists try another",
+            "status":"failed"
+        }), 400
+    
     new_section = Section(
         name=name,
         teacher_id=teacher_id

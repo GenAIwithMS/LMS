@@ -12,8 +12,13 @@ from src.routes.result import result_bp
 from src.routes.section import section_bp
 from src.routes.assignment_submission import assignment_submission_bp
 from src.routes.announcement import announcement_bp
+from src.routes.chatbot import chatbot_bp
 from src.db import db
+from src.routes.course import course_bp
 from src.extention import bcrypt , jwt
+from src.routes.enrollment import enrollment_bp
+from src.routes.event import event_bp
+from src.routes.attendance import attendance_bp
 
 from src.models.student import Student
 from src.models.teacher import Teacher
@@ -61,7 +66,13 @@ def create_app():
     app.register_blueprint(section_bp)
     app.register_blueprint(assignment_submission_bp)
     app.register_blueprint(announcement_bp)
+    app.register_blueprint(course_bp)
+    app.register_blueprint(enrollment_bp)
+    app.register_blueprint(event_bp)
+    app.register_blueprint(attendance_bp)
+    app.register_blueprint(chatbot_bp)
     # app.register_blueprint(jwt)
+
     # app.register_blueprint(bcrypt)
 
     with app.app_context():

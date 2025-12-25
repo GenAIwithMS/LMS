@@ -2,7 +2,7 @@ from src.models.subject import Subject
 from flask import jsonify
 from src.db import db
 
-def create_subject(name, teacher_id, course_code=None):
+def add_subject(name, teacher_id, course_code=None):
     new_subject = Subject(
         name=name,
         teacher_id=teacher_id,

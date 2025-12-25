@@ -9,5 +9,3 @@ class Enrollment(db.Model):
     status = db.Column(db.Enum('active', 'completed', 'dropped'), default='active')
     grade = db.Column(db.String(2), nullable=True)
 
-    student = db.relationship('Student', backref='student_enrollments', lazy=True)
-    course = db.relationship('Course', backref='course_enrollments', lazy=True)

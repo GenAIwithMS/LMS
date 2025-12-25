@@ -1,12 +1,22 @@
-from src.services.assignment import create_assignment, get_assignment_by_id,get_all_assignments,edit_assignment,delete_assignment
+from src.services.assignment import add_assignment, get_assignment_by_id,get_all_assignments,edit_assignment,delete_assignment
 from flask import Blueprint, request, jsonify
-from src.schemas.assignment import assignmentSchema
+from src.schemas.assignment import assignmentSchema,UpdateAssignmentSchema
 from marshmallow import ValidationError
+from flask_jwt_extended import jwt_required, get_jwt
 
 assignment_bp = Blueprint("assignment", __name__)
 
 @assignment_bp.route("/api/create/assignments", methods=["POST"])
+@jwt_required()
 def create_assign():
+
+    token = get_jwt()
+    if token["role"] != "teacher":
+        return jsonify({
+            "message":"only teachers can create assignment",
+            "status":"failed"
+        }),403
+    
     try:
         data = assignmentSchema().load(request.get_json())
     except ValidationError as e:
@@ -19,10 +29,11 @@ def create_assign():
     student_id = data.get("student_id")
     total_marks = data.get("total_marks")
 
-    result = create_assignment(title, description, student_id,due_date,subject_id,total_marks)
+    result = add_assignment(title, description, student_id,due_date,subject_id,total_marks)
     return result
 
 @assignment_bp.route("/api/get/assignments", methods=["GET"])
+@jwt_required()
 def get_assignments():
     assignment_id = request.args.get("id", type=int)
     if assignment_id:
@@ -32,25 +43,41 @@ def get_assignments():
     return result
 
 @assignment_bp.route("/api/update/assignments/", methods=["PUT"])
+@jwt_required()
 def update_assignment():
 
+    token = get_jwt()
+    if token["role"] != "teacher":
+        return jsonify({
+            "message":"only teachers can create assignment",
+            "status":"failed"
+        }),403
+    
     assignment_id = request.args.get("id", type=int)
     if not assignment_id:
         return jsonify({
             "message": "Assignment ID is required",
             "status": "error"
         }), 400
-    
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
+    try:
+        data = UpdateAssignmentSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
 
     result = edit_assignment(assignment_id, **data)
     return result
 
 @assignment_bp.route("/api/delete/assignments/", methods=["DELETE"])
+@jwt_required()
 def delete_assig():
 
+    token = get_jwt()
+    if token["role"] != "teacher":
+        return jsonify({
+            "message":"only teachers can create assignment",
+            "status":"failed"
+        }),403
+    
     assignment_id = request.args.get("id", type=int)
     if not assignment_id:
         return jsonify({

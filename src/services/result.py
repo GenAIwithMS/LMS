@@ -3,6 +3,17 @@ from flask import jsonify
 from src.db import db
 
 def calculate_grade(obtained_marks, total_marks):
+    if total_marks is None or obtained_marks is None:
+        return jsonify({
+            "message": "Marks cannot be None",
+            "status": "error"
+        }), 400
+    if total_marks <= 0:
+        return jsonify({
+            "message": "Total marks must be greater than zero",
+            "status": "error"
+        }), 400
+    
     percentage = (obtained_marks / total_marks) * 100
     if percentage >= 90:
         return 'A'
@@ -21,10 +32,11 @@ def add_result(subject_id, student_id, total_marks,obtained_marks, exam_type, re
         student_id=student_id,
         total_marks=total_marks,
         obtained_marks=obtained_marks,
-        grade=calculate_grade(obtained_marks, total_marks),
         exam_type=exam_type,
         remarks=remarks
     )
+    grade = calculate_grade(obtained_marks, total_marks)
+    new_result.grade = grade
     db.session.add(new_result)
     db.session.commit()
 

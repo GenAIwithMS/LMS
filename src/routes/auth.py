@@ -47,12 +47,12 @@ def login():
         return jsonify({
             "status": False,
             "message": "Invalid email"
-        }), 401
+        }), 400
     if not user.check_password(password):
         return jsonify({
             "status": False,
             "message": "Invalid password"
-        }), 401
+        }), 400
     
     token = create_access_token(identity=str(user),additional_claims={"role":role})
     return jsonify({

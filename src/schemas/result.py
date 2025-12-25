@@ -8,4 +8,12 @@ class ResultSchema(Schema):
     total_marks = fields.Decimal(as_string=True, required=True)
     exam_type = fields.String(required=True, validate=validate.Length(min=2, max=50))
     remarks = fields.String(required=False, validate=validate.Length(max=255))
-    marks_obtained = fields.Decimal(as_string=True, required=True)
+    obtained_marks = fields.Decimal(as_string=True, required=True)
+
+class UpdateResultSchema(Schema):
+    student_id = fields.Integer(required=False)
+    subject_id = fields.Integer(required=False)
+    total_marks = fields.Decimal(as_string=True, required=False)
+    exam_type = fields.String(required=False, validate=validate.Length(min=2, max=50))
+    remarks = fields.String(required=False, validate=validate.Length(max=255))
+    obtained_marks = fields.Decimal(as_string=True, required=False)

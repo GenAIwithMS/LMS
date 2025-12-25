@@ -1,14 +1,22 @@
 from flask import Blueprint,jsonify,request
 # from src.services.user import add_user
 from flask_jwt_extended import jwt_required,get_jwt
-from src.schemas.auth_schema import RegisterTeacherSchema
+from src.schemas.auth_schema import RegisterTeacherSchema,UpdateTeacherSchema
 from marshmallow import ValidationError
 from src.services.teacher import add_teacher, get_teacher_by_id, update_teacher, delete_teacher, get_all_teachers
 
 teacher_bp = Blueprint("teacher",__name__)
 
 @teacher_bp.route("/api/add-teacher", methods=["POST"])
-def add_teacher_route():
+@jwt_required()
+def add_teach():
+
+    token = get_jwt()
+    if token["role"] != "admin":
+        return jsonify({
+            "message":"only admins can add teacher"
+        }),403
+    
     try:
         data_of_teacher = RegisterTeacherSchema().load(request.get_json())
     except ValidationError as e:
@@ -21,11 +29,12 @@ def add_teacher_route():
         username=data_of_teacher["username"],
         email=data_of_teacher.get("email"),
         password_hash=data_of_teacher["password_hash"],
+        student_id=data_of_teacher["student_id"]
     )
     return result
 
 
-@teacher_bp.route("/api/get_teacher")
+@teacher_bp.route("/api/get/teacher")
 @jwt_required()
 def get_teacher():
     
@@ -37,6 +46,7 @@ def get_teacher():
             return jsonify({
                 "message":"Admins have acess to see all the teacher's!"
             }),403
+        
         result = get_all_teachers()
         return result
         
@@ -45,24 +55,25 @@ def get_teacher():
     return result
     
 
-@teacher_bp.route("/api/update_teacher",methods=["PUT"])
+@teacher_bp.route("/api/update/teacher",methods=["PUT"])
 @jwt_required()
 def update_techer():
     if get_jwt()["role"] != "admin":
         return jsonify({
             "message":"Only admin can update teacher details"
         }),403
+    
     teacher_id = request.args.get("id",type=int)
 
     if teacher_id is None:
         return jsonify({
             "error":"Invalid ID"
         }),400
-    teacher_data = request.get_json(silent=True)
-    if not teacher_data:
-        return jsonify({
-            "error":"Invalid json body"
-        }),400
+    
+    try:
+        teacher_data = UpdateTeacherSchema().load(request.get_json(silent=True))
+    except ValidationError as e:
+        return jsonify(e.messages), 400
     
     result = update_teacher(teacher_id, **teacher_data)
     return result

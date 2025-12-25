@@ -4,7 +4,20 @@ from src.db import db
 import os
 
 def add_admin(name, email, username, password, image):
-
+    # check email or username already exists
+    existing_email = Admin.query.filter_by(email=email).first()
+    if existing_email:
+        return jsonify({
+            "message":"Email already exists",
+            "status":"failed"
+        }), 400
+    existing_username = Admin.query.filter_by(username=username).first()
+    if existing_username:
+        return jsonify({
+            "message":"Username already exists",
+            "status":"failed"
+        }), 400
+    
     file = image
     if file:
         filepath = f"src/static/images/{file.filename}"

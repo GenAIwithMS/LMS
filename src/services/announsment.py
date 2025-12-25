@@ -1,10 +1,16 @@
 from src.models.announcement import Announcement
-from src.models.teacher import Teacher
-from src.models.admin import Admin
 from flask import jsonify
 from src.db import db
   
-def create_announcement(title, content, teacher_id, section_id,target_audience='all', created_at=None):
+def add_announcement(title, content, teacher_id, section_id,target_audience='all', created_at=None):
+    #check if annoucement title already exists
+    existing_announcement = Announcement.query.filter_by(title=title).first()
+    if existing_announcement:
+        return jsonify({
+            "message":"Announcement title already exists try another",
+            "status":"failed"
+        }), 400
+    
     new_announcement = Announcement(
         title=title,
         content=content,

@@ -1,12 +1,13 @@
 from src.services.assignment_submission import submit_assignment,get_submissions_by_assignment,get_submissions_by_student,update_submission,delete_submission
 from flask import Blueprint, request, jsonify
-from src.schemas.assignment_submission import AssignmentSubmissionSchema
+from src.schemas.assignment_submission import AssignmentSubmissionSchema,UpdateAssignmentSubmissionSchema
 from marshmallow import ValidationError
-
+from flask_jwt_extended import jwt_required
 
 assignment_submission_bp = Blueprint("assignment_submission", __name__)
 
 @assignment_submission_bp.route("/api/submit/assignment", methods=["POST"])
+@jwt_required()
 def submit_assign():
     
     try:
@@ -25,6 +26,7 @@ def submit_assign():
     return result
 
 @assignment_submission_bp.route("/api/get/submissions/by_student", methods=["GET"])
+@jwt_required()
 def get_submissions_student():
     student_id = request.args.get("id", type=int)
     if not student_id:
@@ -37,6 +39,7 @@ def get_submissions_student():
     return result
 
 @assignment_submission_bp.route("/api/get/submissions/by_assignment", methods=["GET"])
+@jwt_required()
 def get_submissions_assignment():
     assignment_id = request.args.get("id", type=int)
     if not assignment_id:
@@ -49,6 +52,7 @@ def get_submissions_assignment():
     return result
 
 @assignment_submission_bp.route("/api/update/submission", methods=["PUT"])
+@jwt_required()
 def update_subm():
     submission_id = request.args.get("id", type=int)
     if not submission_id:
@@ -56,15 +60,17 @@ def update_subm():
             "message": "Submission ID is required",
             "status": "error"
         }), 400
-
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
+    
+    try:
+        data = UpdateAssignmentSubmissionSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
 
     result = update_submission(submission_id, **data)
     return result
 
 @assignment_submission_bp.route("/api/delete/submission", methods=["DELETE"])
+@jwt_required()
 def delete_subm():
     submission_id = request.args.get("id", type=int)
     if not submission_id:
