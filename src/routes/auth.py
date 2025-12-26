@@ -2,9 +2,7 @@ from flask import Blueprint,request,jsonify
 from src.models.admin import Admin
 from src.models.student import Student
 from src.models.teacher import Teacher
-# from src.models.user_data import UserData
 from flask_jwt_extended import create_access_token
-# from src.schemas.auth_schema import LoginSchema
 from marshmallow import ValidationError
 from src.schemas.auth_schema import loginSchema
 

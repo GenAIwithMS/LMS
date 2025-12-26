@@ -17,6 +17,7 @@ def create_announce():
             "status":"failed"
         }),403
     
+    
     try:
         data = AnnouncementSchema().load(request.get_json())
     except ValidationError as e:

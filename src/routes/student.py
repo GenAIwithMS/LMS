@@ -24,8 +24,6 @@ def add_student():
         data = RegisterStudentSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
-    if not data or not data.get('password'):
-        return jsonify({"error": "Password is required"}), 400
     
 
     result = add_students(
@@ -34,7 +32,7 @@ def add_student():
         section=data['section_id'],
         password=data['password'],
         email=data.get('email'),
-        teacher_id=data['teacher_id']
+        # teacher_id=data['teacher_id']
     )
     
 

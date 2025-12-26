@@ -1,26 +1,27 @@
 # API Documentation
 
-This document provides a comprehensive reference for the backend API endpoints.
+# This document provides a concise reference for the backend API endpoints and how the frontend should integrate with them.
 
-## Base URL
-`/api` (Note: Home routes are at root `/`)
+Base URL: `/` (API paths are shown below)
 
-## Authentication
+Authentication
+- Protected endpoints require a JWT in the `Authorization` header: `Authorization: Bearer <token>`.
+- The token contains a `role` claim with one of `admin`, `teacher`, or `student`.
+
+Common response pattern
+- Many endpoints return JSON with keys such as `{ "status": <bool|str>, "message": "...", ... }`.
 
 ### Login
 - **URL**: `/api/login`
 - **Method**: `POST`
 - **Body**:
   ```json
-  {
-    "email": "user@example.com",
-    "password": "password"
-  }
+  { "email": "user@example.com", "password": "password" }
   ```
 - **Responses**:
-  - `200 OK`: Login successful. Returns token and user details.
-  - `401 Unauthorized`: Invalid email or password.
-  - `400 Bad Request`: Missing fields or validation error.
+  - `200 OK`: `{ "status": true, "message": "Login successful", "token": "<jwt>", "Result": "<user_str>" }`
+  - `401 Unauthorized`: Invalid credentials
+  - `400 Bad Request`: Validation error
 
 ## User Management
 

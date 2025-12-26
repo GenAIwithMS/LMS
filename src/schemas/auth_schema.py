@@ -13,26 +13,29 @@ class RegisterTeacherSchema(Schema):
     subject = fields.String(required=True, validate=validate.Length(min=2, max=50))
     username = fields.String(required=True, validate=validate.Length(min=3, max=100))
     email = fields.Email(required=True)
-    student_id = fields.Integer(required=True)
+    # student_id = fields.Integer(required=True)
     password_hash = fields.String(required=True, validate=validate.Length(min=6))
 
 class UpdateTeacherSchema(Schema):
+    # id = fields.Integer(required=True)
     name = fields.String(required=False, validate=validate.Length(min=3, max=100))
     subject = fields.String(required=False, validate=validate.Length(min=2, max=50))
     username = fields.String(required=False, validate=validate.Length(min=3, max=100))
     email = fields.Email(required=False)
-    student_id = fields.Integer(required=False)
+    # student_id = fields.Integer(required=False)
     password_hash = fields.String(required=False, validate=validate.Length(min=6))
 
 class RegisterStudentSchema(Schema):
+    # id = fields.Integer(required=False)
     name = fields.String(required=True, validate=validate.Length(min=3, max=100))
     username = fields.String(required=True, validate=validate.Length(min=3, max=100))
-    teacher_id = fields.Integer(required=True)
+    # teacher_id = fields.Integer(required=True)
     section_id = fields.Integer(required=True)
     email = fields.Email(required=True)
     password = fields.String(required=True, validate=validate.Length(min=6))
 
 class UpdateStudentSchema(Schema):
+    # id = fields.Integer(required=True)
     name = fields.String(required=False, validate=validate.Length(min=3, max=100))
     username = fields.String(required=False, validate=validate.Length(min=3, max=100))
     teacher_id = fields.Integer(required=False)

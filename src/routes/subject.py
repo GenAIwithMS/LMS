@@ -6,7 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt
 
 subject_bp = Blueprint("subject", __name__)
 
-@subject_bp.route("/api/create_subject", methods=["POST"])
+@subject_bp.route("/api/create/subject", methods=["POST"])
 @jwt_required()
 def create_subj():
 
@@ -29,7 +29,7 @@ def create_subj():
     result = add_subject(name, teacher_id, course_code)
     return result
 
-@subject_bp.route("/api/get_subjects", methods=["GET"])
+@subject_bp.route("/api/get/subjects", methods=["GET"])
 @jwt_required()
 def get_subj():
     subject_id = request.args.get("id", type=int)
@@ -41,7 +41,7 @@ def get_subj():
     result = get_subject_by_id(subject_id)
     return result
 
-@subject_bp.route("/api/delete_subject", methods=["DELETE"])
+@subject_bp.route("/api/delete/subject", methods=["DELETE"])
 @jwt_required()
 def delete_subj():
 
@@ -61,7 +61,7 @@ def delete_subj():
     result = delete_subject(subject_id)
     return result
 
-@subject_bp.route("/api/update_subject", methods=["PUT"])
+@subject_bp.route("/api/update/subject", methods=["PUT"])
 @jwt_required()
 def update_subj():
 

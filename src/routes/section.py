@@ -6,7 +6,7 @@ from flask_jwt_extended import jwt_required,get_jwt
 
 section_bp = Blueprint("section", __name__)
 
-@section_bp.route("/api/add_section", methods=["POST"])
+@section_bp.route("/api/add/section", methods=["POST"])
 @jwt_required()
 def add_sec():
 
@@ -28,7 +28,7 @@ def add_sec():
     result = add_section(name, teacher_id)
     return result
 
-@section_bp.route("/api/get_section", methods=["GET"])
+@section_bp.route("/api/get/section", methods=["GET"])
 @jwt_required()
 def get_sec():
     section_id = request.args.get("id", type=int)

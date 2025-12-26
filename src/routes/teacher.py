@@ -79,7 +79,7 @@ def update_techer():
     return result
 
 
-@teacher_bp.route("/api/delete_teacher",methods=["DELETE"])
+@teacher_bp.route("/api/delete/teacher",methods=["DELETE"])
 @jwt_required()
 def del_teacher():
     if get_jwt()["role"] != "admin":

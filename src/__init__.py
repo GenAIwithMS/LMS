@@ -39,13 +39,14 @@ from src.models.student_teacher import StudentTeacher
 def create_app():
     app = Flask(__name__)
     
-    CORS(app) # Enable CORS for all routes
-    # CORS( 
-    #     app, resources={r"/*": {"origins": "*"}},
-    #     allow_headers=["Content-Type", "Authorization"],
-    #     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    #     supports_credentials=True
-    #     )
+    CORS(app) 
+    # CORS(app, resources={
+    # r"/api/*": {
+    #     "origins": ["http://localhost:3000"],
+    #     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    #     "allow_headers": ["Content-Type", "Authorization"]
+    # }
+    # })
 
     app.config["JWT_SECRET_KEY"] = "supersecretkey"
     app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root:@localhost/llm_LMS"

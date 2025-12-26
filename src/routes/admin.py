@@ -30,7 +30,7 @@ def add_adm():
     
     return result
 
-@admin_bp.route("/api/get_admin", methods=["GET"])
+@admin_bp.route("/api/get/admin", methods=["GET"])
 @jwt_required()
 def get_admin():
 

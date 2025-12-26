@@ -25,7 +25,7 @@ def submit_assign():
     result = submit_assignment(student_id, assignment_id, submission_text, submission_file, submitted_at, feedback)
     return result
 
-@assignment_submission_bp.route("/api/get/submissions/by_student", methods=["GET"])
+@assignment_submission_bp.route("/api/get/submissions/by/student", methods=["GET"])
 @jwt_required()
 def get_submissions_student():
     student_id = request.args.get("id", type=int)
@@ -38,7 +38,7 @@ def get_submissions_student():
     result = get_submissions_by_student(student_id)
     return result
 
-@assignment_submission_bp.route("/api/get/submissions/by_assignment", methods=["GET"])
+@assignment_submission_bp.route("/api/get/submissions/by/assignment", methods=["GET"])
 @jwt_required()
 def get_submissions_assignment():
     assignment_id = request.args.get("id", type=int)
