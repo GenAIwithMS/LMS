@@ -12,7 +12,6 @@ from src.agent.prompts import admin_system_prompt, teacher_system_prompt, studen
 load_dotenv()
 model = ChatGroq(model="qwen/qwen3-32b")
 
-
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
     user_role: str
