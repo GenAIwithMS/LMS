@@ -1,3 +1,8 @@
 .venv
 __pycache__
 .env
+static
+AGENT_README.md
+CHATBOT_API.md
+CHATBOT_CURL.md
+test_chatbot.py
