@@ -17,7 +17,7 @@ def mark_attend(student_id, subject_id, date, time, status):
     return jsonify({
         "message": "Attendance marked successfully",
         "status": "success"
-    })
+    }), 201
 
 def get_attendance_by_student(student_id):
     id_student = Attendance.query.filter_by(student_id=student_id).all()
@@ -25,7 +25,7 @@ def get_attendance_by_student(student_id):
         return jsonify({
             "message": "Student not found",
             "status": "error"
-        }), 400
+        }), 404
     
     result = []
     for record in id_student:
@@ -44,7 +44,7 @@ def get_attendance_by_subject(subject_id):
         return jsonify({
             "message": "No attendance records found for this subject",
             "status": "error"
-        }), 400
+        }), 404
     
     result = []
     for record in subject_attendance:
@@ -79,7 +79,7 @@ def update_attendance(attendance_id, **kwargs):
         return jsonify({
             "message": "Attendance record not found",
             "status": "error"
-        }), 400
+        }), 404
     
     for key, value in kwargs.items():
         if hasattr(attendance_record, key):
@@ -98,7 +98,7 @@ def delete_attendance(attendance_id):
         return jsonify({
             "message": "Attendance record not found",
             "status": "error"
-        }), 400
+        }), 404
     
     db.session.delete(attendance_record)
     db.session.commit()

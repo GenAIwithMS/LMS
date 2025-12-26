@@ -5,7 +5,6 @@ from src.routes.auth import auth
 from src.routes.student import student_bp
 from src.routes.teacher import teacher_bp
 from src.routes.admin import admin_bp 
-from src.routes.register import register_bp
 from src.routes.assignments import assignment_bp
 from src.routes.subject import subject_bp
 from src.routes.result import result_bp
@@ -56,7 +55,6 @@ def create_app():
     bcrypt.init_app(app)
     app.register_blueprint(home_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(register_bp)
     app.register_blueprint(auth)
     app.register_blueprint(student_bp)
     app.register_blueprint(teacher_bp)
@@ -71,9 +69,7 @@ def create_app():
     app.register_blueprint(event_bp)
     app.register_blueprint(attendance_bp)
     app.register_blueprint(chatbot_bp)
-    # app.register_blueprint(jwt)
 
-    # app.register_blueprint(bcrypt)
 
     with app.app_context():
         db.create_all()

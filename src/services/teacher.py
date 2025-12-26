@@ -34,7 +34,7 @@ def add_teacher(name,subject, username,email,password_hash, student_id):
     return jsonify({
         "message":"teacher added sucessfully",
         "status":"sucess"
-    })
+    }), 201
 
 def get_all_teachers():
     all_teachers = Teacher.query.all()
@@ -56,7 +56,7 @@ def get_teacher_by_id(teacher_id):
         return jsonify({
             "message":"teacher not found",
             "status":"failed"
-        }), 400
+        }), 404
     teacher_data = {
         "id": teacher.id,
         "name": teacher.name,
@@ -74,7 +74,7 @@ def update_teacher(teacher_id, **kwargs):
         return jsonify({
             "message":"teacher not found",
             "status":"failed"
-        }), 400
+        }), 404
     
     for key, value in kwargs.items():
         if hasattr(teacher, key):

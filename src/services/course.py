@@ -34,7 +34,7 @@ def get_all_courses():
 def get_course_by_id(course_id):
     course = Course.query.get(course_id)
     if not course:
-        return jsonify({"message": "Course not found"}), 400
+        return jsonify({"message": "Course not found"}), 404
     course_data = {
         "id": course.id,
         "name": course.name,
@@ -48,7 +48,7 @@ def get_course_by_id(course_id):
 def update_course(course_id, **kwargs):
     course = Course.query.get(course_id)
     if not course:
-        return jsonify({"message": "Course not found"}), 400
+        return jsonify({"message": "Course not found"}), 404
     for key, value in kwargs.items():
         if hasattr(course, key):
             setattr(course, key, value)
@@ -58,7 +58,7 @@ def update_course(course_id, **kwargs):
 def delete_course(course_id):
     course = Course.query.get(course_id)
     if not course:
-        return jsonify({"message": "Course not found"}), 400
+        return jsonify({"message": "Course not found"}), 404
     db.session.delete(course)
     db.session.commit()
     return jsonify({"message": "Course deleted successfully"})

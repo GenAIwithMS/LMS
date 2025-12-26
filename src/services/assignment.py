@@ -17,7 +17,7 @@ def add_assignment(title, description,student_id, due_date,subject_id, total_mar
     return jsonify({
         "message": "Assignment created successfully",
         "status": "success"
-    })
+    }), 201
 
 def get_assignment_by_id(assignment_id):
     assignment = Assignment.query.get(assignment_id)
@@ -25,7 +25,7 @@ def get_assignment_by_id(assignment_id):
         return jsonify({
             "message": "Assignment not found",
             "status": "error"
-        }),400
+        }),404
 
     return jsonify({
         "assignment": {
@@ -65,7 +65,7 @@ def edit_assignment(assignment_id, **kwargs):
         return jsonify({
             "message": "Assignment not found",
             "status": "error"
-        }),400
+        }),404
 
     for key, value in kwargs.items():
         if value is not None and hasattr(assignment, key):
@@ -84,7 +84,7 @@ def delete_assignment(assignment_id):
         return jsonify({
             "message": "Assignment not found",
             "status": "error"
-        }),400
+        }),404
 
     db.session.delete(assignment)
     db.session.commit()

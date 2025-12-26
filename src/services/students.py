@@ -36,7 +36,7 @@ def add_students(name, username, section, password, email, teacher_id):
     return jsonify({
         "message":"student added sucessfully",
         "status":"sucess"
-    })
+    }), 201
 
 def get_all_students():
     students = Student.query.all()
@@ -44,7 +44,7 @@ def get_all_students():
         return jsonify({
             "message":"no students found",
             "status":"failed"
-        }), 400
+        }), 404
     
     student_list = []
     for student in students:
@@ -64,7 +64,7 @@ def get_student_by_id(student_id):
         return jsonify({
             "message":"student not found",
             "status":"failed"
-        }), 400
+        }), 404
     
     student_data = {
         "id": student.id,
@@ -106,7 +106,7 @@ def delete_student(student_id):
         return jsonify({
             "message":"student not found",
             "status":"failed"
-        }), 400
+        }), 404
 
     db.session.delete(student)
     db.session.commit()

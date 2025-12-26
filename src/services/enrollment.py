@@ -12,7 +12,7 @@ def enroll_student(student_id, course_id, enrollment_date, status='active', grad
     )
     db.session.add(new_enrollment)
     db.session.commit()
-    return jsonify({"message": "Student enrolled successfully", "enrollment_id": new_enrollment.id})
+    return jsonify({"message": "Student enrolled successfully", "enrollment_id": new_enrollment.id}),201
 
 def get_all_enrollments():
     enrollments = Enrollment.query.all()
@@ -66,7 +66,7 @@ def update_enrollment(enrollment_id, **kwargs):
         if hasattr(enrollment, key):
             setattr(enrollment, key, value)
     db.session.commit()
-    return jsonify({"message": "Enrollment updated successfully"})
+    return jsonify({"message": "Enrollment updated successfully"}), 200
 
 def delete_enrollment(enrollment_id):
     enrollment = Enrollment.query.get(enrollment_id)
@@ -74,4 +74,4 @@ def delete_enrollment(enrollment_id):
         return False
     db.session.delete(enrollment)
     db.session.commit()
-    return jsonify({"message": "Enrollment deleted successfully"})
+    return jsonify({"message": "Enrollment deleted successfully"}), 200

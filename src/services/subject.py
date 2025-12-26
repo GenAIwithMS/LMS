@@ -14,7 +14,7 @@ def add_subject(name, teacher_id, course_code=None):
     return jsonify({
         "message": "Subject created successfully",
         "status": "success"
-    })
+    }), 201
 
 def get_all_subjects():
     subjects = Subject.query.all()
@@ -40,7 +40,7 @@ def get_subject_by_id(subject_id):
         return jsonify({
             "message": "Subject not found",
             "status": "error"
-        }), 400
+        }), 404
     
     subject_data = {
         "id": subject.id,
@@ -61,7 +61,7 @@ def delete_subject(subject_id):
         return jsonify({
             "message": "Subject not found",
             "status": "error"
-        }), 400
+        }), 404
     
     db.session.delete(subject)
     db.session.commit()
@@ -77,7 +77,7 @@ def update_subject(subject_id, **kwargs):
         return jsonify({
             "message": "Subject not found",
             "status": "error"
-        }), 400
+        }), 404
     
     for key, value in kwargs.items():
         if hasattr(subject, key):

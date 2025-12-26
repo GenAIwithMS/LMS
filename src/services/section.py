@@ -21,7 +21,7 @@ def add_section(name, teacher_id):
     return jsonify({
         "message":"section added successfully",
         "status":"success"
-    })
+    }), 201
 
 def get_section_by_id(section_id):
     section = Section.query.get(section_id)
@@ -29,7 +29,7 @@ def get_section_by_id(section_id):
         return jsonify({
             "message":"section not found",
             "status":"error"
-        }), 400
+        }), 404
 
     return jsonify({
         "id": section.id,
@@ -54,7 +54,7 @@ def edit_section(section_id, **kwargs):
         return jsonify({
             "message":"section not found",
             "status":"error"
-        }), 400
+        }), 404
     
     for key, value in kwargs.items():
         if hasattr(section, key):
@@ -73,7 +73,7 @@ def delete_section(section_id):
         return jsonify({
             "message":"section not found",
             "status":"error"
-        }), 400
+        }), 404
 
     db.session.delete(section)
     db.session.commit()

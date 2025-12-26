@@ -38,4 +38,4 @@ def add_admin(name, email, username, password, image):
     return jsonify({
         "message":"admin added successfully",
         "status":"success"
-    })
+    }), 201

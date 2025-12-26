@@ -1,5 +1,3 @@
-import sys
-import os
 from typing import TypedDict, Annotated, Sequence
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
@@ -9,9 +7,7 @@ from langgraph.prebuilt import ToolNode
 import operator
 from src.agent.tools_list import admin_tools, teacher_tools, student_tools
 from src.agent.prompts import admin_system_prompt, teacher_system_prompt, student_system_prompt
-# Add project root to path
-# project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# sys.path.insert(0, project_root)
+
 
 load_dotenv()
 model = ChatGroq(model="qwen/qwen3-32b")

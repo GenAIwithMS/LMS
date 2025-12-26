@@ -56,7 +56,7 @@ def get_student():
     student_data = Student.query.get(student_id)
 
     if student_data is None:
-        return jsonify({"error": "Student not found"}), 400
+        return jsonify({"error": "Student not found"}), 404
     
     result = get_student_by_id(student_id)
     return result 
@@ -70,7 +70,7 @@ def update_student():
     if get_jwt()["role"] != "admin":
         return jsonify({
             "message":"Only admin can update student details"
-        }),400
+        }),403
     
     student_id = request.args.get("id",type=int)
     if student_id is None:

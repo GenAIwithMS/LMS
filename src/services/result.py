@@ -43,7 +43,7 @@ def add_result(subject_id, student_id, total_marks,obtained_marks, exam_type, re
     return jsonify({
         "message": "Result added successfully",
         "status": "success"
-    })
+    }), 201
 
 def get_result_by_id(result_id):
     result = Result.query.get(result_id)
@@ -51,7 +51,7 @@ def get_result_by_id(result_id):
         return jsonify({
             "message": "Result not found",
             "status": "error"
-        }), 400
+        }), 404
 
     return jsonify({
         "id": result.id,
@@ -86,7 +86,7 @@ def edit_result(result_id, **kwargs):
         return jsonify({
             "message": "Result not found",
             "status": "error"
-        }), 400
+        }), 404
 
     for key, value in kwargs.items():
         if hasattr(result, key):
@@ -110,7 +110,7 @@ def delete_result(result_id):
         return jsonify({
             "message": "Result not found",
             "status": "error"
-        }), 400
+        }), 404
 
     db.session.delete(result)
     db.session.commit()

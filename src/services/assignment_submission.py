@@ -28,7 +28,7 @@ def submit_assignment(student_id, assignment_id, submission_text=None, submissio
     return jsonify({
         "message": "Assignment submitted successfully",
         "status": "success"
-    })
+    }), 201
 
 def get_submissions_by_student(student_id):
     submissions = AssignmentSubmission.query.filter_by(student_id=student_id).all()

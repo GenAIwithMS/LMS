@@ -23,10 +23,10 @@ def add_event(title, description, event_date, event_time,created_at, admin_id):
     db.session.add(new_event)
     db.session.commit()
 
-    return {
+    return jsonify({
         "message": "Event created successfully",
         "status": "success" 
-    }
+    }), 201
 
 def get_event_by_id(event_id):
     event = Event.query.get(event_id)
@@ -34,7 +34,7 @@ def get_event_by_id(event_id):
         return jsonify({
             "message": "Event not found",
             "status": "error"
-        }), 400
+        }), 404
 
   
     result =  {
@@ -69,7 +69,7 @@ def update_event(event_id, **kwargs):
         return jsonify({
             "message": "Event not found",
             "status": "error"
-        }), 400
+        }), 404
 
     for key, value in kwargs.items():
         if hasattr(event, key):
@@ -87,7 +87,7 @@ def delete_event(event_id):
         return jsonify({
             "message": "Event not found",
             "status": "error"
-        }), 400
+        }), 404
 
     db.session.delete(event)
     db.session.commit()

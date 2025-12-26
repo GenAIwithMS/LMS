@@ -27,7 +27,7 @@ def add_announcement(title, content, teacher_id, section_id,target_audience='all
     return jsonify({
         "message": "Announcement created successfully",
         "status": "success"
-    })
+    }), 201
 
 def get_all_announcements():
     
@@ -54,7 +54,7 @@ def get_announcement_by_id(announcement_id):
         return jsonify({
             "message": "Announcement not found",
             "status": "error"
-        }), 400
+        }), 404
 
     announcement_data = {
         "id": announcement.id,
@@ -73,7 +73,7 @@ def edit_announcement(announcement_id, **kwargs):
         return jsonify({
             "message": "Announcement not found",
             "status": "error"
-        }), 400
+        }), 404
 
     for key, value in kwargs.items():
         if hasattr(announcement, key):
@@ -92,7 +92,7 @@ def delete_announcement(announcement_id):
         return jsonify({
             "message": "Announcement not found",
             "status": "error"
-        }), 400
+        }), 404
 
     db.session.delete(announcement)
     db.session.commit()

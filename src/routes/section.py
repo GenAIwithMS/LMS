@@ -72,7 +72,7 @@ def delete_sec():
     if token["role"] != "admin":
         return jsonify({
             "message":"only admin can delete section"
-        })
+        }),403
 
     section_id = request.args.get("id", type=int)
     if not section_id:
