@@ -10,8 +10,8 @@ class Student(db.Model):
     password = db.Column(db.String(255), nullable=False)
     section_id = db.Column(db.BigInteger, db.ForeignKey("sections.id") , nullable=False)
 
-    course = db.relationship('Course', secondary='enrollment', backref='study_students', lazy=True)
-    section = db.relationship('Section', backref='section_students', lazy=True)
+    courses = db.relationship('Course', secondary='enrollment', backref='students', lazy=True)
+    section = db.relationship('Section', backref='students', lazy=True)
 
     def set_password(self, password):
         if not isinstance(password, str) or not password:

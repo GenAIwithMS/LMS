@@ -11,7 +11,6 @@ def submit_assignment(student_id, assignment_id, submission_text=None, submissio
         if not os.path.exists("src/static/submissions/"):
             os.makedirs("src/static/submissions/")
         file.save(filepath)
-        # submission_file = filepath
     new_submission = AssignmentSubmission(
         student_id=student_id,
         assignment_id=assignment_id,

@@ -3,6 +3,9 @@ from src.services.attendance import mark_attend, get_attendance_by_student,get_a
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt
+from src.models.student import Student
+from src.models.subject import Subject
+from src.models.attendance import Attendance
 
 attendance_bp = Blueprint('attendance', __name__)
 
@@ -22,25 +25,49 @@ def create_attendance():
     except ValidationError as err:
         return jsonify(err.messages), 400
     
-    student_id = data['student_id']
-    subject_id = data['subject_id']
-    date = data['date']
-    time = data['time']
+    student_name = data['student_name']
+    subject_name = data['subject_name']
     status = data['status']
 
-    result = mark_attend(student_id, subject_id, date, time, status)
+    student = Student.query.filter_by(name=student_name).first()
+    if not student:
+        return jsonify({
+            "message": "Student not found",
+            "status": "failed"
+        }), 400
+
+    subject = Subject.query.filter_by(name=subject_name).first()
+    if not subject:
+        return jsonify({
+            "message": "Subject not found",
+            "status": "failed"
+        }), 400
+
+    result = mark_attend(student.id, subject.id,status)
     return result
 
 @attendance_bp.route("/api/get/attendance", methods=["GET"])
 @jwt_required()
 def fetch_attendance():
-    student_id = request.args.get('student_id')
-    subject_id = request.args.get('subject_id')
+    student_name = request.args.get('student_name')
+    subject_name = request.args.get('subject_name')
 
-    if student_id:
-        return get_attendance_by_student(student_id)
-    elif subject_id:
-        return get_attendance_by_subject(subject_id)
+    if student_name:
+        student = Student.query.filter_by(name=student_name).first()
+        if not student:
+            return jsonify({
+                "message": "Student not found",
+                "status": "failed"
+            }), 400
+        return get_attendance_by_student(student.id)
+    elif subject_name:
+        subject = Subject.query.filter_by(name=subject_name).first()
+        if not subject:
+            return jsonify({
+                "message": "Subject not found",
+                "status": "failed"
+            }), 400
+        return get_attendance_by_subject(subject.id)
     else:
         return get_all_attendance()
     
@@ -55,7 +82,7 @@ def modify_attendance():
             "status":"failed"
         }),403
     
-    attendance_id = request.args.get('attendance_id')
+    attendance_id = request.args.get('id')
     if not attendance_id:
         return jsonify({
             "message": "attendance_id query parameter is required",
@@ -67,7 +94,27 @@ def modify_attendance():
     except ValidationError as err:
         return jsonify(err.messages), 400
 
-    result = update_attendance(attendance_id, data)
+    if 'student_name' in data:
+        student = Student.query.filter_by(name=data['student_name']).first()
+        if not student:
+            return jsonify({
+                "message": "Student not found",
+                "status": "failed"
+            }), 400
+        data['student_id'] = student.id
+        del data['student_name']
+
+    if 'subject_name' in data:
+        subject = Subject.query.filter_by(name=data['subject_name']).first()
+        if not subject:
+            return jsonify({
+                "message": "Subject not found",
+                "status": "failed"
+            }), 400
+        data['subject_id'] = subject.id
+        del data['subject_name']
+
+    result = update_attendance(attendance_id, **data)
     return result
 
 @attendance_bp.route("/api/delete/attendance", methods=["DELETE"])
@@ -81,12 +128,36 @@ def remove_attendance():
             "status":"failed"
         }),403
     
-    attendance_id = request.args.get('attendance_id')
-    if not attendance_id:
+    data = request.get_json()
+    student_name = data.get('student_name')
+    subject_name = data.get('subject_name')
+    
+    if not student_name or not subject_name:
         return jsonify({
-            "message": "attendance_id query parameter is required",
+            "message": "student_name and subject_name are required in the request body",
             "status": "error"
         }), 400
 
-    result = delete_attendance(attendance_id)
+    student = Student.query.filter_by(name=student_name).first()
+    if not student:
+        return jsonify({
+            "message": "Student not found",
+            "status": "failed"
+        }), 400
+
+    subject = Subject.query.filter_by(name=subject_name).first()
+    if not subject:
+        return jsonify({
+            "message": "Subject not found",
+            "status": "failed"
+        }), 400
+
+    attendance_record = Attendance.query.filter_by(student_id=student.id, subject_id=subject.id).order_by(Attendance.mark_at.desc()).first()
+    if not attendance_record:
+        return jsonify({
+            "message": "Attendance record not found for this student and subject",
+            "status": "failed"
+        }), 404
+
+    result = delete_attendance(attendance_record.id)
     return result

@@ -5,6 +5,7 @@ class Subject(db.Model):
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), nullable=False)
     teacher_id = db.Column(db.BigInteger,db.ForeignKey("teachers.id"), nullable=False)
-    course_code = db.Column(db.String(50), nullable=True)
+    course_id = db.Column(db.BigInteger, db.ForeignKey("courses.id"), nullable=False)
 
-    teacher = db.relationship('Teacher', backref='subjects', lazy=True)
+    teacher = db.relationship('Teacher', backref='subjects', lazy=True, foreign_keys=[teacher_id])
+    course = db.relationship('Course', backref='subjects', lazy=True)

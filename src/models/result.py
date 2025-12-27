@@ -11,5 +11,5 @@ class Result(db.Model):
     exam_type = db.Column(db.Enum('midterm', 'final', 'quiz', 'assignment'), default='final')
     remarks = db.Column(db.Text, nullable=True)
 
-    student = db.relationship('Student', backref='student_results', lazy=True)
-    subject = db.relationship('Subject', backref='subject_results', lazy=True)
+    student = db.relationship('Student', backref='results', lazy=True)
+    subject = db.relationship('Subject', backref='results', lazy=True)

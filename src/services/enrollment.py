@@ -20,8 +20,8 @@ def get_all_enrollments():
     for enrollment in enrollments:
         enrollment_data = {
             "id": enrollment.id,
-            "student_id": enrollment.student_id,
-            "course_id": enrollment.course_id,
+            "student_name": enrollment.student.name,
+            "course_name": enrollment.course.name,
             "enrollment_date": enrollment.enrollment_date,
             "status": enrollment.status,
             "grade": enrollment.grade
@@ -35,7 +35,7 @@ def get_enrollments_by_student(student_id):
     for enrollment in enrollments:
         enrollment_data = {
             "id": enrollment.id,
-            "course_id": enrollment.course_id,
+            "course_name": enrollment.course.name,
             "enrollment_date": enrollment.enrollment_date,
             "status": enrollment.status,
             "grade": enrollment.grade
@@ -50,7 +50,7 @@ def get_enrollments_by_course(course_id):
     for enrollment in enrollments:
         enrollment_data = {
             "id": enrollment.id,
-            "student_id": enrollment.student_id,
+            "student_name": enrollment.student.name,
             "enrollment_date": enrollment.enrollment_date,
             "status": enrollment.status,
             "grade": enrollment.grade

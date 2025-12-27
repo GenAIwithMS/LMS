@@ -2,7 +2,7 @@ from src.services.assignment_submission import submit_assignment,get_submissions
 from flask import Blueprint, request, jsonify
 from src.schemas.assignment_submission import AssignmentSubmissionSchema,UpdateAssignmentSubmissionSchema
 from marshmallow import ValidationError
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required,get_jwt_identity
 
 assignment_submission_bp = Blueprint("assignment_submission", __name__)
 
@@ -15,7 +15,7 @@ def submit_assign():
     except ValidationError as e:
         return jsonify(e.messages), 400
     
-    student_id = data.get("student_id")
+    student_id = int(get_jwt_identity())
     assignment_id = data.get("assignment_id")
     submission_text = data.get("submission_text")
     submission_file = request.files.get("submission_file")

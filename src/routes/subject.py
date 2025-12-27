@@ -3,6 +3,8 @@ from src.schemas.subject import subjectSchema,UpdateSubjectSchema
 from marshmallow import ValidationError
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
+from src.models.teacher import Teacher
+from src.models.course import Course
 
 subject_bp = Blueprint("subject", __name__)
 
@@ -22,11 +24,25 @@ def create_subj():
     except ValidationError as e:
         return jsonify(e.messages), 400
     
+    teacher_name = data.get("teacher_name")
+    teacher = Teacher.query.filter_by(name=teacher_name).first()
+    if not teacher:
+        return jsonify({
+            "message": "Teacher not found",
+            "status": "failed"
+        }), 400
+    
+    course_name = data.get("course_name")
+    course = Course.query.filter_by(name=course_name).first()
+    if not course:
+        return jsonify({
+            "message": "Course not found",
+            "status": "failed"
+        }), 400
+    
     name = data.get("name")
-    teacher_id = data.get("teacher_id")
-    course_code = data.get("course_code")
 
-    result = add_subject(name, teacher_id, course_code)
+    result = add_subject(name, teacher.id, course.id)
     return result
 
 @subject_bp.route("/api/get/subjects", methods=["GET"])
@@ -83,7 +99,28 @@ def update_subj():
             "message": "Subject ID is required",
             "status": "error"
         }), 400
-    result = update_subject(subject_id, **data)
+
+    kwargs = {}
+    if 'name' in data:
+        kwargs['name'] = data['name']
+    if 'teacher_name' in data:
+        teacher = Teacher.query.filter_by(name=data['teacher_name']).first()
+        if not teacher:
+            return jsonify({
+                "message": "Teacher not found",
+                "status": "failed"
+            }), 400
+        kwargs['teacher_id'] = teacher.id
+    if 'course_name' in data:
+        course = Course.query.filter_by(name=data['course_name']).first()
+        if not course:
+            return jsonify({
+                "message": "Course not found",
+                "status": "failed"
+            }), 400
+        kwargs['course_id'] = course.id
+
+    result = update_subject(subject_id, **kwargs)
 
     return result
 

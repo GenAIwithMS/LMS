@@ -1,10 +1,8 @@
 from src.models.teacher import Teacher
-from src.models.student import Student
 from src.db import db
 from flask import jsonify
 
-def add_teacher(name,subject, username,email,password_hash, student_id):
-    #check email or username already exists
+def add_teacher(name, username, email, password_hash):
     existing_email = Teacher.query.filter_by(email=email).first()
     if existing_email:
         return jsonify({
@@ -20,12 +18,9 @@ def add_teacher(name,subject, username,email,password_hash, student_id):
     
     new_teacher = Teacher(
         name=name,
-        subject=subject,
         username=username,
         email=email
     )
-    student = Student.query.get(student_id)
-    new_teacher.students.append(student)
 
     new_teacher.set_password(password_hash)
     db.session.add(new_teacher)
@@ -44,7 +39,7 @@ def get_all_teachers():
         teachers.append({
             "id": teacher.id,
             "name":teacher.name,
-            "subject":teacher.subject,
+            "subjects": [subject.name for subject in teacher.subjects],
             "username": teacher.username,
             "email": teacher.email
         })
@@ -62,7 +57,7 @@ def get_teacher_by_id(teacher_id):
         "name": teacher.name,
         "username": teacher.username,
         "email": teacher.email,
-        "subject": teacher.subject
+        "subjects": [subject.name for subject in teacher.subjects]
     }
     return jsonify({
         "teacher": teacher_data

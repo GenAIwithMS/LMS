@@ -8,7 +8,6 @@ class Admin(db.Model):
     username = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(255), nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    image = db.Column(db.Text, nullable=False)
 
     def set_password(self, password):
         if not isinstance(password, str) or not password:

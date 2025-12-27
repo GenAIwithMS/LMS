@@ -3,6 +3,8 @@ from src.schemas.enrollment import EnrollmentSchema,UpdateEnrollmentSchema
 from flask_jwt_extended import jwt_required, get_jwt
 from flask import jsonify,Blueprint,request
 from marshmallow import ValidationError
+from src.models.student import Student
+from src.models.course import Course
 
 enrollment_bp = Blueprint("enrollment",__name__)
 
@@ -24,15 +26,29 @@ def enroll_stu():
     except ValidationError as e:
         return jsonify(e.messages), 400
     
-    student_id = data.get("student_id")
-    course_id = data.get("course_id")
+    student_name = data.get("student_name")
+    course_name = data.get("course_name")
     enrollment_date = data.get("enrollment_date")
     status = data.get("status", "active")
     grade = data.get("grade")
 
+    student = Student.query.filter_by(name=student_name).first()
+    if not student:
+        return jsonify({
+            "message": "Student not found",
+            "status": "failed"
+        }), 400
+    
+    course = Course.query.filter_by(name=course_name).first()
+    if not course:
+        return jsonify({
+            "message": "Course not found",
+            "status": "failed"
+        }), 400
+
     result = enroll_student(
-        student_id=student_id,
-        course_id=course_id,
+        student_id=student.id,
+        course_id=course.id,
         enrollment_date=enrollment_date,
         status=status,
         grade=grade
@@ -42,16 +58,22 @@ def enroll_stu():
 @enrollment_bp.route("/api/get/enrollments", methods=["GET"])
 @jwt_required()
 def get_enrollments():
-    course_id = request.args.get("course_id", type=int)
-    student_id = request.args.get("student_id", type=int)
+    data = request.get_json()
 
-
-    if course_id:
-        result = get_enrollments_by_course(course_id)
+    course_name = data.get("course_name")
+    if course_name:
+        course = Course.query.filter_by(name=course_name).first()
+        if not course:
+            return jsonify({"message": "Course not found", "status": "failed"}), 404
+        result = get_enrollments_by_course(course.id)
         return result
 
-    if student_id:
-        result = get_enrollments_by_student(student_id)
+    student_name = data.get("student_name")
+    if student_name:
+        student = Student.query.filter_by(name=student_name).first()
+        if not student:
+            return jsonify({"message": "Student not found", "status": "failed"}), 404
+        result = get_enrollments_by_student(student.id)
         return result
     all_enrollments = get_all_enrollments()
     return all_enrollments
@@ -84,7 +106,23 @@ def update_enroll():
             "message": "Enrollment ID is required",
             "status": "error"
         }), 400
-    result = update_enrollment(enrollment_id, **data)
+
+    kwargs = {}
+    if 'student_name' in data:
+        student = Student.query.filter_by(name=data['student_name']).first()
+        if not student:
+            return jsonify({"message": "Student not found", "status": "failed"}), 400
+        kwargs['student_id'] = student.id
+    if 'course_name' in data:
+        course = Course.query.filter_by(name=data['course_name']).first()
+        if not course:
+            return jsonify({"message": "Course not found", "status": "failed"}), 400
+        kwargs['course_id'] = course.id
+    for key in ['enrollment_date', 'status', 'grade']:
+        if key in data:
+            kwargs[key] = data[key]
+
+    result = update_enrollment(enrollment_id, **kwargs)
     return result
 
 @enrollment_bp.route("/api/delete/enrollment", methods=["DELETE"])

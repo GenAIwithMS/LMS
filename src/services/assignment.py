@@ -1,15 +1,16 @@
 from src.models.assignment import Assignment
+from src.models.teacher import Teacher
 from flask import jsonify
 from src.db import db
 
-def add_assignment(title, description,student_id, due_date,subject_id, total_marks):
+def add_assignment(title, description, teacher_id, due_date, subject_id, total_marks):
     new_assignment = Assignment(
         title=title,
         description=description,
         due_date=due_date,
         subject_id=subject_id,
         total_marks=total_marks,
-        student_id=student_id
+        teacher_id=teacher_id
     )
     db.session.add(new_assignment)
     db.session.commit()
@@ -33,8 +34,8 @@ def get_assignment_by_id(assignment_id):
             "title": assignment.title,
             "description": assignment.description,
             "due_date": assignment.due_date,
-            "subject_id": assignment.subject_id,
-            "student_id": assignment.student_id,
+            "subject_name": assignment.subject.name,
+            "teacher_name": assignment.teacher.name,
             "total_marks": str(assignment.total_marks)
         },
         "status": "success"
@@ -49,8 +50,8 @@ def get_all_assignments():
             "title": assignment.title,
             "description": assignment.description,
             "due_date": assignment.due_date,
-            "subject_id": assignment.subject_id,
-            "student_id": assignment.student_id,
+            "subject_name": assignment.subject.name,
+            "teacher_name": assignment.teacher.name,
             "total_marks": str(assignment.total_marks)
         })
 

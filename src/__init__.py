@@ -33,20 +33,12 @@ from src.models.enrollment import Enrollment
 from src.models.event import Event
 from src.models.message import Message
 from src.models.section import Section
-from src.models.student_teacher import StudentTeacher
 
 
 def create_app():
     app = Flask(__name__)
     
     CORS(app) 
-    # CORS(app, resources={
-    # r"/api/*": {
-    #     "origins": ["http://localhost:3000"],
-    #     "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    #     "allow_headers": ["Content-Type", "Authorization"]
-    # }
-    # })
 
     app.config["JWT_SECRET_KEY"] = "supersecretkey"
     app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root:@localhost/llm_LMS"

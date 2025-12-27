@@ -6,8 +6,7 @@ class EventSchema(Schema):
     description = fields.String(required=False)
     event_date = fields.Date(required=True)
     event_time = fields.Time(required=False)
-    admin_id = fields.Integer(required=True)
-    created_at = fields.DateTime(required=True)
+    admin_id = fields.Integer(dump_only=True)
 
 class UpdateEventSchema(Schema):
     title = fields.String(required=False, validate=validate.Length(min=1, max=255))

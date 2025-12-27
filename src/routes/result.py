@@ -3,6 +3,8 @@ from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from src.schemas.result import ResultSchema,UpdateResultSchema
 from flask_jwt_extended import jwt_required, get_jwt
+from src.models.student import Student
+from src.models.subject import Subject
 
 result_bp = Blueprint("result", __name__)
 
@@ -23,14 +25,28 @@ def create_res():
     except ValidationError as e:
         return jsonify(e.messages), 400
 
-    subject_id = data.get("subject_id")
-    student_id = data.get("student_id")
+    subject_name = data.get("subject_name")
+    student_name = data.get("student_name")
     total_marks = data.get("total_marks")
     obtained_marks = data.get("obtained_marks")
     exam_type = data.get("exam_type")
     remarks = data.get("remarks")
+
+    subject = Subject.query.filter_by(name=subject_name).first()
+    if not subject:
+        return jsonify({
+            "message": "Subject not found",
+            "status": "failed"
+        }), 400
+
+    student = Student.query.filter_by(name=student_name).first()
+    if not student:
+        return jsonify({
+            "message": "Student not found",
+            "status": "failed"
+        }), 400
     
-    result = add_result(subject_id, student_id, total_marks, obtained_marks,exam_type, remarks)
+    result = add_result(subject.id, student.id, total_marks, obtained_marks, exam_type, remarks)
     return result
 
 @result_bp.route("/api/get/result", methods=["GET"])
@@ -72,7 +88,22 @@ def update_res():
     except ValidationError as e:
         return jsonify(e.messages), 400
 
-    result = edit_result(result_id, **data)
+    kwargs = {}
+    for key, value in data.items():
+        if key == 'student_name':
+            student = Student.query.filter_by(name=value).first()
+            if not student:
+                return jsonify({"message": "Student not found", "status": "failed"}), 400
+            kwargs['student_id'] = student.id
+        elif key == 'subject_name':
+            subject = Subject.query.filter_by(name=value).first()
+            if not subject:
+                return jsonify({"message": "Subject not found", "status": "failed"}), 400
+            kwargs['subject_id'] = subject.id
+        else:
+            kwargs[key] = value
+
+    result = edit_result(result_id, **kwargs)
     return result
 
 @result_bp.route("/api/delete/result", methods=["DELETE"])

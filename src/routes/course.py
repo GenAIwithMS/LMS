@@ -1,8 +1,9 @@
 from src.services.course import add_course,get_all_courses,get_course_by_id,update_course,delete_course
-from src.schemas.course import CourseSchema
+from src.schemas.course import CourseSchema, UpdateCourseSchema
 from flask import jsonify,Blueprint,request
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt
+from src.models.teacher import Teacher
 
 course_bp = Blueprint("course",__name__)
 
@@ -25,15 +26,22 @@ def add_cour():
     name = data.get("name")
     description = data.get("description")
     course_code = data.get("course_code")
-    teacher_id = data.get("teacher_id")
+    teacher_name = data.get("teacher_name")
     created_at = data.get("created_at")
+
+    teacher = Teacher.query.filter_by(name=teacher_name).first()
+    if not teacher:
+        return jsonify({
+            "message": "Teacher not found",
+            "status": "failed"
+        }), 400
 
     result = add_course(
         name=name,
         description=description,
         course_code=course_code,
         created_at=created_at,
-        teacher_id=teacher_id
+        teacher_id=teacher.id
     )
     return result
 
@@ -60,12 +68,10 @@ def update_cour():
             "status":"failed"
         }),403
     
-    data = request.get_json()
-    if not data:
-        return jsonify({
-            "message": "No data provided",
-            "status": "error"
-        }), 400
+    try:
+        data = UpdateCourseSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
     
     course_id = request.args.get("id", type=int)
     if not course_id:
@@ -73,6 +79,17 @@ def update_cour():
             "message": "Course ID is required",
             "status": "error"
         }), 400
+
+    if 'teacher_name' in data:
+        teacher = Teacher.query.filter_by(name=data['teacher_name']).first()
+        if not teacher:
+            return jsonify({
+                "message": "Teacher not found",
+                "status": "failed"
+            }), 400
+        data['teacher_id'] = teacher.id
+        del data['teacher_name']
+
     result = update_course(course_id, **data)
     return result
 

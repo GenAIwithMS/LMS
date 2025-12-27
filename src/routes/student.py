@@ -1,6 +1,7 @@
 from flask import Blueprint, request,jsonify
 from src.db import db
 from src.models.student import Student
+from src.models.section import Section
 from src.services.students import add_students, get_all_students, get_student_by_id, update_student, delete_student
 from flask_jwt_extended import jwt_required , get_jwt
 from src.schemas.auth_schema import RegisterStudentSchema,UpdateStudentSchema
@@ -26,13 +27,20 @@ def add_student():
         return jsonify(e.messages), 400
     
 
+    section_name = data['section_name']
+    section = Section.query.filter_by(name=section_name).first()
+    if not section:
+        return jsonify({
+            "message": "Section not found",
+            "status": "failed"
+        }), 400
+
     result = add_students(
         name=data['name'],
         username=data['username'],
-        section=data['section_id'],
+        section=section.id,
         password=data['password'],
         email=data.get('email'),
-        # teacher_id=data['teacher_id']
     )
     
 
@@ -63,7 +71,7 @@ def get_student():
 
 @student_bp.route("/api/update/student",methods=["PUT"])
 @jwt_required()
-def update_student():
+def update_std():
     
     if get_jwt()["role"] != "admin":
         return jsonify({
@@ -78,8 +86,18 @@ def update_student():
         data = UpdateStudentSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
-    
-    result = update_student(student_id, **data)
+
+    kwargs = {}
+    for key, value in data.items():
+        if key == 'section_name':
+            section = Section.query.filter_by(name=value).first()
+            if not section:
+                return jsonify({"message": "Section not found", "status": "failed"}), 400
+            kwargs['section_id'] = section.id
+        else:
+            kwargs[key] = value
+
+    result = update_student(student_id, **kwargs)
 
     return result
 

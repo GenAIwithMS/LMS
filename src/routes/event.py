@@ -2,7 +2,8 @@ from src.schemas.event import EventSchema,UpdateEventSchema
 from src.services.event import add_event, get_event_by_id, get_all_events,update_event,delete_event
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt,get_jwt_identity
+
 
 event_bp = Blueprint("event", __name__)
 
@@ -22,20 +23,18 @@ def create_ev():
     except ValidationError as e:
         return jsonify(e.messages), 400
     
+    admin_id = int(get_jwt_identity())
     title = data.get("title")
     description = data.get("description")
     event_date = data.get("event_date")
     event_time = data.get("event_time")
-    admin_id = data.get("admin_id")
-    created_at = data.get("created_at")
 
     result = add_event(
         title=title,
         description=description,
         event_date=event_date,
         event_time=event_time,
-        admin_id=admin_id,
-        created_at=created_at
+        admin_id=admin_id
     )
     return result
 

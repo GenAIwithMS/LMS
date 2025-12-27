@@ -2,8 +2,7 @@ from src.models.event import Event
 from src.db import db
 from flask import jsonify
 
-def add_event(title, description, event_date, event_time,created_at, admin_id):
-    #check if event title already exists
+def add_event(title, description, event_date, event_time, admin_id):
     existing_event = Event.query.filter_by(title=title).first()
     if existing_event:
         return jsonify({
@@ -18,8 +17,7 @@ def add_event(title, description, event_date, event_time,created_at, admin_id):
         event_time=event_time,
         admin_id=admin_id
     )
-    if created_at:
-        new_event.created_at = created_at
+
     db.session.add(new_event)
     db.session.commit()
 

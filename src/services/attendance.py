@@ -1,14 +1,15 @@
 from src.models.attendance import Attendance
+from src.models.student import Student
+from src.models.subject import Subject
 from src.db import db
 from flask import jsonify
 
 
-def mark_attend(student_id, subject_id, date, time, status):
+def mark_attend(student_id, subject_id, status):
     attendance_record = Attendance(
         student_id=student_id,
         subject_id=subject_id,
-        date=date,
-        time=time,
+
         status=status
     )
     db.session.add(attendance_record)
@@ -29,11 +30,13 @@ def get_attendance_by_student(student_id):
     
     result = []
     for record in id_student:
+        student = Student.query.get(record.student_id)
+        subject = Subject.query.get(record.subject_id)
         result.append({
             "id": record.id,
-            "subject_id": record.subject_id,
-            "date": record.date.isoformat(),
-            "time": record.time.isoformat(),
+            "student_name": student.name if student else None,
+            "subject_name": subject.name if subject else None,
+            "mark_at": record.mark_at,
             "status": record.status
         })
     return jsonify(result)
@@ -48,11 +51,13 @@ def get_attendance_by_subject(subject_id):
     
     result = []
     for record in subject_attendance:
+        student = Student.query.get(record.student_id)
+        subject = Subject.query.get(record.subject_id)
         result.append({
             "id": record.id,
-            "student_id": record.student_id,
-            "date": record.date.isoformat(),
-            "time": record.time.isoformat(),
+            "student_name": student.name if student else None,
+            "subject_name": subject.name if subject else None,
+            "mark_at": record.mark_at,
             "status": record.status
         })
     
@@ -63,12 +68,13 @@ def get_all_attendance():
     attendance_records = Attendance.query.all()
     result = []
     for record in attendance_records:
+        student = Student.query.get(record.student_id)
+        subject = Subject.query.get(record.subject_id)
         result.append({
             "id": record.id,
-            "student_id": record.student_id,
-            "subject_id": record.subject_id,
-            "date": record.date.isoformat(),
-            "time": record.time.isoformat(),
+            "student_name": student.name if student else None,
+            "subject_name": subject.name if subject else None,
+            "mark_at": record.mark_at,
             "status": record.status
         })
     return jsonify(result)

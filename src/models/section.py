@@ -6,4 +6,4 @@ class Section(db.Model):
     name = db.Column(db.String(255), nullable=False)
     teacher_id = db.Column(db.BigInteger, db.ForeignKey("teachers.id"), nullable=False)
 
-    teacher = db.relationship('Teacher', backref='teacher_sections', lazy=True)
+    teacher = db.relationship('Teacher', backref='sections', lazy=True)

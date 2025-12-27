@@ -2,11 +2,11 @@ from src.models.subject import Subject
 from flask import jsonify
 from src.db import db
 
-def add_subject(name, teacher_id, course_code=None):
+def add_subject(name, teacher_id, course_id):
     new_subject = Subject(
         name=name,
         teacher_id=teacher_id,
-        course_code=course_code
+        course_id=course_id
     )
     db.session.add(new_subject)
     db.session.commit()
@@ -23,8 +23,8 @@ def get_all_subjects():
         subject_data = {
             "id": subject.id,
             "name": subject.name,
-            "teacher_id": subject.teacher_id,
-            "course_code": subject.course_code
+            "teacher_name": subject.teacher.name if subject.teacher else None,
+            "course_name": subject.course.name if subject.course else None
         }
         subject_list.append(subject_data)
     
@@ -45,8 +45,8 @@ def get_subject_by_id(subject_id):
     subject_data = {
         "id": subject.id,
         "name": subject.name,
-        "teacher_id": subject.teacher_id,
-        "course_code": subject.course_code
+        "teacher_name": subject.teacher.name if subject.teacher else None,
+        "course_name": subject.course.name if subject.course else None
     }
     
     return jsonify({

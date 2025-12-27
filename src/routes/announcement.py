@@ -2,7 +2,8 @@ from src.services.announsment import add_announcement,get_all_announcements,get_
 from flask import jsonify,request,Blueprint
 from src.schemas.announcement import AnnouncementSchema,UpdateAnnouncementSchema
 from marshmallow import ValidationError
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt,get_jwt_identity
+from src.models.section import Section
 
 announcement_bp = Blueprint("announcement",__name__)
 
@@ -25,14 +26,21 @@ def create_announce():
     title = data.get("title")
     content = data.get("content")
     target_audience = data.get("target_audience", "all")
-    section_id = data.get("section_id")
-    teacher_id = data.get("teacher_id")
+    section_name = data.get("section_name")
+    teacher_id = int(get_jwt_identity())
+
+    section = Section.query.filter_by(name=section_name).first()
+    if not section:
+        return jsonify({
+            "message": "Section not found",
+            "status": "failed"      
+        }), 400
 
     result = add_announcement(
         title=title,
         content=content,
         target_audience=target_audience,
-        section_id=section_id,
+        section_id=section.id,
         teacher_id=teacher_id
     )
     return result
@@ -71,6 +79,16 @@ def edit_announce():
             "status": "error"
         }), 400
 
+    if 'section_name' in data:
+        section = Section.query.filter_by(name=data['section_name']).first()
+        if not section:
+            return jsonify({
+                "message": "Section not found",
+                "status": "failed"
+            }), 400
+        data['section_id'] = section.id
+        del data['section_name']
+
     result = edit_announcement(announcement_id, **data)
     return result
 
@@ -85,7 +103,7 @@ def delete_announce():
             "status":"failed"
         }),403
     
-    announcement_id = request.args.get("announcement_id")
+    announcement_id = request.args.get("id")
     if not announcement_id:
         return jsonify({
             "message": "Announcement ID is required",

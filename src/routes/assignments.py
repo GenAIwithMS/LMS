@@ -2,7 +2,8 @@ from src.services.assignment import add_assignment, get_assignment_by_id,get_all
 from flask import Blueprint, request, jsonify
 from src.schemas.assignment import assignmentSchema,UpdateAssignmentSchema
 from marshmallow import ValidationError
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
+from src.models.subject import Subject
 
 assignment_bp = Blueprint("assignment", __name__)
 
@@ -25,11 +26,18 @@ def create_assign():
     title = data.get("title")
     description = data.get("description")
     due_date = data.get("due_date")
-    subject_id = data.get("subject_id")
-    student_id = data.get("student_id")
+    subject_name = data.get("subject_name")
+    teacher_id = int(get_jwt_identity())  # Get teacher_id from token
     total_marks = data.get("total_marks")
 
-    result = add_assignment(title, description, student_id,due_date,subject_id,total_marks)
+    subject = Subject.query.filter_by(name=subject_name).first()
+    if not subject:
+        return jsonify({
+            "message": "Subject not found",
+            "status": "failed"
+        }), 400
+
+    result = add_assignment(title, description, teacher_id, due_date, subject.id, total_marks)
     return result
 
 @assignment_bp.route("/api/get/assignments", methods=["GET"])
@@ -64,7 +72,17 @@ def update_assignment():
     except ValidationError as e:
         return jsonify(e.messages), 400
 
-    result = edit_assignment(assignment_id, **data)
+    kwargs = {}
+    for key, value in data.items():
+        if key == 'subject_name':
+            subject = Subject.query.filter_by(name=value).first()
+            if not subject:
+                return jsonify({"message": "Subject not found", "status": "failed"}), 400
+            kwargs['subject_id'] = subject.id
+        else:
+            kwargs[key] = value
+
+    result = edit_assignment(assignment_id, **kwargs)
     return result
 
 @assignment_bp.route("/api/delete/assignments/", methods=["DELETE"])

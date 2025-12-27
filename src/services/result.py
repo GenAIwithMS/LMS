@@ -55,8 +55,8 @@ def get_result_by_id(result_id):
 
     return jsonify({
         "id": result.id,
-        "subject_id": result.subject_id,
-        "student_id": result.student_id,
+        "subject_name": result.subject.name,
+        "student_name": result.student.name,
         "total_marks": float(result.total_marks),
         "obtained_marks": float(result.obtained_marks),
         "grade": result.grade,
@@ -70,8 +70,8 @@ def get_all_results():
     for result in results:
         results_list.append({
             "id": result.id,
-            "subject_id": result.subject_id,
-            "student_id": result.student_id,
+            "subject_name": result.subject.name,
+            "student_name": result.student.name,
             "total_marks": float(result.total_marks),
             "obtained_marks": float(result.obtained_marks),
             "grade": result.grade,

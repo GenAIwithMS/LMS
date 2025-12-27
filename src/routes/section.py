@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 from src.schemas.section import SectionSchema,UpdateSectionSchema
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt
+from src.models.teacher import Teacher
 
 section_bp = Blueprint("section", __name__)
 
@@ -23,9 +24,16 @@ def add_sec():
         return jsonify(e.messages), 400
     
     name = data.get("name")
-    teacher_id = data.get("teacher_id")
+    teacher_name = data.get("teacher_name")
     
-    result = add_section(name, teacher_id)
+    teacher = Teacher.query.filter_by(name=teacher_name).first()
+    if not teacher:
+        return jsonify({
+            "message": "Teacher not found",
+            "status": "failed"
+        }), 400
+    
+    result = add_section(name, teacher.id)
     return result
 
 @section_bp.route("/api/get/section", methods=["GET"])
@@ -61,7 +69,16 @@ def update_sec():
     except ValidationError as e:
         return jsonify(e.messages), 400
 
-    result = edit_section(section_id, **data)
+    kwargs = {}
+    if 'teacher_name' in data:
+        teacher = Teacher.query.filter_by(name=data['teacher_name']).first()
+        if not teacher:
+            return jsonify({"message": "Teacher not found", "status": "failed"}), 400
+        kwargs['teacher_id'] = teacher.id
+    if 'name' in data:
+        kwargs['name'] = data['name']
+
+    result = edit_section(section_id, **kwargs)
     return result
 
 @section_bp.route("/api/delete/section", methods=["DELETE"])

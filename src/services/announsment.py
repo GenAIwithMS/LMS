@@ -1,9 +1,9 @@
 from src.models.announcement import Announcement
+from src.models.section import Section
 from flask import jsonify
 from src.db import db
   
 def add_announcement(title, content, teacher_id, section_id,target_audience='all', created_at=None):
-    #check if annoucement title already exists
     existing_announcement = Announcement.query.filter_by(title=title).first()
     if existing_announcement:
         return jsonify({
@@ -35,13 +35,13 @@ def get_all_announcements():
 
     announcement_list = []
     for announcement in announcements:
-       
+        section = Section.query.get(announcement.section_id)
         announcement_data = {
             "id": announcement.id,
             "title": announcement.title,
             "content": announcement.content,
             "target_audience": announcement.target_audience,
-            "section_id": announcement.section_id,
+            "section_name": section.name if section else None,
             "created_at": announcement.created_at,
             "teacher_id": announcement.teacher_id
         }
@@ -56,12 +56,13 @@ def get_announcement_by_id(announcement_id):
             "status": "error"
         }), 404
 
+    section = Section.query.get(announcement.section_id)
     announcement_data = {
         "id": announcement.id,
         "title": announcement.title,
         "content": announcement.content,
         "target_audience": announcement.target_audience,
-        "section_id": announcement.section_id,
+        "section_name": section.name if section else None,
         "created_at": announcement.created_at,
         "teacher_id": announcement.teacher_id
     }

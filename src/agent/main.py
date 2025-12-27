@@ -35,7 +35,6 @@ def get_system_prompt_for_role(user_role: str):
         "student": student_system_prompt
     }.get(user_role, "You are a helpful assistant.")
 
-# Node functions defined separately for clarity
 def agent_node(state: AgentState, model_with_tools, system_prompt):
     """Agent node that calls the model."""
     messages = state["messages"]

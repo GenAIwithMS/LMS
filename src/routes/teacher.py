@@ -1,5 +1,4 @@
 from flask import Blueprint,jsonify,request
-# from src.services.user import add_user
 from flask_jwt_extended import jwt_required,get_jwt
 from src.schemas.auth_schema import RegisterTeacherSchema,UpdateTeacherSchema
 from marshmallow import ValidationError
@@ -7,7 +6,7 @@ from src.services.teacher import add_teacher, get_teacher_by_id, update_teacher,
 
 teacher_bp = Blueprint("teacher",__name__)
 
-@teacher_bp.route("/api/add-teacher", methods=["POST"])
+@teacher_bp.route("/api/add/teacher", methods=["POST"])
 @jwt_required()
 def add_teach():
 
@@ -22,14 +21,11 @@ def add_teach():
     except ValidationError as e:
         return jsonify(e.messages), 400
 
-
     result = add_teacher(
         name=data_of_teacher["name"],
-        subject=data_of_teacher["subject"],
         username=data_of_teacher["username"],
         email=data_of_teacher.get("email"),
-        password_hash=data_of_teacher["password_hash"],
-        student_id=data_of_teacher["student_id"]
+        password_hash=data_of_teacher["password_hash"]
     )
     return result
 
