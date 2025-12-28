@@ -106,7 +106,6 @@ def delete_student(student_id):
             "status":"failed"
         }), 404
 
-    # Delete associated enrollments first
     enrollments = Enrollment.query.filter_by(student_id=student_id).all()
     for enrollment in enrollments:
         db.session.delete(enrollment)

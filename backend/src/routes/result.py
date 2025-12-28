@@ -58,7 +58,6 @@ def get_res():
     result_id = request.args.get("id", type=int)
     
     if result_id is not None:
-        # If specific result ID is requested, check if student can access it
         if user_role == "student":
             user_id = int(get_jwt_identity())
             result_obj = Result.query.get(result_id)
@@ -75,14 +74,11 @@ def get_res():
         result = get_result_by_id(result_id)
         return result
     
-    # If no ID provided, handle based on role
     if user_role == "student":
-        # Students can only view their own results
         user_id = int(get_jwt_identity())
         result = get_results_by_student(user_id)
         return result
     elif user_role == "teacher" or user_role == "admin":
-        # Teachers and admins can view all results
         result = get_all_results()
         return result
     else:

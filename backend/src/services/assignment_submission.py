@@ -34,7 +34,6 @@ def submit_assignment(student_id, assignment_id, submission_text=None, submissio
 
 def get_submissions_by_student(student_id):
     try:
-        # Query submissions
         submissions = AssignmentSubmission.query.filter_by(student_id=student_id).all()
         
         if not submissions:
@@ -43,19 +42,15 @@ def get_submissions_by_student(student_id):
                 "status": "success"
             })
         
-        # Get all unique assignment IDs
         assignment_ids = list(set([sub.assignment_id for sub in submissions]))
         
-        # Fetch all assignments in one query to avoid N+1 problem
         assignments = Assignment.query.filter(Assignment.id.in_(assignment_ids)).all()
         assignment_dict = {assignment.id: assignment.title for assignment in assignments}
         
         submission_list = []
         for submission in submissions:
-            # Get assignment title from dictionary, fallback if not found
             assignment_title = assignment_dict.get(submission.assignment_id, f"Assignment {submission.assignment_id}")
             
-            # Handle date conversion safely
             submitted_at_str = None
             if submission.submitted_at:
                 try:
@@ -64,7 +59,6 @@ def get_submissions_by_student(student_id):
                     print(f"Error converting date for submission {submission.id}: {e}")
                     submitted_at_str = str(submission.submitted_at)
             
-            # Handle marks conversion safely
             marks_value = None
             if submission.marks is not None:
                 try:
@@ -81,12 +75,11 @@ def get_submissions_by_student(student_id):
                 "submission_file": submission.submission_file or "",
                 "submitted_at": submitted_at_str,
                 "marks": marks_value,
-                "marks_obtained": marks_value,  # For API compatibility
+                "marks_obtained": marks_value,  
                 "feedback": submission.feedback or "",
             }
             submission_list.append(submission_data)
         
-        # Return in a format consistent with other endpoints
         return jsonify({
             "data": submission_list,
             "status": "success"
@@ -103,7 +96,6 @@ def get_submissions_by_student(student_id):
 
 def get_submissions_by_assignment(assignment_id):
     try:
-        # Query submissions
         submissions = AssignmentSubmission.query.filter_by(assignment_id=assignment_id).all()
         
         if not submissions:
@@ -112,28 +104,22 @@ def get_submissions_by_assignment(assignment_id):
                 "status": "success"
             })
         
-        # Get all unique student IDs
         student_ids = list(set([sub.student_id for sub in submissions if sub.student_id]))
         
-        # Fetch all students in one query to avoid N+1 problem
         student_dict = {}
         if student_ids:
             try:
-                # Use tuple() for better compatibility with some database backends
                 if len(student_ids) == 1:
-                    # Single student - use get() for better performance
                     student = Student.query.get(student_ids[0])
                     if student:
                         student_dict[student_ids[0]] = student.name
                 else:
-                    # Multiple students - use IN clause
                     students = Student.query.filter(Student.id.in_(tuple(student_ids))).all()
                     student_dict = {student.id: student.name for student in students}
             except Exception as e:
                 print(f"Error fetching students with batch query: {e}")
                 import traceback
                 print(traceback.format_exc())
-                # Fallback: fetch students one by one if batch query fails
                 for student_id in student_ids:
                     try:
                         student = Student.query.get(student_id)
@@ -144,10 +130,8 @@ def get_submissions_by_assignment(assignment_id):
         
         submission_list = []
         for submission in submissions:
-            # Get student name from dictionary, fallback if not found
             student_name = student_dict.get(submission.student_id, f"Student {submission.student_id}")
             
-            # Handle date conversion safely
             submitted_at_str = None
             if submission.submitted_at:
                 try:
@@ -156,7 +140,6 @@ def get_submissions_by_assignment(assignment_id):
                     print(f"Error converting date for submission {submission.id}: {e}")
                     submitted_at_str = str(submission.submitted_at)
             
-            # Handle marks conversion safely
             marks_value = None
             if submission.marks is not None:
                 try:
@@ -174,12 +157,11 @@ def get_submissions_by_assignment(assignment_id):
                 "submission_file": submission.submission_file or "",
                 "submitted_at": submitted_at_str,
                 "marks": marks_value,
-                "marks_obtained": marks_value,  # For API compatibility
+                "marks_obtained": marks_value,  
                 "feedback": submission.feedback or "",
             }
             submission_list.append(submission_data)
         
-        # Return in a format consistent with other endpoints
         return jsonify({
             "data": submission_list,
             "status": "success"

@@ -42,7 +42,6 @@ def get_submissions_student():
     
     student_id = request.args.get("id", type=int)
     if not student_id:
-        # If no ID provided, students can view their own submissions
         if user_role == "student":
             student_id = user_id
         else:
@@ -51,7 +50,6 @@ def get_submissions_student():
                 "status": "error"
             }), 400
     
-    # Students can only view their own submissions
     if user_role == "student" and student_id != user_id:
         return jsonify({
             "message": "You can only view your own submissions",

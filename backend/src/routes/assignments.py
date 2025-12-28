@@ -27,7 +27,7 @@ def create_assign():
     description = data.get("description")
     due_date = data.get("due_date")
     subject_name = data.get("subject_name")
-    teacher_id = int(get_jwt_identity())  # Get teacher_id from token
+    teacher_id = int(get_jwt_identity())  
     total_marks = data.get("total_marks")
 
     subject = Subject.query.filter_by(name=subject_name).first()

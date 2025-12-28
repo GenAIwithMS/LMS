@@ -826,7 +826,7 @@ def update_submission_tool(submission_id, submission_text=None, feedback=None, m
     if marks is not None:
         kwargs['marks'] = marks
     elif marks_obtained is not None:
-        kwargs['marks'] = marks_obtained  # Convert marks_obtained to marks
+        kwargs['marks'] = marks_obtained  
     return update_submission(submission_id, **kwargs)
 
 
@@ -906,7 +906,6 @@ def update_attendance_tool(student_name, subject_name, status=None):
     subject = Subject.query.filter_by(name=subject_name).first()
     if not subject:
         return "Subject not found"
-    # Find the latest attendance record for this student and subject
     attendance_record = Attendance.query.filter_by(student_id=student.id, subject_id=subject.id).order_by(Attendance.mark_at.desc()).first()
     if not attendance_record:
         return "Attendance record not found for this student and subject"
