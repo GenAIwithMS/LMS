@@ -1,4 +1,4 @@
-# Learning Management System (LMS) - Agentic
+# Learning Management System (LMS) Agentic
 
 A comprehensive Learning Management System built with Flask (backend) and React (frontend), featuring role-based access control, assignment management, attendance tracking, and an AI-powered chatbot assistant.
 
