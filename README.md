@@ -1,4 +1,4 @@
-# Learning Management System (LMS) - Agentic
+# Learning Management System (LMS) Agentic
 
 A comprehensive Learning Management System built with Flask (backend) and React (frontend), featuring role-based access control, assignment management, attendance tracking, and an AI-powered chatbot assistant.
 
@@ -115,7 +115,7 @@ Before you begin, ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/GenAIwithMS/LMS
 cd "LMS Agentic"
 ```
 
