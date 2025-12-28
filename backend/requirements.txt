@@ -1,0 +1,15 @@
+flask
+flask_sqlalchemy
+pymysql
+flask_bcrypt
+flask-jwt-extended
+marshmallow
+flask-cors
+cryptography
+langgraph 
+langchain-core 
+langchain-groq 
+langchain
+# lanchain-community
+dotenv
+tzdata
