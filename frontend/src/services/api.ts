@@ -23,7 +23,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 second timeout
+  timeout: 30000, // 30 second timeout for slower database queries
 });
 
 // Add token to requests
@@ -39,6 +39,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Handle timeout errors
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      console.error('Request timeout:', error);
+      const timeoutError = new Error('Request timed out. The server is taking too long to respond. Please try again.');
+      (timeoutError as any).isTimeout = true;
+      return Promise.reject(timeoutError);
+    }
+    
     // Handle network errors
     if (!error.response) {
       console.error('Network error:', error);
@@ -48,10 +56,14 @@ api.interceptors.response.use(
       throw error;
     }
     
-    if (error.response?.status === 401) {
+    // Handle JWT signature verification failed (422) or unauthorized (401)
+    if (error.response?.status === 401 || error.response?.status === 422) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Only redirect if not already on login page
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

@@ -111,9 +111,24 @@ const StudentAttendance: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">My Attendance</h1>
-        <p className="text-gray-600 mt-2">View your attendance records</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">My Attendance</h1>
+          <p className="text-gray-600 mt-2">View your attendance records</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input pl-10 pr-10 py-2 text-sm w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -160,19 +175,6 @@ const StudentAttendance: React.FC = () => {
               <TrendingUp className="text-primary-600" size={24} />
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="card mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search attendance..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input pl-10"
-          />
         </div>
       </div>
 

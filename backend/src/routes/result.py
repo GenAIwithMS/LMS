@@ -1,10 +1,11 @@
-from src.services.result import add_result, get_result_by_id, get_all_results, edit_result, delete_result
+from src.services.result import add_result, get_result_by_id, get_all_results, edit_result, delete_result, get_results_by_student
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from src.schemas.result import ResultSchema,UpdateResultSchema
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from src.models.student import Student
 from src.models.subject import Subject
+from src.models.result import Result
 
 result_bp = Blueprint("result", __name__)
 
@@ -53,18 +54,42 @@ def create_res():
 @jwt_required()
 def get_res():
     token = get_jwt()
+    user_role = token["role"]
     result_id = request.args.get("id", type=int)
-    if result_id is None:
-        if token["role"] != "teacher" and token["role"] != "admin":
-            return jsonify({
-                "message":"only teacher and admin have acess to see all the results",
-                "status":"failed"
-            }),403
+    
+    if result_id is not None:
+        # If specific result ID is requested, check if student can access it
+        if user_role == "student":
+            user_id = int(get_jwt_identity())
+            result_obj = Result.query.get(result_id)
+            if not result_obj:
+                return jsonify({
+                    "message": "Result not found",
+                    "status": "error"
+                }), 404
+            if result_obj.student_id != user_id:
+                return jsonify({
+                    "message": "You can only view your own results",
+                    "status": "failed"
+                }), 403
+        result = get_result_by_id(result_id)
+        return result
+    
+    # If no ID provided, handle based on role
+    if user_role == "student":
+        # Students can only view their own results
+        user_id = int(get_jwt_identity())
+        result = get_results_by_student(user_id)
+        return result
+    elif user_role == "teacher" or user_role == "admin":
+        # Teachers and admins can view all results
         result = get_all_results()
         return result
-
-    result = get_result_by_id(result_id)
-    return result
+    else:
+        return jsonify({
+            "message": "Access denied",
+            "status": "failed"
+        }), 403
 
 @result_bp.route("/api/update/result", methods=["PUT"])
 @jwt_required()

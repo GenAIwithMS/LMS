@@ -17,9 +17,39 @@ const StudentResults: React.FC = () => {
     try {
       setLoading(true);
       const data = await getResults();
-      setResults(Array.isArray(data) ? data : data.result ? [data.result] : []);
-    } catch (error) {
-      toast.error('Failed to fetch results');
+      
+      // Handle different response formats
+      let resultsData: Result[] = [];
+      
+      if (Array.isArray(data)) {
+        resultsData = data;
+      } else if (data && Array.isArray(data.results)) {
+        resultsData = data.results;
+      } else if (data && data.result) {
+        resultsData = Array.isArray(data.result) ? data.result : [data.result];
+      } else if (data && typeof data === 'object') {
+        // Try to find any array in the response
+        const resultsArray = Object.values(data).find((val) => Array.isArray(val)) as Result[] | undefined;
+        if (resultsArray) {
+          resultsData = resultsArray;
+        }
+      }
+      
+      // Ensure all results have required fields with defaults
+      resultsData = resultsData.map((result: any) => ({
+        id: result.id || 0,
+        student: result.student || result.student_name || '',
+        subject: result.subject || result.subject_name || '',
+        total_marks: result.total_marks || result.totalMarks || 100,
+        obtained_marks: result.obtained_marks || result.obtainedMarks || 0,
+        exam_type: result.exam_type || result.examType || '',
+        remarks: result.remarks || '',
+      }));
+      
+      setResults(resultsData);
+    } catch (error: any) {
+      console.error('Error fetching results:', error);
+      toast.error(error.response?.data?.message || 'Failed to fetch results');
     } finally {
       setLoading(false);
     }
@@ -51,21 +81,23 @@ const StudentResults: React.FC = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">My Results</h1>
-        <p className="text-gray-600 mt-2">View your academic results</p>
-      </div>
-
-      <div className="card mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search results..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input pl-10"
-          />
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">My Results</h1>
+          <p className="text-gray-600 mt-2">View your academic results</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input pl-10 pr-10 py-2 text-sm w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
+          </div>
         </div>
       </div>
 

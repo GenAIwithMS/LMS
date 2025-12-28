@@ -27,7 +27,23 @@ const TeacherSubmissions: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchAssignments();
+    let isMounted = true;
+    
+    const loadAssignments = async () => {
+      try {
+        await fetchAssignments();
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error loading assignments:', error);
+        }
+      }
+    };
+    
+    loadAssignments();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -169,7 +185,18 @@ const TeacherSubmissions: React.FC = () => {
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      const data = await getAssignments();
+      console.log('Starting to fetch assignments...');
+      
+      // Add timeout handling
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 35000); // 35 seconds
+      });
+      
+      const data = await Promise.race([
+        getAssignments(),
+        timeoutPromise
+      ]) as any;
+      
       console.log('Assignments API response:', data);
       
       // Handle different response formats
@@ -203,7 +230,11 @@ const TeacherSubmissions: React.FC = () => {
       setAssignments(assignmentsData);
     } catch (error: any) {
       console.error('Error fetching assignments:', error);
-      showError(error, 'Failed to fetch assignments');
+      if (error.message === 'Request timeout' || error.code === 'ECONNABORTED') {
+        showError(new Error('The request took too long. Please check if the backend is running and try again.'), 'Request timeout');
+      } else {
+        showError(error, 'Failed to fetch assignments');
+      }
       setAssignments([]);
     } finally {
       setLoading(false);

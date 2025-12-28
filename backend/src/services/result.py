@@ -80,6 +80,22 @@ def get_all_results():
         })
     return jsonify(results_list)
 
+def get_results_by_student(student_id):
+    results = Result.query.filter_by(student_id=student_id).all()
+    results_list = []
+    for result in results:
+        results_list.append({
+            "id": result.id,
+            "subject_name": result.subject.name,
+            "student_name": result.student.name,
+            "total_marks": float(result.total_marks),
+            "obtained_marks": float(result.obtained_marks),
+            "grade": result.grade,
+            "exam_type": result.exam_type,
+            "remarks": result.remarks
+        })
+    return jsonify(results_list)
+
 def edit_result(result_id, **kwargs):
     result = Result.query.get(result_id)
     if not result:

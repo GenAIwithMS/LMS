@@ -54,7 +54,7 @@ def create_app():
         "DATABASE_URI", 
         "mysql+pymysql://root:@localhost/llm_LMS"
     )
-    
+
     db.init_app(app)
     jwt.init_app(app)
     bcrypt.init_app(app)

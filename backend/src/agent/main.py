@@ -5,11 +5,18 @@ from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.prebuilt import ToolNode
 import operator
+import os
+from pathlib import Path
 from src.agent.tools_list import admin_tools, teacher_tools, student_tools
 from src.agent.prompts import admin_system_prompt, teacher_system_prompt, student_system_prompt
 
+# Get the backend directory path (parent of src directory)
+backend_dir = Path(__file__).parent.parent.parent
+env_path = backend_dir / ".env"
 
-load_dotenv()
+# Load environment variables from backend/.env file
+load_dotenv(dotenv_path=str(env_path))
+
 model = ChatGroq(model="qwen/qwen3-32b")
 
 class AgentState(TypedDict):

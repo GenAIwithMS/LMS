@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, FileText, Calendar, Upload, Send } from 'lucide-react';
+import { Search, FileText, Calendar, Upload, Send, Lock, AlertCircle } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { getAssignments, submitAssignment, getSubmissionsByStudent } from '../../services/api';
 import type { Assignment, Submission } from '../../types';
@@ -87,6 +87,12 @@ const StudentAssignments: React.FC = () => {
     e.preventDefault();
     if (!selectedAssignment) return;
 
+    // Prevent submission for overdue assignments
+    if (isOverdue(selectedAssignment.due_date)) {
+      toast.error('Cannot submit overdue assignment');
+      return;
+    }
+
     try {
       const formDataToSend = new FormData();
       formDataToSend.append('assignment_id', selectedAssignment.id.toString());
@@ -113,6 +119,11 @@ const StudentAssignments: React.FC = () => {
   };
 
   const openSubmitModal = (assignment: Assignment) => {
+    // Prevent opening modal for overdue assignments
+    if (isOverdue(assignment.due_date)) {
+      toast.error('Cannot submit overdue assignment');
+      return;
+    }
     setSelectedAssignment(assignment);
     setIsModalOpen(true);
   };
@@ -159,18 +170,18 @@ const StudentAssignments: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Assignments</h1>
           <p className="text-gray-600 mt-2">View and submit your assignments</p>
         </div>
-      </div>
-
-      <div className="card mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search assignments..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="input pl-10"
-          />
+        <div className="flex items-center gap-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input pl-10 pr-10 py-2 text-sm w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
+          </div>
         </div>
       </div>
 
@@ -180,6 +191,9 @@ const StudentAssignments: React.FC = () => {
         ) : (
           filteredAssignments.map((assignment) => {
             const submitted = hasSubmission(assignment.id);
+            const overdue = isOverdue(assignment.due_date);
+            const isDisabled = overdue && !submitted;
+            
             return (
               <div key={assignment.id} className="card hover:shadow-lg transition-shadow">
                 <div className="flex items-start justify-between mb-4">
@@ -193,20 +207,23 @@ const StudentAssignments: React.FC = () => {
                 <div className="flex items-center justify-between text-sm mb-4">
                   <div className="flex items-center space-x-2 text-gray-500">
                     <Calendar size={16} />
-                    <span className={isOverdue(assignment.due_date) ? 'text-red-600 font-medium' : ''}>
+                    <span className={overdue ? 'text-red-600 font-medium' : ''}>
                       Due: {assignment.due_date}
                     </span>
                   </div>
                   <span className="font-medium text-gray-900">{assignment.total_marks} marks</span>
                 </div>
-                {isOverdue(assignment.due_date) && (
+                {overdue && (
                   <div className="mb-3 text-xs text-red-600 font-medium">Overdue</div>
                 )}
                 <button
                   onClick={() => openSubmitModal(assignment)}
+                  disabled={isDisabled}
                   className={`w-full btn flex items-center justify-center space-x-2 ${
                     submitted 
-                      ? 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200' 
+                      ? 'bg-green-50 text-green-700 hover:bg-green-100 border-green-200 cursor-default' 
+                      : isDisabled
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-60'
                       : 'btn-primary'
                   }`}
                 >
@@ -214,6 +231,11 @@ const StudentAssignments: React.FC = () => {
                     <>
                       <span>✓</span>
                       <span>Submitted</span>
+                    </>
+                  ) : overdue ? (
+                    <>
+                      <Lock size={18} />
+                      <span>Submission Closed</span>
                     </>
                   ) : (
                     <>
@@ -271,6 +293,12 @@ const StudentAssignments: React.FC = () => {
             <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
               <p><strong>Due Date:</strong> {selectedAssignment.due_date}</p>
               <p><strong>Total Marks:</strong> {selectedAssignment.total_marks}</p>
+              {isOverdue(selectedAssignment.due_date) && (
+                <div className="flex items-center space-x-2 text-red-600 font-medium mt-2">
+                  <AlertCircle size={16} />
+                  <span>This assignment is overdue and cannot be submitted</span>
+                </div>
+              )}
             </div>
           )}
           <div className="flex justify-end space-x-3 pt-4">
@@ -284,7 +312,15 @@ const StudentAssignments: React.FC = () => {
             >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary flex items-center space-x-2">
+            <button 
+              type="submit" 
+              disabled={selectedAssignment ? isOverdue(selectedAssignment.due_date) : false}
+              className={`btn btn-primary flex items-center space-x-2 ${
+                selectedAssignment && isOverdue(selectedAssignment.due_date)
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-60'
+                  : ''
+              }`}
+            >
               <Send size={18} />
               <span>Submit</span>
             </button>

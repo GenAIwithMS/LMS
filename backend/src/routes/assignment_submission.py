@@ -64,15 +64,25 @@ def get_submissions_student():
 @assignment_submission_bp.route("/api/get/submissions/by/assignment", methods=["GET"])
 @jwt_required()
 def get_submissions_assignment():
-    assignment_id = request.args.get("id", type=int)
-    if not assignment_id:
-        return jsonify({
-            "message": "Assignment ID is required",
-            "status": "error"
-        }), 400
+    try:
+        assignment_id = request.args.get("id", type=int)
+        if not assignment_id:
+            return jsonify({
+                "message": "Assignment ID is required",
+                "status": "error"
+            }), 400
 
-    result = get_submissions_by_assignment(assignment_id)
-    return result
+        result = get_submissions_by_assignment(assignment_id)
+        return result
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in get_submissions_assignment route: {error_trace}")
+        return jsonify({
+            "message": f"Error fetching submissions: {str(e)}",
+            "status": "error",
+            "data": []
+        }), 500
 
 @assignment_submission_bp.route("/api/update/submission", methods=["PUT"])
 @jwt_required()

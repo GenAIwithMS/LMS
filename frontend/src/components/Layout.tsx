@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import ChatbotWidget from './ChatbotWidget';
 import {
   LayoutDashboard,
   Users,
@@ -29,6 +30,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatbotOpen, setChatbotOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -117,6 +119,23 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </li>
                 );
               })}
+              {/* Chatbot Toggle */}
+              <li>
+                <button
+                  onClick={() => {
+                    setChatbotOpen(!chatbotOpen);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                    chatbotOpen
+                      ? 'bg-primary-100 text-primary-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <MessageSquare size={20} />
+                  <span>Chatbot</span>
+                </button>
+              </li>
             </ul>
           </nav>
 
@@ -154,13 +173,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </button>
             <div className="flex-1" />
             <div className="flex items-center space-x-4">
-              <Link
-                to="/chatbot"
-                className="p-2 text-gray-500 hover:text-primary-600 transition-colors"
+              <button
+                onClick={() => setChatbotOpen(!chatbotOpen)}
+                className="p-2 text-gray-500 hover:text-primary-600 transition-colors relative"
                 title="Chatbot"
               >
                 <MessageSquare size={20} />
-              </Link>
+                {chatbotOpen && (
+                  <span className="absolute top-0 right-0 w-2 h-2 bg-primary-600 rounded-full"></span>
+                )}
+              </button>
             </div>
           </div>
         </header>
@@ -168,6 +190,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Page content */}
         <main className="p-6">{children}</main>
       </div>
+
+      {/* Chatbot Widget */}
+      <ChatbotWidget isOpen={chatbotOpen} onClose={() => setChatbotOpen(false)} />
     </div>
   );
 };
