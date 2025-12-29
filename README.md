@@ -105,7 +105,7 @@ LMS Agentic/
 
 Before you begin, ensure you have the following installed:
 
-- **Python 3.8+**
+- **Python 3.13**
 - **Node.js 16+** and **npm** or **yarn**
 - **MySQL 5.7+** or **MariaDB 10.3+**
 - **Git**
