@@ -34,6 +34,7 @@ def get_all_subjects():
         "data": subject_list
     })
 
+
 def get_subject_by_id(subject_id):
     subject = Subject.query.get(subject_id)
     if not subject:
