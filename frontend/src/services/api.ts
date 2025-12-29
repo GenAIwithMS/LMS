@@ -381,9 +381,11 @@ export const deleteEvent = async (id: number) => {
   return response.data;
 };
 
-// Chatbot
+// Chatbot - Extended timeout for AI processing
 export const chatWithBot = async (message: string) => {
-  const response = await api.post('/chat', { message });
+  const response = await api.post('/chat', { message }, {
+    timeout: 120000, // 120 seconds (2 minutes) for chatbot responses
+  });
   return response.data;
 };
 

@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, X, Minimize2, Maximize2 } from 'lucide-react';
+import { Send, Bot, User, X, ChevronRight, ChevronLeft } from 'lucide-react';
 import { chatWithBot } from '../services/api';
 import toast from 'react-hot-toast';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -11,9 +13,11 @@ interface Message {
 interface ChatbotWidgetProps {
   isOpen: boolean;
   onClose: () => void;
+  onWidthChange?: (width: number) => void;
+  onCollapseChange?: (collapsed: boolean) => void;
 }
 
-const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
+const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose, onWidthChange, onCollapseChange }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -22,22 +26,11 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const widgetRef = useRef<HTMLDivElement>(null);
-  // Initialize position and size based on screen size
-  const [position, setPosition] = useState({ 
-    x: Math.max(0, window.innerWidth - 420), 
-    y: Math.max(0, (window.innerHeight - 600) / 2) 
-  });
-  const [size, setSize] = useState({ 
-    width: Math.min(400, window.innerWidth - 40), 
-    height: Math.min(600, window.innerHeight - 100) 
-  });
-  const [isDragging, setIsDragging] = useState(false);
+  const [chatbotCollapsed, setChatbotCollapsed] = useState(false);
+  const [chatbotWidth, setChatbotWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,49 +40,30 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
     scrollToBottom();
   }, [messages]);
 
+  // Notify parent of width changes
   useEffect(() => {
-    if (!isOpen) return;
+    if (onWidthChange) {
+      // Notify with actual displayed width (64px when collapsed)
+      onWidthChange(chatbotCollapsed ? 64 : chatbotWidth);
+    }
+  }, [chatbotCollapsed, chatbotWidth, onWidthChange]);
 
+  // Handle chatbot sidebar resize
+  useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
-        const newX = e.clientX - dragStart.x;
-        const newY = e.clientY - dragStart.y;
-        
-        // Constrain to viewport
-        const maxX = window.innerWidth - size.width;
-        const maxY = window.innerHeight - (isMinimized ? 60 : size.height);
-        
-        setPosition({
-          x: Math.max(0, Math.min(newX, maxX)),
-          y: Math.max(0, Math.min(newY, maxY)),
-        });
-      } else if (isResizing) {
-        const deltaX = e.clientX - resizeStart.x;
-        const deltaY = e.clientY - resizeStart.y;
-        
-        // Minimum size: 400x400, Maximum: full screen (but keep some margin)
-        const minWidth = 400;
-        const minHeight = 400;
-        const maxWidth = window.innerWidth - position.x - 20;
-        const maxHeight = window.innerHeight - position.y - 20;
-        
-        // Allow resizing from minWidth to maxWidth (can be half screen or more)
-        const newWidth = Math.max(minWidth, Math.min(resizeStart.width + deltaX, maxWidth));
-        const newHeight = Math.max(minHeight, Math.min(resizeStart.height + deltaY, maxHeight));
-        
-        setSize({
-          width: newWidth,
-          height: newHeight,
-        });
+      if (isResizing && resizeStartRef.current) {
+        const deltaX = resizeStartRef.current.x - e.clientX; // Inverted because sidebar is on right
+        const newWidth = Math.max(300, Math.min(600, resizeStartRef.current.width + deltaX));
+        setChatbotWidth(newWidth);
       }
     };
 
     const handleMouseUp = () => {
-      setIsDragging(false);
       setIsResizing(false);
+      resizeStartRef.current = null;
     };
 
-    if (isDragging || isResizing) {
+    if (isResizing) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     }
@@ -98,26 +72,15 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isResizing, dragStart, resizeStart, size, position, isMinimized, isOpen]);
-
-  const handleDragStart = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.resize-handle')) return;
-    setIsDragging(true);
-    setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y,
-    });
-  };
+  }, [isResizing]);
 
   const handleResizeStart = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    e.preventDefault();
     setIsResizing(true);
-    setResizeStart({
+    resizeStartRef.current = {
       x: e.clientX,
-      y: e.clientY,
-      width: size.width,
-      height: size.height,
-    });
+      width: chatbotWidth,
+    };
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -146,63 +109,70 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  // When collapsed, show a small width to keep the toggle button accessible
+  const displayWidth = chatbotCollapsed ? 64 : chatbotWidth;
+
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-20 z-40 modal-backdrop"
-        onClick={onClose}
-      />
+    <aside
+      className={`fixed top-0 right-0 z-50 h-full bg-white shadow-lg transition-all duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}
+      style={{ width: `${displayWidth}px` }}
+    >
+      <div className="flex flex-col h-full relative">
+        {/* Resize Handle */}
+        {!chatbotCollapsed && (
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-primary-200 bg-transparent transition-colors z-10"
+            onMouseDown={handleResizeStart}
+          />
+        )}
 
-      {/* Widget */}
-      <div
-        ref={widgetRef}
-        className={`fixed bg-white rounded-lg shadow-2xl z-50 flex flex-col modal-content ${isMinimized ? 'overflow-hidden' : 'overflow-hidden'}`}
-        style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-          width: `${size.width}px`,
-          height: isMinimized ? '60px' : `${size.height}px`,
-        }}
-      >
-        {/* Header - Draggable */}
-        <div
-          className="bg-primary-600 text-white px-4 py-3 flex items-center justify-between cursor-move select-none"
-          onMouseDown={handleDragStart}
+        {/* Collapse Toggle Button */}
+        <button
+          onClick={() => {
+            const newCollapsed = !chatbotCollapsed;
+            setChatbotCollapsed(newCollapsed);
+            if (onCollapseChange) {
+              onCollapseChange(newCollapsed);
+            }
+          }}
+          className="absolute -left-4 top-4 bg-white rounded-full p-1 shadow-md hover:bg-gray-100 transition-colors z-20 border border-gray-200"
+          title={chatbotCollapsed ? 'Expand chatbot' : 'Collapse chatbot'}
         >
-          <div className="flex items-center space-x-2">
-            <Bot size={20} />
-            <span className="font-semibold">LMS Assistant</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsMinimized(!isMinimized);
-              }}
-              className="p-1 hover:bg-primary-700 rounded transition-colors"
-              title={isMinimized ? 'Maximize' : 'Minimize'}
-            >
-              {isMinimized ? <Maximize2 size={18} /> : <Minimize2 size={18} />}
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              className="p-1 hover:bg-primary-700 rounded transition-colors"
-              title="Close"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
+          {chatbotCollapsed ? (
+            <ChevronLeft size={20} className="text-gray-600" />
+          ) : (
+            <ChevronRight size={20} className="text-gray-600" />
+          )}
+        </button>
 
-        {/* Content */}
-        {!isMinimized && (
-          <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Collapsed state - show minimal UI */}
+        {chatbotCollapsed && (
+          <div className="h-full flex items-center justify-center">
+            <Bot size={20} className="text-gray-400" />
+          </div>
+        )}
+
+        {/* Header */}
+        {!chatbotCollapsed && (
+          <>
+            <div className="bg-primary-600 text-white px-4 py-3 flex items-center justify-between border-b">
+              <div className="flex items-center space-x-2">
+                <Bot size={20} />
+                <span className="font-semibold">LMS Assistant</span>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-1 hover:bg-primary-700 rounded transition-colors"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
               {messages.map((message, index) => (
@@ -228,7 +198,11 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
                         : 'bg-white text-gray-900 border border-gray-200'
                     }`}
                   >
-                    <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                    <div className={`markdown-content text-sm ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -269,24 +243,11 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
                 </button>
               </div>
             </form>
-          </div>
-        )}
-
-        {/* Resize Handle */}
-        {!isMinimized && (
-          <div
-            className="resize-handle absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize bg-gray-200 hover:bg-primary-200 transition-colors"
-            onMouseDown={handleResizeStart}
-            style={{
-              backgroundImage: 'linear-gradient(-45deg, transparent 30%, #cbd5e1 30%, #cbd5e1 35%, transparent 35%, transparent 65%, #cbd5e1 65%, #cbd5e1 70%, transparent 70%)',
-              backgroundSize: '12px 12px',
-            }}
-          />
+          </>
         )}
       </div>
-    </>
+    </aside>
   );
 };
 
 export default ChatbotWidget;
-

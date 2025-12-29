@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User } from 'lucide-react';
 import { chatWithBot } from '../services/api';
 import toast from 'react-hot-toast';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -86,7 +88,11 @@ const Chatbot: React.FC = () => {
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <div className={`markdown-content ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
           ))}
