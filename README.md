@@ -384,10 +384,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Tailwind CSS
 - LangChain and LangGraph teams
 
-## 📞 Support
-
-For support, email your-email@example.com or create an issue in the repository.
-
 ---
 
 **Note**: This is a development version. For production deployment, ensure proper security measures, environment variable management, and database backups.
