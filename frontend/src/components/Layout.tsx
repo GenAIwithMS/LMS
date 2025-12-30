@@ -31,15 +31,61 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { logout, userRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(256); // 64 * 4 = 256px (w-64)
+  
+  // Load persisted states from localStorage
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebarOpen');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    return saved !== null ? saved === 'true' : false;
+  });
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('sidebarWidth');
+    return saved ? parseInt(saved, 10) : 256;
+  });
   const [isResizing, setIsResizing] = useState(false);
-  const [chatbotOpen, setChatbotOpen] = useState(true);
-  const [chatbotWidth, setChatbotWidth] = useState(400);
-  const [chatbotCollapsed, setChatbotCollapsed] = useState(false);
+  const [chatbotOpen, setChatbotOpen] = useState(() => {
+    const saved = localStorage.getItem('chatbotOpen');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [chatbotWidth, setChatbotWidth] = useState(() => {
+    const saved = localStorage.getItem('chatbotWidth');
+    return saved ? parseInt(saved, 10) : 400;
+  });
+  const [chatbotCollapsed, setChatbotCollapsed] = useState(() => {
+    const saved = localStorage.getItem('chatbotCollapsed');
+    return saved !== null ? saved === 'true' : false;
+  });
   const sidebarRef = useRef<HTMLDivElement>(null);
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
+
+  // Persist sidebar state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebarOpen', sidebarOpen.toString());
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', sidebarCollapsed.toString());
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem('sidebarWidth', sidebarWidth.toString());
+  }, [sidebarWidth]);
+
+  // Persist chatbot state to localStorage
+  useEffect(() => {
+    localStorage.setItem('chatbotOpen', chatbotOpen.toString());
+  }, [chatbotOpen]);
+
+  useEffect(() => {
+    localStorage.setItem('chatbotWidth', chatbotWidth.toString());
+  }, [chatbotWidth]);
+
+  useEffect(() => {
+    localStorage.setItem('chatbotCollapsed', chatbotCollapsed.toString());
+  }, [chatbotCollapsed]);
 
   const handleLogout = () => {
     logout();
@@ -77,6 +123,24 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   ];
 
   const menuItems = userRole === 'admin' ? adminMenuItems : userRole === 'teacher' ? teacherMenuItems : studentMenuItems;
+
+  // Keep sidebar open on desktop screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        // On desktop (lg and above), always keep sidebar open
+        setSidebarOpen(true);
+      }
+    };
+
+    // Check on mount and on resize
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Handle sidebar resize
   useEffect(() => {
@@ -129,7 +193,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <aside
         ref={sidebarRef}
         className={`fixed top-0 left-0 z-50 h-full bg-white shadow-lg transition-all duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
         style={{ width: `${displayWidth}px` }}
       >
@@ -177,7 +241,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <li key={item.path}>
                         <Link
                           to={item.path}
-                          onClick={() => setSidebarOpen(false)}
+                          onClick={() => {
+                            // Only close sidebar on mobile devices
+                            if (window.innerWidth < 1024) {
+                              setSidebarOpen(false);
+                            }
+                          }}
                           className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                             isActive(item.path)
                               ? 'bg-primary-100 text-primary-700 font-medium'
@@ -195,7 +264,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <button
                       onClick={() => {
                         setChatbotOpen(!chatbotOpen);
-                        setSidebarOpen(false);
+                        // Only close sidebar on mobile devices
+                        if (window.innerWidth < 1024) {
+                          setSidebarOpen(false);
+                        }
                       }}
                       className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                         chatbotOpen
@@ -241,7 +313,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <li key={item.path}>
                       <Link
                         to={item.path}
-                        onClick={() => setSidebarOpen(false)}
+                        onClick={() => {
+                          // Only close sidebar on mobile devices
+                          if (window.innerWidth < 1024) {
+                            setSidebarOpen(false);
+                          }
+                        }}
                         className={`flex items-center justify-center p-3 rounded-lg transition-colors ${
                           isActive(item.path)
                             ? 'bg-primary-100 text-primary-700'
@@ -258,7 +335,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <button
                     onClick={() => {
                       setChatbotOpen(!chatbotOpen);
-                      setSidebarOpen(false);
+                      // Only close sidebar on mobile devices
+                      if (window.innerWidth < 1024) {
+                        setSidebarOpen(false);
+                      }
                     }}
                     className={`w-full flex items-center justify-center p-3 rounded-lg transition-colors ${
                       chatbotOpen
@@ -297,10 +377,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <header className="bg-white shadow-sm sticky top-0 z-30">
           <div className="flex items-center justify-between px-6 py-4">
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
               className="lg:hidden text-gray-500 hover:text-gray-700"
+              title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
             >
-              <Menu size={24} />
+              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             <div className="flex-1" />
           </div>
