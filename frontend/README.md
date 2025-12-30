@@ -25,7 +25,7 @@ A modern, responsive frontend application for the Learning Management System bui
   - View Attendance Records
   - View Announcements
 
-- **Chatbot**: AI-powered assistant for role-specific help
+- **Chatbot**: AI powered assistant for role specific help
 
 ## Tech Stack
 

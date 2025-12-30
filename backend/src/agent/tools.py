@@ -1,9 +1,5 @@
 import sys
 import os
-
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, project_root)
-
 from src.models.subject import Subject
 from src.models.student import Student
 from src.models.teacher import Teacher
@@ -25,6 +21,10 @@ from src.services.assignment_submission import submit_assignment, get_submission
 from langchain.tools import tool
 from flask_jwt_extended import get_jwt, get_jwt_identity
 
+
+
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
 
 @tool
 def create_announcement(title, content, section_name, target_audience='all', created_at=None):

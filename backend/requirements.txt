@@ -10,6 +10,5 @@ langgraph
 langchain-core 
 langchain-groq 
 langchain
-# lanchain-community
 dotenv
 tzdata
