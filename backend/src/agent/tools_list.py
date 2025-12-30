@@ -14,7 +14,6 @@ from src.agent.tools import (
     get_submissions_by_student_tool, get_submissions_by_assignment_tool, update_submission_tool
 )
 
-# Domain-specific tool lists
 announcement_tools = [create_announcement, get_announcements, get_announcement, update_announcement, remove_announcement]
 event_tools = [create_event, get_events, get_event, update_event_tool, remove_event]
 section_tools = [create_section, get_sections, get_section, update_section, remove_section]
@@ -28,7 +27,6 @@ attendance_tools = [mark_attendance, get_attendance_by_student_tool, get_attenda
 assignment_tools = [create_assignment, get_assignments, get_assignment, update_assignment, remove_assignment]
 submission_tools = [get_submissions_by_student_tool, get_submissions_by_assignment_tool, update_submission_tool]
 
-# Tool sets grouped by domain for parallel processing
 TOOL_SETS = {
     "admin": {
         "student": student_tools_list,
