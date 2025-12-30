@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, X, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Send, Bot, User, X, ChevronRight, ChevronLeft, Trash2 } from 'lucide-react';
 import { chatWithBot } from '../services/api';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
@@ -18,12 +18,27 @@ interface ChatbotWidgetProps {
 }
 
 const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose, onWidthChange, onCollapseChange }) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'Hello! I\'m your LMS assistant. How can I help you today?',
-    },
-  ]);
+  const CHAT_HISTORY_KEY = 'lms_chatbot_history';
+  
+  // Load chat history from sessionStorage on mount
+  const loadChatHistory = (): Message[] => {
+    try {
+      const savedHistory = sessionStorage.getItem(CHAT_HISTORY_KEY);
+      if (savedHistory) {
+        return JSON.parse(savedHistory);
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+    }
+    return [
+      {
+        role: 'assistant',
+        content: 'Hello! I\'m your LMS assistant. How can I help you today?',
+      },
+    ];
+  };
+
+  const [messages, setMessages] = useState<Message[]>(loadChatHistory());
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -31,6 +46,15 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose, onWidthC
   const [chatbotWidth, setChatbotWidth] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
+
+  // Save chat history to sessionStorage whenever messages change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
+    } catch (error) {
+      console.error('Failed to save chat history:', error);
+    }
+  }, [messages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -89,11 +113,14 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose, onWidthC
 
     const userMessage = input.trim();
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    const newUserMessage: Message = { role: 'user', content: userMessage };
+    const newMessages = [...messages, newUserMessage];
+    setMessages(newMessages);
     setLoading(true);
 
     try {
-      const response = await chatWithBot(userMessage);
+      // Send full conversation history to maintain context
+      const response = await chatWithBot(userMessage, messages);
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: response.message || 'I apologize, but I couldn\'t process that request.' },
@@ -107,6 +134,23 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose, onWidthC
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearChatHistory = () => {
+    const initialMessage: Message[] = [
+      {
+        role: 'assistant',
+        content: 'Hello! I\'m your LMS assistant. How can I help you today?',
+      },
+    ];
+    setMessages(initialMessage);
+    sessionStorage.removeItem(CHAT_HISTORY_KEY);
+    toast.success('Chat history cleared');
+  };
+
+  const handleClose = () => {
+    clearChatHistory();
+    onClose();
   };
 
   // When collapsed, show a small width to keep the toggle button accessible
@@ -164,13 +208,22 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose, onWidthC
                 <Bot size={20} />
                 <span className="font-semibold">LMS Assistant</span>
               </div>
-              <button
-                onClick={onClose}
-                className="p-1 hover:bg-primary-700 rounded transition-colors"
-                title="Close"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={clearChatHistory}
+                  className="p-1 hover:bg-primary-700 rounded transition-colors"
+                  title="Clear chat history"
+                >
+                  <Trash2 size={18} />
+                </button>
+                <button
+                  onClick={handleClose}
+                  className="p-1 hover:bg-primary-700 rounded transition-colors"
+                  title="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Messages */}

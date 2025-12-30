@@ -53,7 +53,14 @@ def login():
             "message": "Invalid password"
         }), 401
     try:
-        token = create_access_token(identity=str(user.id),additional_claims={"role":role})
+        # Include user information in JWT token
+        additional_claims = {
+            "role": role,
+            "name": user.name,
+            "email": user.email,
+            "username": user.username if hasattr(user, 'username') else user.email
+        }
+        token = create_access_token(identity=str(user.id), additional_claims=additional_claims)
     except Exception as e:
         return jsonify({
             "message": f"you have an error: {str(e)}"
