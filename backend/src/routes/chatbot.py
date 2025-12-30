@@ -31,12 +31,13 @@ def chat():
         user_message = data["message"]
 
         with current_app.app_context():
+            # user_id = token.get("id")
             graph = create_chatbot_graph(user_role)
 
             initial_state = {
                 "messages": [HumanMessage(content=user_message)],
                 "user_role": user_role,
-                "available_tools": get_tools_for_role(user_role)
+                "user_info": dict(token)
             }
 
             result = graph.invoke(initial_state)

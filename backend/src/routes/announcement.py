@@ -1,4 +1,4 @@
-from src.services.announsment import add_announcement,get_all_announcements,get_announcement_by_id,edit_announcement,delete_announcement
+from src.services.announsment import add_announcement,get_all_announcements,get_announcement_by_title,edit_announcement,delete_announcement
 from flask import jsonify,request,Blueprint
 from src.schemas.announcement import AnnouncementSchema,UpdateAnnouncementSchema
 from marshmallow import ValidationError
@@ -48,12 +48,12 @@ def create_announce():
 @announcement_bp.route("/api/get/announcements", methods=["GET"])
 @jwt_required()
 def fetch_all_announcements():
-    announcement_id = request.args.get("id")
-    if not announcement_id:
+    announcement_title = request.args.get("title")
+    if not announcement_title:
         result = get_all_announcements()
         return result
 
-    result = get_announcement_by_id(announcement_id)
+    result = get_announcement_by_title(announcement_title)
     return result
 
 @announcement_bp.route("/api/update/announcement", methods=["PUT"])
@@ -72,10 +72,10 @@ def edit_announce():
     except ValidationError as e:
         return jsonify(e.messages), 400
     
-    announcement_id = request.args.get("id")
-    if not announcement_id:
+    announcement_title = request.args.get("title")
+    if not announcement_title:
         return jsonify({
-            "message": "Announcement ID is required",
+            "message": "Announcement title is required",
             "status": "error"
         }), 400
 
@@ -89,7 +89,7 @@ def edit_announce():
         data['section_id'] = section.id
         del data['section_name']
 
-    result = edit_announcement(announcement_id, **data)
+    result = edit_announcement(announcement_title, **data)
     return result
 
 @announcement_bp.route("/api/delete/announcement", methods=["DELETE"])
@@ -103,12 +103,12 @@ def delete_announce():
             "status":"failed"
         }),403
     
-    announcement_id = request.args.get("id")
-    if not announcement_id:
+    announcement_title = request.args.get("title")
+    if not announcement_title:
         return jsonify({
-            "message": "Announcement ID is required",
+            "message": "Announcement title is required",
             "status": "error"
         }), 400
 
-    result = delete_announcement(announcement_id)
+    result = delete_announcement(announcement_title)
     return result

@@ -48,8 +48,8 @@ def get_all_announcements():
         announcement_list.append(announcement_data)
     return jsonify(announcement_list)
 
-def get_announcement_by_id(announcement_id):
-    announcement = Announcement.query.get(announcement_id)
+def get_announcement_by_title(announcement_title):
+    announcement = Announcement.query.filter_by(title=announcement_title).first()
     if not announcement:
         return jsonify({
             "message": "Announcement not found",
@@ -68,8 +68,8 @@ def get_announcement_by_id(announcement_id):
     }
     return jsonify(announcement_data)
 
-def edit_announcement(announcement_id, **kwargs):
-    announcement = Announcement.query.get(announcement_id)
+def edit_announcement(announcement_title, **kwargs):
+    announcement = Announcement.query.filter_by(title=announcement_title).first()
     if not announcement:
         return jsonify({
             "message": "Announcement not found",
@@ -87,8 +87,8 @@ def edit_announcement(announcement_id, **kwargs):
         "status": "success"
     })
 
-def delete_announcement(announcement_id):
-    announcement = Announcement.query.get(announcement_id)
+def delete_announcement(announcement_title):
+    announcement = Announcement.query.filter_by(title=announcement_title).first()
     if not announcement:
         return jsonify({
             "message": "Announcement not found",
