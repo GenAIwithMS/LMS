@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt
-from src.agent.main import create_chatbot_graph, get_tools_for_role
+from src.agent.main import create_chatbot_graph
 from langchain_core.messages import HumanMessage, AIMessage
 
 
