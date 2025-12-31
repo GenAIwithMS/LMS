@@ -1,4 +1,4 @@
-from src.models.event import Event
+from src.models import Event
 from src.db import db
 from flask import jsonify
 

@@ -1,11 +1,9 @@
-from src.schemas.attendance import AttendanceSchema, UpdateAttendanceSchema
-from src.services.attendance import mark_attend, get_attendance_by_student,get_attendance_by_subject,get_all_attendance,update_attendance,delete_attendance
+from src.schemas import AttendanceSchema, UpdateAttendanceSchema
+from src.services import mark_attend, get_attendance_by_student,get_attendance_by_subject,get_all_attendance,update_attendance,delete_attendance
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt
-from src.models.student import Student
-from src.models.subject import Subject
-from src.models.attendance import Attendance
+from src.models import Student,Attendance,Subject
 
 attendance_bp = Blueprint('attendance', __name__)
 

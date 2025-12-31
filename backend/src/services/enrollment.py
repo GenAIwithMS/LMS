@@ -1,4 +1,4 @@
-from src.models.enrollment import Enrollment
+from src.models import Enrollment
 from src.db import db
 from flask import jsonify
 

@@ -1,6 +1,6 @@
-from src.services.assignment_submission import submit_assignment,get_submissions_by_assignment,get_submissions_by_student,update_submission,delete_submission
+from src.services import submit_assignment,get_submissions_by_assignment,get_submissions_by_student,update_submission,delete_submission
 from flask import Blueprint, request, jsonify
-from src.schemas.assignment_submission import UpdateAssignmentSubmissionSchema
+from src.schemas import UpdateAssignmentSubmissionSchema
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt_identity, get_jwt
 

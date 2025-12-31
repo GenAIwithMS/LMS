@@ -1,4 +1,4 @@
-from src.models.section import Section
+from src.models import Section
 from flask import jsonify
 from src.db import db
 

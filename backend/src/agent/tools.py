@@ -1,26 +1,12 @@
-import sys
 import os
-from flask_jwt_extended import get_jwt_identity, get_jwt,jwt_required
-from src.models.subject import Subject
-from src.models.student import Student
-from src.models.teacher import Teacher
-from src.models.course import Course
-from src.models.section import Section
-from src.models.attendance import Attendance
-from src.services.announsment import add_announcement,get_all_announcements,get_announcement_by_title,edit_announcement,delete_announcement
-from src.services.event import add_event,get_event_by_id,get_all_events,update_event,delete_event
-from src.services.section import add_section,get_section_by_id,get_all_sections,edit_section,delete_section
-from src.services.students import add_students,get_all_students,get_student_by_id,update_student,delete_student
-from src.services.course import add_course,get_all_courses,get_course_by_id,update_course,delete_course
-from src.services.enrollment import enroll_student,get_enrollments_by_course,get_enrollments_by_student,update_enrollment,delete_enrollment,get_all_enrollments
-from src.services.result import add_result, get_result_by_id, get_all_results, edit_result, delete_result
-from src.services.subject import add_subject, get_all_subjects, get_subject_by_id, delete_subject,update_subject
-from src.services.teacher import add_teacher, get_teacher_by_id, update_teacher, delete_teacher, get_all_teachers
-from src.services.attendance import mark_attend, get_attendance_by_student,get_attendance_by_subject,get_all_attendance,update_attendance,delete_attendance
-from src.services.assignment import add_assignment, get_assignment_by_id,get_all_assignments,edit_assignment,delete_assignment
-from src.services.assignment_submission import get_submissions_by_student, get_submissions_by_assignment, update_submission
-from langchain.tools import tool
+import sys
 from flask import Response
+from langchain.tools import tool
+from src.models import Subject,Student,Teacher,Course,Section,Attendance
+from flask_jwt_extended import get_jwt_identity, get_jwt,jwt_required
+
+from src.services import add_announcement,get_all_announcements,get_announcement_by_title,edit_announcement,delete_announcement,add_event,get_event_by_id,get_all_events,update_event,delete_event,add_section,get_section_by_id,get_all_sections,edit_section,delete_section,add_students,get_all_students,get_student_by_id,update_student,delete_student,add_course,get_all_courses,get_course_by_id,update_course,delete_course,enroll_student,get_enrollments_by_course,get_enrollments_by_student,update_enrollment,delete_enrollment,get_all_enrollments,add_result, get_result_by_id, get_all_results, edit_result, delete_result,add_subject, get_all_subjects, get_subject_by_id, delete_subject,update_subject,add_teacher, get_teacher_by_id, update_teacher, delete_teacher, get_all_teachers,mark_attend, get_attendance_by_student,get_attendance_by_subject,get_all_attendance,update_attendance,delete_attendance,add_assignment, get_assignment_by_id,get_all_assignments,edit_assignment,delete_assignment,get_submissions_by_student, get_submissions_by_assignment, update_submission
+
 
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, project_root)

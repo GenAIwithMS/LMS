@@ -1,4 +1,4 @@
-from src.models.admin import Admin
+from src.models import Admin
 from flask import jsonify
 from src.db import db
 

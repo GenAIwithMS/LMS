@@ -1,9 +1,9 @@
-from src.services.assignment import add_assignment, get_assignment_by_id,get_all_assignments,edit_assignment,delete_assignment
+from src.services import add_assignment, get_assignment_by_id,get_all_assignments,edit_assignment,delete_assignment
 from flask import Blueprint, request, jsonify
-from src.schemas.assignment import assignmentSchema,UpdateAssignmentSchema
+from src.schemas import assignmentSchema,UpdateAssignmentSchema
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
-from src.models.subject import Subject
+from src.models import Subject
 
 assignment_bp = Blueprint("assignment", __name__)
 
