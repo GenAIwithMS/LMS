@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, validate, post_load
+from marshmallow import Schema, fields, post_load
 
 class AssignmentSubmissionSchema(Schema):
    
@@ -22,11 +22,9 @@ class UpdateAssignmentSubmissionSchema(Schema):
     
     @post_load
     def process_marks(self, data, **kwargs):
-        # If marks_obtained is provided, use it as marks (for backward compatibility)
         if 'marks_obtained' in data:
             if 'marks' not in data or data.get('marks') is None:
                 data['marks'] = data.pop('marks_obtained')
             else:
-                # If both are provided, prefer marks and remove marks_obtained
                 data.pop('marks_obtained', None)
         return data

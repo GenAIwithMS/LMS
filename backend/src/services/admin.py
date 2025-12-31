@@ -1,7 +1,6 @@
 from src.models.admin import Admin
 from flask import jsonify
 from src.db import db
-import os
 
 def add_admin(name, email, username, password):
     existing_email = Admin.query.filter_by(email=email).first()

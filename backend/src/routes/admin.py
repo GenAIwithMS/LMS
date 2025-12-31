@@ -4,7 +4,6 @@ from flask_jwt_extended import jwt_required , get_jwt
 from src.services.admin import add_admin
 from src.schemas.auth_schema import RegisterAdminSchema
 from marshmallow import ValidationError
-import os 
 
 admin_bp = Blueprint("admin",__name__)
 
