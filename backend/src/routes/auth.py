@@ -7,10 +7,10 @@ from marshmallow import ValidationError
 from src.schemas.auth_schema import loginSchema
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-auth = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__)
 
 
-@auth.route('/api/login', methods=['POST'])
+@auth_bp.route('/api/login', methods=['POST'])
 def login():
     try:
         data = loginSchema().load(request.get_json())
@@ -71,7 +71,7 @@ def login():
         "token": token
     })
 
-@auth.route("/api/protected", methods=["GET"])
+@auth_bp.route("/api/protected", methods=["GET"])
 @jwt_required()
 def protected():
     user_id = get_jwt_identity()
