@@ -28,7 +28,6 @@ attendance_tools = [mark_attendance, get_attendance_by_student_tool, get_attenda
 assignment_tools = [create_assignment, get_assignments, get_assignment, update_assignment, remove_assignment]
 submission_tools = [get_submissions_by_student_tool, get_submissions_by_assignment_tool, update_submission_tool]
 
-# Tool sets grouped by domain for parallel processing
 TOOL_SETS = {
     "admin": {
         "student": student_tools_list,
@@ -60,7 +59,6 @@ TOOL_SETS = {
     }
 }
 
-# Dynamically generate flat tool lists from TOOL_SETS for backward compatibility
 def _flatten_tools(role_tool_sets):
     """Flatten domain-grouped tools into a single list, removing duplicates."""
     tools = []

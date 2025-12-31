@@ -48,10 +48,8 @@ def agent_node(state: AgentState, model_with_tools, system_prompt):
     messages = state["messages"]
     user_role = state.get("user_role")
     
-    # Build context-aware system prompt  
     context_prompt = f"{system_prompt}\n\nNote: You are logged in as {user_role}. Your identity is automatically used in relevant operations."
     
-    # Ensure system prompt is present at the beginning
     if len(messages) == 1 and isinstance(messages[0], HumanMessage):
         messages = [AIMessage(content=context_prompt)] + messages
     
@@ -72,7 +70,6 @@ def should_continue(state: AgentState) -> str:
 
 def create_chatbot_graph(user_role: str):
     """Create a unified agent graph with all role-based tools."""
-    # Get context-aware tools if user_id is provided
     tools = get_tools_for_role(user_role)
     system_prompt = get_system_prompt_for_role(user_role)
 
