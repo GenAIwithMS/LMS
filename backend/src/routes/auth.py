@@ -1,10 +1,8 @@
 from flask import Blueprint,request,jsonify
-from src.models.admin import Admin
-from src.models.student import Student
-from src.models.teacher import Teacher
+from src.models import Admin,Teacher,Student
 from flask_jwt_extended import create_access_token
 from marshmallow import ValidationError
-from src.schemas.auth_schema import loginSchema
+from src.schemas import loginSchema
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 auth_bp = Blueprint('auth', __name__)

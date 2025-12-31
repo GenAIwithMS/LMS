@@ -1,4 +1,4 @@
-from src.models.result import Result
+from src.models import Result
 from flask import jsonify
 from src.db import db
 

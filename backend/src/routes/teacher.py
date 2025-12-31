@@ -1,8 +1,8 @@
 from flask import Blueprint,jsonify,request
 from flask_jwt_extended import jwt_required,get_jwt
-from src.schemas.auth_schema import RegisterTeacherSchema,UpdateTeacherSchema
+from src.schemas import RegisterTeacherSchema,UpdateTeacherSchema
 from marshmallow import ValidationError
-from src.services.teacher import add_teacher, get_teacher_by_id, update_teacher, delete_teacher, get_all_teachers
+from src.services import add_teacher, get_teacher_by_id, update_teacher, delete_teacher, get_all_teachers
 
 teacher_bp = Blueprint("teacher",__name__)
 

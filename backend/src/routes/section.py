@@ -1,9 +1,9 @@
-from src.services.section import add_section,get_all_sections,get_section_by_id,edit_section,delete_section
+from src.services import add_section,get_all_sections,get_section_by_id,edit_section,delete_section
 from flask import Blueprint, request, jsonify
-from src.schemas.section import SectionSchema,UpdateSectionSchema
+from src.schemas import SectionSchema,UpdateSectionSchema
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt
-from src.models.teacher import Teacher
+from src.models import Teacher
 
 section_bp = Blueprint("section", __name__)
 

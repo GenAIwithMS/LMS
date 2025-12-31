@@ -1,10 +1,9 @@
-from src.services.enrollment import enroll_student,get_enrollments_by_course,get_enrollments_by_student,update_enrollment,delete_enrollment,get_all_enrollments
-from src.schemas.enrollment import EnrollmentSchema,UpdateEnrollmentSchema
+from src.services import enroll_student,get_enrollments_by_course,get_enrollments_by_student,update_enrollment,delete_enrollment,get_all_enrollments
+from src.schemas import EnrollmentSchema,UpdateEnrollmentSchema
 from flask_jwt_extended import jwt_required, get_jwt
 from flask import jsonify,Blueprint,request
 from marshmallow import ValidationError
-from src.models.student import Student
-from src.models.course import Course
+from src.models import Student,Course
 
 enrollment_bp = Blueprint("enrollment",__name__)
 

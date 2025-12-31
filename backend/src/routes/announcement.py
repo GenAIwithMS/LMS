@@ -1,9 +1,9 @@
-from src.services.announsment import add_announcement,get_all_announcements,get_announcement_by_title,edit_announcement,delete_announcement
+from src.services import add_announcement,get_all_announcements,get_announcement_by_title,edit_announcement,delete_announcement
 from flask import jsonify,request,Blueprint
-from src.schemas.announcement import AnnouncementSchema,UpdateAnnouncementSchema
+from src.schemas import AnnouncementSchema,UpdateAnnouncementSchema
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt,get_jwt_identity
-from src.models.section import Section
+from src.models import Section
 
 announcement_bp = Blueprint("announcement",__name__)
 

@@ -1,9 +1,6 @@
-from src.models.assignment_submission import AssignmentSubmission
+from src.models import AssignmentSubmission,Assignment,Student
 from src.db import db
 from flask import jsonify
-from src.models.assignment import Assignment
-from src.models.student import Student
-
 import os
 
 def submit_assignment(student_id, assignment_id, submission_text=None, submission_file=None,submitted_at=None,feedback=None):

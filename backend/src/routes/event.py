@@ -1,5 +1,5 @@
-from src.schemas.event import EventSchema,UpdateEventSchema
-from src.services.event import add_event, get_event_by_id, get_all_events,update_event,delete_event
+from src.schemas import EventSchema,UpdateEventSchema
+from src.services import add_event, get_event_by_id, get_all_events,update_event,delete_event
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt,get_jwt_identity
