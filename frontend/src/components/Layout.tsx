@@ -53,7 +53,7 @@ interface Notification {
   title: string;
   type: 'announcement' | 'event';
   time: string;
-  path: string;
+  creatorId?: number | string;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -98,24 +98,30 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           getEvents()
         ]);
         
-        const announcementPath = userRole === 'admin' ? '/admin/announcements' : `/${userRole}/announcements`;
-        const eventPath = userRole === 'admin' ? '/admin/events' : '/dashboard';
+        // Current user ID from auth context
+        const currentUserId = user?.id;
 
         const combined: Notification[] = [
-          ...(Array.isArray(announcements) ? announcements.slice(0, 3).map((a: any) => ({
-            id: `a-${a.id}`,
-            title: a.title,
-            type: 'announcement' as const,
-            time: 'Recently',
-            path: announcementPath
-          })) : []),
-          ...(Array.isArray(events) ? events.slice(0, 3).map((e: any) => ({
-            id: `e-${e.id}`,
-            title: e.title,
-            type: 'event' as const,
-            time: e.event_date || 'Upcoming',
-            path: eventPath
-          })) : [])
+          ...(Array.isArray(announcements) ? announcements
+            .filter((a: any) => a.teacher_id !== currentUserId) // Filter out self-created announcements
+            .slice(0, 5)
+            .map((a: any) => ({
+              id: `a-${a.id}`,
+              title: a.title,
+              type: 'announcement' as const,
+              time: 'Recently',
+              creatorId: a.teacher_id
+            })) : []),
+          ...(Array.isArray(events) ? events
+            .filter((e: any) => e.admin_id !== currentUserId) // Filter out self-created events
+            .slice(0, 5)
+            .map((e: any) => ({
+              id: `e-${e.id}`,
+              title: e.title,
+              type: 'event' as const,
+              time: e.event_date || 'Upcoming',
+              creatorId: e.admin_id
+            })) : [])
         ];
         
         setNotifications(combined);
@@ -127,22 +133,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       }
     };
 
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
-  }, [userRole]);
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [user, userRole]);
 
   const handleMarkAllRead = () => {
     setHasUnread(false);
     localStorage.setItem('notificationsRead', 'true');
     toast.success('All notifications marked as read');
-  };
-
-  const handleNotificationClick = (path: string) => {
-    navigate(path);
-    setShowNotifications(false);
-    setHasUnread(false);
-    localStorage.setItem('notificationsRead', 'true');
   };
 
   const handleViewAll = () => {
@@ -351,8 +352,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           {notifications.map((n) => (
                             <div 
                               key={n.id} 
-                              onClick={() => handleNotificationClick(n.path)}
-                              className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                              className="p-4 hover:bg-gray-50 transition-colors"
                             >
                               <div className="flex items-start gap-3">
                                 <div className={`mt-1 p-1.5 rounded-lg ${n.type === 'announcement' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
