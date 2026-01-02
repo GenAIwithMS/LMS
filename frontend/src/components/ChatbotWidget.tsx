@@ -32,11 +32,60 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Adjustability states
+  const [width, setWidth] = useState(() => {
+    const saved = localStorage.getItem('chatbotWidth');
+    return saved ? parseInt(saved, 10) : 400;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
 
   useEffect(() => {
     sessionStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem('chatbotWidth', width.toString());
+  }, [width]);
+
+  // Handle resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizing && resizeStartRef.current) {
+        const deltaX = resizeStartRef.current.x - e.clientX;
+        const newWidth = Math.max(320, Math.min(800, resizeStartRef.current.width + deltaX));
+        setWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      resizeStartRef.current = null;
+      document.body.style.cursor = 'default';
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'ew-resize';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    resizeStartRef.current = {
+      x: e.clientX,
+      width: width,
+    };
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,12 +120,21 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
     toast.success('Chat history cleared');
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white shadow-2xl z-[60] flex flex-col border-l border-gray-200 transition-all duration-300 ease-in-out animate-in slide-in-from-right">
+    <div 
+      className={`fixed inset-y-0 right-0 bg-white shadow-2xl z-[60] flex flex-col border-l border-gray-200 transition-transform duration-500 ease-in-out ${
+        isOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}
+      style={{ width: `${width}px` }}
+    >
+      {/* Resize Handle */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-indigo-400/30 transition-colors z-10"
+        onMouseDown={handleResizeStart}
+      />
+
       {/* Header */}
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
+      <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
             <Sparkles size={20} />
@@ -141,7 +199,7 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-white border-t border-gray-100">
+      <div className="p-4 bg-white border-t border-gray-100 shrink-0">
         <form onSubmit={handleSend} className="relative">
           <input
             type="text"

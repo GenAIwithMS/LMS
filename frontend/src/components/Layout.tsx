@@ -21,8 +21,9 @@ import {
   Clock,
   ChevronRight,
   ChevronLeft,
-  Search,
+  Sparkles,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -45,6 +46,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const saved = localStorage.getItem('chatbotOpen');
     return saved !== null ? saved === 'true' : false;
   });
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('sidebarOpen', sidebarOpen.toString());
@@ -125,11 +127,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         }`}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center px-6 border-b border-gray-100">
+        <div className="h-16 flex items-center px-6 border-b border-gray-100 relative">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold">L</div>
             {!sidebarCollapsed && <span className="text-xl font-bold text-gray-900 tracking-tight">LMS Pro</span>}
           </div>
+          
+          {/* Sidebar Toggle Arrow - Inside Sidebar */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center text-gray-400 hover:text-primary-600 hover:border-primary-200 shadow-sm z-50 transition-all"
+          >
+            {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden ml-auto text-gray-400 hover:text-gray-600"
@@ -159,20 +170,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </Link>
             );
           })}
-          
-          {/* Chatbot Toggle in Sidebar */}
-          <button
-            onClick={() => setChatbotOpen(!chatbotOpen)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
-              chatbotOpen
-                ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-            title={sidebarCollapsed ? 'AI Assistant' : ''}
-          >
-            <MessageSquare size={20} className={chatbotOpen ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'} />
-            {!sidebarCollapsed && <span className="text-sm">AI Assistant</span>}
-          </button>
         </nav>
 
         {/* User Profile Section */}
@@ -210,26 +207,56 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             >
               <Menu size={20} />
             </button>
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="hidden lg:flex p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-            >
-              {sidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-            </button>
-            <div className="hidden sm:flex items-center bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 w-64">
-              <Search size={16} className="text-gray-400" />
-              <input type="text" placeholder="Search..." className="bg-transparent border-none focus:ring-0 text-sm ml-2 w-full" />
+            <div className="hidden lg:block">
+              <h2 className="text-sm font-medium text-gray-500">
+                {location.pathname.split('/').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' / ') || 'Dashboard'}
+              </h2>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full relative">
-              <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+            {/* Notification Icon */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={`p-2 rounded-full transition-colors relative ${showNotifications ? 'bg-gray-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+              >
+                <Bell size={20} />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              </button>
+              
+              {/* Notification Dropdown */}
+              {showNotifications && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)}></div>
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                      <h3 className="font-bold text-gray-900">Notifications</h3>
+                      <button className="text-xs text-primary-600 font-medium hover:underline">Mark all as read</button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        <Bell size={32} className="mx-auto text-gray-200 mb-2" />
+                        <p>No new notifications</p>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 border-t border-gray-100 text-center">
+                      <button className="text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-wider">View All Activity</button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <div className="h-8 w-px bg-gray-200 mx-1"></div>
-            <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full">
-              <Settings size={20} />
+            
+            {/* AI Assistant Icon - Replacing Settings */}
+            <button 
+              onClick={() => setChatbotOpen(!chatbotOpen)}
+              className={`p-2 rounded-full transition-all ${chatbotOpen ? 'bg-indigo-50 text-indigo-600 ring-2 ring-indigo-100' : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+              title="AI Assistant"
+            >
+              <Sparkles size={20} />
             </button>
           </div>
         </header>
