@@ -221,19 +221,29 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       >
         {/* Logo Section */}
         <div className="h-16 flex items-center px-6 border-b border-gray-100 relative overflow-hidden">
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">L</div>
-            {!sidebarCollapsed && <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>}
-          </div>
-          
-          {/* Sidebar Toggle - Overwrites name when collapsed */}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className={`p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all ${sidebarCollapsed ? 'absolute left-1/2 -translate-x-1/2' : 'ml-auto'}`}
-            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-          >
-            <PanelLeft size={20} className={sidebarCollapsed ? "rotate-180" : ""} />
-          </button>
+          {!sidebarCollapsed ? (
+            <div className="flex items-center gap-3 shrink-0 w-full">
+              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">L</div>
+              <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>
+              <button
+                onClick={() => setSidebarCollapsed(true)}
+                className="ml-auto p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                title="Collapse Sidebar"
+              >
+                <PanelLeft size={20} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center w-full">
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                title="Expand Sidebar"
+              >
+                <PanelLeft size={20} className="rotate-180" />
+              </button>
+            </div>
+          )}
 
           <button
             onClick={() => setSidebarOpen(false)}
