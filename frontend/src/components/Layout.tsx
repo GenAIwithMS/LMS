@@ -221,9 +221,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       >
         {/* Logo Section */}
         <div className="h-16 flex items-center px-6 border-b border-gray-100 relative overflow-hidden">
-          <div className={`flex items-center gap-3 shrink-0`}>
+          <div className={`flex items-center gap-3 shrink-0 transition-all duration-500 ${sidebarCollapsed ? 'opacity-0 -translate-x-10' : 'opacity-100 translate-x-0'}`}>
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">L</div>
-            <span className={`text-xl font-bold text-gray-900 tracking-tight truncate transition-all duration-500 ${sidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>LMS Pro</span>
+            <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>
           </div>
           
           {/* Sidebar Toggle - Centered when collapsed, right-aligned when expanded */}
@@ -252,7 +252,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl group ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
                   active
                     ? 'bg-primary-50 text-primary-700 font-semibold'
                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
@@ -260,7 +260,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 title={sidebarCollapsed ? item.label : ''}
               >
                 <Icon size={20} className={active ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'} />
-                <span className={`text-sm transition-all duration-500 ${sidebarCollapsed ? 'opacity-0 w-0 pointer-events-none' : 'opacity-100'}`}>
+                <span className={`text-sm transition-all duration-500 ${sidebarCollapsed ? 'opacity-0 -translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'}`}>
                   {item.label}
                 </span>
               </Link>
@@ -270,7 +270,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* User Profile Section */}
         <div className="p-4 border-t border-gray-100">
-          <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : 'px-2 py-2'}`}>
+          <div className={`flex items-center gap-3 transition-all duration-500 ${sidebarCollapsed ? 'justify-center' : 'px-2 py-2'}`}>
             <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 border border-gray-200 shrink-0">
               <UserCircle size={24} />
             </div>
@@ -281,7 +281,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
           <button
             onClick={handleLogout}
-            className={`mt-2 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50 ${sidebarCollapsed ? 'justify-center' : ''}`}
+            className={`mt-2 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50 transition-all duration-500 ${sidebarCollapsed ? 'justify-center' : ''}`}
             title={sidebarCollapsed ? 'Logout' : ''}
           >
             <LogOut size={18} className="shrink-0" />
@@ -292,93 +292,84 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Top Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+              className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
             >
-              <Menu size={24} />
+              <Menu size={20} />
             </button>
-            <h1 className="text-lg font-semibold text-gray-900 capitalize">
-              {location.pathname.split('/').pop()?.replace(/-/g, ' ') || 'Dashboard'}
-            </h1>
+            <div className="hidden lg:block">
+              <h2 className="text-sm font-medium text-gray-500">
+                {location.pathname.split('/').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' / ') || 'Dashboard'}
+              </h2>
+            </div>
           </div>
-
-          <div className="flex items-center gap-2 lg:gap-4">
-            {/* Notifications */}
+          
+          <div className="flex items-center gap-3">
+            {/* Notification Icon */}
             <div className="relative">
-              <button
+              <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-colors relative"
+                className={`p-2 rounded-full transition-colors relative ${showNotifications ? 'bg-gray-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
               >
-                <Bell size={22} />
+                <Bell size={20} />
                 {hasUnread && (
-                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full" />
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
               </button>
-
+              
+              {/* Notification Dropdown */}
               {showNotifications && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setShowNotifications(false)}
-                  />
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden">
-                    <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+                  <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)}></div>
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                       <h3 className="font-bold text-gray-900">Notifications</h3>
                       <button 
                         onClick={handleMarkAllRead}
-                        className="text-xs font-medium text-primary-600 hover:text-primary-700"
+                        className="text-xs text-primary-600 font-medium hover:underline"
                       >
-                        Mark all read
+                        Mark all as read
                       </button>
                     </div>
-                    <div className="max-h-[400px] overflow-y-auto">
+                    <div className="max-h-96 overflow-y-auto">
                       {notifications.length > 0 ? (
-                        notifications.map((notification) => (
-                          <div 
-                            key={notification.id}
-                            className="p-4 hover:bg-gray-50 border-b border-gray-50 transition-colors cursor-pointer group"
-                          >
-                            <div className="flex gap-3">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                                notification.type === 'announcement' 
-                                  ? 'bg-blue-50 text-blue-600' 
-                                  : 'bg-purple-50 text-purple-600'
-                              }`}>
-                                {notification.type === 'announcement' ? <Bell size={18} /> : <Calendar size={18} />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1">
-                                  {notification.title}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-                                  <Clock size={12} />
-                                  {notification.time}
-                                </p>
+                        <div className="divide-y divide-gray-50">
+                          {notifications.map((n) => (
+                            <div 
+                              key={n.id} 
+                              className="p-4 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`mt-1 p-1.5 rounded-lg ${n.type === 'announcement' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                                  {n.type === 'announcement' ? <Bell size={14} /> : <Calendar size={14} />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{n.title}</p>
+                                  <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">{n.time}</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))
+                          ))}
+                        </div>
                       ) : (
-                        <div className="p-8 text-center">
-                          <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <Bell size={20} className="text-gray-400" />
-                          </div>
-                          <p className="text-sm text-gray-500">No new notifications</p>
+                        <div className="p-8 text-center text-gray-500 text-sm">
+                          <Bell size={32} className="mx-auto text-gray-200 mb-2" />
+                          <p>No new notifications</p>
                         </div>
                       )}
                     </div>
-                    <div className="p-3 bg-gray-50/50 border-t border-gray-50">
+                    <div className="p-3 bg-gray-50 border-t border-gray-100 text-center">
                       <button 
                         onClick={handleViewAll}
-                        className="w-full py-2 text-sm font-semibold text-gray-700 hover:text-primary-600 transition-colors"
+                        className="text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-wider"
                       >
-                        View all updates
+                        View All Activity
                       </button>
                     </div>
                   </div>
@@ -386,37 +377,30 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               )}
             </div>
 
-            <div className="h-8 w-px bg-gray-200 mx-1 hidden sm:block" />
-
-            <button
+            <div className="h-8 w-px bg-gray-200 mx-1"></div>
+            
+            {/* Manus Assistant Icon */}
+            <button 
               onClick={() => setChatbotOpen(!chatbotOpen)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 ${
-                chatbotOpen 
-                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' 
-                  : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
-              }`}
+              className={`p-2 rounded-full transition-all ${chatbotOpen ? 'bg-indigo-50 text-indigo-600 ring-2 ring-indigo-100' : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+              title="Manus Assistant"
             >
-              <Sparkles size={18} className={chatbotOpen ? 'animate-pulse' : ''} />
-              <span className="text-sm font-bold hidden sm:inline">AI Assistant</span>
+              <ManusIcon size={20} />
             </button>
           </div>
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8 relative">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-          
-          {/* Chatbot Widget */}
-          <ChatbotWidget 
-            isOpen={chatbotOpen} 
-            onClose={() => setChatbotOpen(false)} 
-          />
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+          {children}
         </div>
+
+        {/* Chatbot Widget Integration */}
+        <ChatbotWidget 
+          isOpen={chatbotOpen} 
+          onClose={() => setChatbotOpen(false)} 
+        />
       </main>
     </div>
   );
 };
-
-export default Layout;
