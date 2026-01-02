@@ -10,6 +10,10 @@ import {
   Bell,
   TrendingUp,
   Award,
+  ArrowRight,
+  Activity,
+  Clock,
+  CheckCircle2,
 } from 'lucide-react';
 import { getStudents, getTeachers, getCourses, getAssignments, getAnnouncements, getEvents } from '../services/api';
 import toast from 'react-hot-toast';
@@ -60,48 +64,38 @@ const Dashboard: React.FC = () => {
 
   const statCards = [
     {
-      title: 'Students',
+      title: 'Total Students',
       value: stats.students,
       icon: Users,
-      color: 'bg-blue-500',
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
       path: userRole === 'admin' ? '/admin/students' : undefined,
     },
     {
-      title: 'Teachers',
+      title: 'Total Teachers',
       value: stats.teachers,
       icon: GraduationCap,
-      color: 'bg-green-500',
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-50',
       path: userRole === 'admin' ? '/admin/teachers' : undefined,
     },
     {
-      title: 'Courses',
+      title: 'Active Courses',
       value: stats.courses,
       icon: BookOpen,
-      color: 'bg-purple-500',
+      color: 'text-violet-600',
+      bgColor: 'bg-violet-50',
       path: userRole === 'admin' ? '/admin/courses' : undefined,
     },
     {
       title: 'Assignments',
       value: stats.assignments,
       icon: FileText,
-      color: 'bg-orange-500',
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-50',
       path: userRole === 'teacher' ? '/teacher/assignments' : userRole === 'student' ? '/student/assignments' : undefined,
     },
-    {
-      title: 'Announcements',
-      value: stats.announcements,
-      icon: Bell,
-      color: 'bg-pink-500',
-      path: userRole === 'teacher' ? '/teacher/announcements' : userRole === 'student' ? '/student/announcements' : undefined,
-    },
-    {
-      title: 'Events',
-      value: stats.events,
-      icon: Calendar,
-      color: 'bg-indigo-500',
-      path: userRole === 'admin' ? '/admin/events' : undefined,
-    },
-  ].filter(card => card.path || userRole === 'admin');
+  ];
 
   if (loading) {
     return (
@@ -112,128 +106,193 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {user?.name || user?.username || 'User'}!
-        </h1>
-        <p className="text-gray-600 mt-2">Here's an overview of your system.</p>
+    <div className="max-w-7xl mx-auto space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Welcome back, {user?.name || user?.username || 'User'}!
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Here's what's happening with your LMS today.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="px-3 py-1 bg-white border border-gray-200 rounded-full flex items-center gap-2 shadow-sm">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs font-medium text-gray-600 capitalize">{userRole} Mode</span>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card) => {
           const Icon = card.icon;
-          const CardComponent = card.path ? 'button' : 'div';
-          const props = card.path
-            ? {
-                onClick: () => navigate(card.path!),
-                className: 'cursor-pointer hover:scale-105 transition-transform',
-              }
-            : {};
-
           return (
-            <CardComponent key={card.title} {...props}>
-              <div className="card">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">{card.title}</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">{card.value}</p>
-                  </div>
-                  <div className={`${card.color} p-4 rounded-lg`}>
-                    <Icon className="w-8 h-8 text-white" />
-                  </div>
+            <div
+              key={card.title}
+              onClick={card.path ? () => navigate(card.path!) : undefined}
+              className={`bg-white p-5 rounded-xl border border-gray-100 shadow-sm transition-all duration-200 ${
+                card.path ? 'cursor-pointer hover:shadow-md hover:border-primary-100' : ''
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className={`${card.bgColor} ${card.color} p-2.5 rounded-lg`}>
+                  <Icon size={20} />
                 </div>
+                {card.path && <ArrowRight size={16} className="text-gray-300" />}
               </div>
-            </CardComponent>
+              <div className="mt-4">
+                <p className="text-2xl font-bold text-gray-900">{card.value}</p>
+                <p className="text-sm font-medium text-gray-500 mt-0.5">{card.title}</p>
+              </div>
+            </div>
           );
         })}
       </div>
 
-      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-          <div className="space-y-3">
-            {userRole === 'admin' && (
-              <>
-                <button
-                  onClick={() => navigate('/admin/students')}
-                  className="w-full btn btn-secondary text-left"
-                >
-                  Manage Students
-                </button>
-                <button
-                  onClick={() => navigate('/admin/teachers')}
-                  className="w-full btn btn-secondary text-left"
-                >
-                  Manage Teachers
-                </button>
-                <button
-                  onClick={() => navigate('/admin/courses')}
-                  className="w-full btn btn-secondary text-left"
-                >
-                  Manage Courses
-                </button>
-              </>
-            )}
-            {userRole === 'teacher' && (
-              <>
-                <button
-                  onClick={() => navigate('/teacher/assignments')}
-                  className="w-full btn btn-secondary text-left"
-                >
-                  Create Assignment
-                </button>
-                <button
-                  onClick={() => navigate('/teacher/attendance')}
-                  className="w-full btn btn-secondary text-left"
-                >
-                  Mark Attendance
-                </button>
-                <button
-                  onClick={() => navigate('/teacher/announcements')}
-                  className="w-full btn btn-secondary text-left"
-                >
-                  Create Announcement
-                </button>
-              </>
-            )}
-            {userRole === 'student' && (
-              <>
-                <button
-                  onClick={() => navigate('/student/assignments')}
-                  className="w-full btn btn-secondary text-left"
-                >
-                  View Assignments
-                </button>
-                <button
-                  onClick={() => navigate('/student/results')}
-                  className="w-full btn btn-secondary text-left"
-                >
-                  View Results
-                </button>
-                <button
-                  onClick={() => navigate('/student/announcements')}
-                  className="w-full btn btn-secondary text-left"
-                >
-                  View Announcements
-                </button>
-              </>
-            )}
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Main Content Area */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Quick Actions */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {userRole === 'admin' && (
+                <>
+                  <button onClick={() => navigate('/admin/students')} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors group">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Users size={18} /></div>
+                      <span className="font-medium text-gray-700">Manage Students</span>
+                    </div>
+                    <ArrowRight size={16} className="text-gray-300 group-hover:text-primary-500 transition-colors" />
+                  </button>
+                  <button onClick={() => navigate('/admin/teachers')} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors group">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><GraduationCap size={18} /></div>
+                      <span className="font-medium text-gray-700">Manage Teachers</span>
+                    </div>
+                    <ArrowRight size={16} className="text-gray-300 group-hover:text-primary-500 transition-colors" />
+                  </button>
+                </>
+              )}
+              {userRole === 'teacher' && (
+                <>
+                  <button onClick={() => navigate('/teacher/assignments')} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors group">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><FileText size={18} /></div>
+                      <span className="font-medium text-gray-700">Create Assignment</span>
+                    </div>
+                    <ArrowRight size={16} className="text-gray-300 group-hover:text-primary-500 transition-colors" />
+                  </button>
+                  <button onClick={() => navigate('/teacher/attendance')} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors group">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Clock size={18} /></div>
+                      <span className="font-medium text-gray-700">Mark Attendance</span>
+                    </div>
+                    <ArrowRight size={16} className="text-gray-300 group-hover:text-primary-500 transition-colors" />
+                  </button>
+                </>
+              )}
+              {userRole === 'student' && (
+                <>
+                  <button onClick={() => navigate('/student/assignments')} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors group">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><FileText size={18} /></div>
+                      <span className="font-medium text-gray-700">View Assignments</span>
+                    </div>
+                    <ArrowRight size={16} className="text-gray-300 group-hover:text-primary-500 transition-colors" />
+                  </button>
+                  <button onClick={() => navigate('/student/results')} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors group">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-rose-50 text-rose-600 rounded-lg"><Award size={18} /></div>
+                      <span className="font-medium text-gray-700">View Results</span>
+                    </div>
+                    <ArrowRight size={16} className="text-gray-300 group-hover:text-primary-500 transition-colors" />
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+
+          {/* Recent Activity Placeholder */}
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+            <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+              <div className="p-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
+                <Activity size={16} className="text-primary-600" />
+                <span className="text-sm font-medium text-gray-700">System Updates</span>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="p-4 flex items-start gap-4">
+                    <div className="mt-1 p-1.5 bg-blue-50 text-blue-600 rounded-full">
+                      <CheckCircle2 size={14} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">System check completed</p>
+                      <p className="text-xs text-gray-500 mt-0.5">All modules are running smoothly. No issues detected.</p>
+                      <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">2 hours ago</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
         </div>
 
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">System Status</h2>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">System</span>
-              <span className="text-sm font-semibold text-green-600">Operational</span>
+        {/* Sidebar Area */}
+        <div className="space-y-8">
+          {/* Announcements / Events */}
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Events</h2>
+            <div className="space-y-3">
+              {stats.events > 0 ? (
+                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary-50 text-primary-600 rounded-lg">
+                      <Calendar size={18} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{stats.events} Scheduled Events</p>
+                      <button onClick={() => navigate(userRole === 'admin' ? '/admin/events' : '#')} className="text-xs text-primary-600 font-medium hover:underline">View Calendar</button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-dashed border-gray-200 p-6 rounded-xl text-center">
+                  <Calendar size={24} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-500">No upcoming events</p>
+                </div>
+              )}
             </div>
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">Role</span>
-              <span className="text-sm font-semibold text-blue-600 capitalize">{userRole}</span>
+          </section>
+
+          {/* System Status */}
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">System Status</h2>
+            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Server Status</span>
+                <span className="flex items-center gap-1.5 text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  ONLINE
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Database</span>
+                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">CONNECTED</span>
+              </div>
+              <div className="pt-4 border-t border-gray-50">
+                <div className="flex items-center justify-between text-xs text-gray-400">
+                  <span>Last Sync</span>
+                  <span>Just now</span>
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>
@@ -241,4 +300,3 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
-

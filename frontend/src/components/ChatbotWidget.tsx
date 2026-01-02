@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, X, ChevronRight, ChevronLeft, Trash2 } from 'lucide-react';
+import { Send, Bot, User, X, Trash2, Sparkles, Minimize2 } from 'lucide-react';
 import { chatWithBot } from '../services/api';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
@@ -13,99 +13,30 @@ interface Message {
 interface ChatbotWidgetProps {
   isOpen: boolean;
   onClose: () => void;
-  onWidthChange?: (width: number) => void;
-  onCollapseChange?: (collapsed: boolean) => void;
 }
 
-const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose, onWidthChange, onCollapseChange }) => {
+const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
   const CHAT_HISTORY_KEY = 'lms_chatbot_history';
   
-  // Load chat history from sessionStorage on mount
   const loadChatHistory = (): Message[] => {
     try {
       const savedHistory = sessionStorage.getItem(CHAT_HISTORY_KEY);
-      if (savedHistory) {
-        return JSON.parse(savedHistory);
-      }
+      if (savedHistory) return JSON.parse(savedHistory);
     } catch (error) {
       console.error('Failed to load chat history:', error);
     }
-    return [
-      {
-        role: 'assistant',
-        content: 'Hello! I\'m your LMS assistant. How can I help you today?',
-      },
-    ];
+    return [{ role: 'assistant', content: 'Hello! I\'m your LMS AI assistant. How can I help you today?' }];
   };
 
   const [messages, setMessages] = useState<Message[]>(loadChatHistory());
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [chatbotCollapsed, setChatbotCollapsed] = useState(false);
-  const [chatbotWidth, setChatbotWidth] = useState(400);
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
 
-  // Save chat history to sessionStorage whenever messages change
   useEffect(() => {
-    try {
-      sessionStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
-    } catch (error) {
-      console.error('Failed to save chat history:', error);
-    }
-  }, [messages]);
-
-  const scrollToBottom = () => {
+    sessionStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
   }, [messages]);
-
-  // Notify parent of width changes
-  useEffect(() => {
-    if (onWidthChange) {
-      // Notify with actual displayed width (64px when collapsed)
-      onWidthChange(chatbotCollapsed ? 64 : chatbotWidth);
-    }
-  }, [chatbotCollapsed, chatbotWidth, onWidthChange]);
-
-  // Handle chatbot sidebar resize
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isResizing && resizeStartRef.current) {
-        const deltaX = resizeStartRef.current.x - e.clientX; // Inverted because sidebar is on right
-        const newWidth = Math.max(300, Math.min(600, resizeStartRef.current.width + deltaX));
-        setChatbotWidth(newWidth);
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      resizeStartRef.current = null;
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
-
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    resizeStartRef.current = {
-      x: e.clientX,
-      width: chatbotWidth,
-    };
-  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,13 +44,11 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose, onWidthC
 
     const userMessage = input.trim();
     setInput('');
-    const newUserMessage: Message = { role: 'user', content: userMessage };
-    const newMessages = [...messages, newUserMessage];
+    const newMessages = [...messages, { role: 'user', content: userMessage } as Message];
     setMessages(newMessages);
     setLoading(true);
 
     try {
-      // Send full conversation history to maintain context
       const response = await chatWithBot(userMessage, messages);
       setMessages((prev) => [
         ...prev,
@@ -137,169 +66,104 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose, onWidthC
   };
 
   const clearChatHistory = () => {
-    const initialMessage: Message[] = [
-      {
-        role: 'assistant',
-        content: 'Hello! I\'m your LMS assistant. How can I help you today?',
-      },
-    ];
-    setMessages(initialMessage);
+    setMessages([{ role: 'assistant', content: 'Hello! I\'m your LMS AI assistant. How can I help you today?' }]);
     sessionStorage.removeItem(CHAT_HISTORY_KEY);
     toast.success('Chat history cleared');
   };
 
-  const handleClose = () => {
-    clearChatHistory();
-    onClose();
-  };
-
-  // When collapsed, show a small width to keep the toggle button accessible
-  const displayWidth = chatbotCollapsed ? 64 : chatbotWidth;
-
   if (!isOpen) return null;
 
   return (
-    <aside
-      className={`fixed top-0 right-0 z-50 h-full bg-white shadow-lg transition-all duration-300 ease-in-out ${
-        isOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}
-      style={{ width: `${displayWidth}px` }}
-    >
-      <div className="flex flex-col h-full relative">
-        {/* Resize Handle */}
-        {!chatbotCollapsed && (
-          <div
-            className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-primary-200 bg-transparent transition-colors z-10"
-            onMouseDown={handleResizeStart}
-          />
-        )}
+    <div className="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-white shadow-2xl z-[60] flex flex-col border-l border-gray-200 transition-all duration-300 ease-in-out animate-in slide-in-from-right">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+            <Sparkles size={20} />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">AI Assistant</h3>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Online</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={clearChatHistory} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Clear Chat">
+            <Trash2 size={18} />
+          </button>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+            <Minimize2 size={18} />
+          </button>
+        </div>
+      </div>
 
-        {/* Collapse Toggle Button */}
-        <button
-          onClick={() => {
-            const newCollapsed = !chatbotCollapsed;
-            setChatbotCollapsed(newCollapsed);
-            if (onCollapseChange) {
-              onCollapseChange(newCollapsed);
-            }
-          }}
-          className="absolute -left-4 top-4 bg-white rounded-full p-1 shadow-md hover:bg-gray-100 transition-colors z-20 border border-gray-200"
-          title={chatbotCollapsed ? 'Expand chatbot' : 'Collapse chatbot'}
-        >
-          {chatbotCollapsed ? (
-            <ChevronLeft size={20} className="text-gray-600" />
-          ) : (
-            <ChevronRight size={20} className="text-gray-600" />
-          )}
-        </button>
-
-        {/* Collapsed state - show minimal UI */}
-        {chatbotCollapsed && (
-          <div className="h-full flex items-center justify-center">
-            <Bot size={20} className="text-gray-400" />
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50/50">
+        {messages.map((message, index) => (
+          <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex gap-3 max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${
+                message.role === 'user' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-indigo-600 shadow-sm'
+              }`}>
+                {message.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+              </div>
+              <div className={`p-3.5 rounded-2xl text-sm shadow-sm ${
+                message.role === 'user' 
+                  ? 'bg-primary-600 text-white rounded-tr-none' 
+                  : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
+              }`}>
+                <div className={`markdown-content ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 text-indigo-600 flex items-center justify-center shadow-sm">
+                <Bot size={16} />
+              </div>
+              <div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-tl-none shadow-sm">
+                <div className="flex gap-1">
+                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
-
-        {/* Header */}
-        {!chatbotCollapsed && (
-          <>
-            <div className="bg-primary-600 text-white px-4 py-3 flex items-center justify-between border-b">
-              <div className="flex items-center space-x-2">
-                <Bot size={20} />
-                <span className="font-semibold">LMS Assistant</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={clearChatHistory}
-                  className="p-1 hover:bg-primary-700 rounded transition-colors"
-                  title="Clear chat history"
-                >
-                  <Trash2 size={18} />
-                </button>
-                <button
-                  onClick={handleClose}
-                  className="p-1 hover:bg-primary-700 rounded transition-colors"
-                  title="Close"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex items-start space-x-3 ${
-                    message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-                  }`}
-                >
-                  <div
-                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                      message.role === 'user'
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    {message.role === 'user' ? <User size={18} /> : <Bot size={18} />}
-                  </div>
-                  <div
-                    className={`flex-1 rounded-lg p-3 max-w-[80%] ${
-                      message.role === 'user'
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-white text-gray-900 border border-gray-200'
-                    }`}
-                  >
-                    <div className={`markdown-content text-sm ${message.role === 'user' ? 'user-message' : 'assistant-message'}`}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {loading && (
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center">
-                    <Bot size={18} />
-                  </div>
-                  <div className="flex-1 rounded-lg p-3 bg-white border border-gray-200">
-                    <div className="flex space-x-2">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <form onSubmit={handleSend} className="border-t p-4 bg-white">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1 input text-sm"
-                  disabled={loading}
-                />
-                <button
-                  type="submit"
-                  disabled={loading || !input.trim()}
-                  className="btn btn-primary px-4"
-                >
-                  <Send size={18} />
-                </button>
-              </div>
-            </form>
-          </>
-        )}
+        <div ref={messagesEndRef} />
       </div>
-    </aside>
+
+      {/* Input */}
+      <div className="p-4 bg-white border-t border-gray-100">
+        <form onSubmit={handleSend} className="relative">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask anything..."
+            className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+            disabled={loading}
+          />
+          <button
+            type="submit"
+            disabled={loading || !input.trim()}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-md shadow-indigo-100"
+          >
+            <Send size={16} />
+          </button>
+        </form>
+        <p className="text-[10px] text-center text-gray-400 mt-3 font-medium">
+          Powered by LMS AI • Always here to help
+        </p>
+      </div>
+    </div>
   );
 };
 
