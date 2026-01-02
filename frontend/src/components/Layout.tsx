@@ -21,12 +21,38 @@ import {
   Clock,
   ChevronRight,
   ChevronLeft,
+  PanelLeft,
   Sparkles,
 } from 'lucide-react';
+import { getAnnouncements, getEvents } from '../services/api';
 import toast from 'react-hot-toast';
+
+// Manus Icon Component
+const ManusIcon = ({ size = 20, className = "" }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+  </svg>
+);
 
 interface LayoutProps {
   children: React.ReactNode;
+}
+
+interface Notification {
+  id: string | number;
+  title: string;
+  type: 'announcement' | 'event';
+  time: string;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -47,6 +73,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return saved !== null ? saved === 'true' : false;
   });
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     localStorage.setItem('sidebarOpen', sidebarOpen.toString());
@@ -59,6 +86,41 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('chatbotOpen', chatbotOpen.toString());
   }, [chatbotOpen]);
+
+  // Fetch real-time notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const [announcements, events] = await Promise.all([
+          getAnnouncements(),
+          getEvents()
+        ]);
+        
+        const combined: Notification[] = [
+          ...(Array.isArray(announcements) ? announcements.slice(0, 3).map((a: any) => ({
+            id: a.id,
+            title: a.title,
+            type: 'announcement' as const,
+            time: 'Recently'
+          })) : []),
+          ...(Array.isArray(events) ? events.slice(0, 3).map((e: any) => ({
+            id: e.id,
+            title: e.title,
+            type: 'event' as const,
+            time: e.event_date || 'Upcoming'
+          })) : [])
+        ];
+        
+        setNotifications(combined);
+      } catch (error) {
+        console.error('Failed to fetch notifications');
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -133,12 +195,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             {!sidebarCollapsed && <span className="text-xl font-bold text-gray-900 tracking-tight">LMS Pro</span>}
           </div>
           
-          {/* Sidebar Toggle Arrow - Inside Sidebar */}
+          {/* Sidebar Toggle - PanelLeft Icon inside sidebar */}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden lg:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-gray-200 rounded-full items-center justify-center text-gray-400 hover:text-primary-600 hover:border-primary-200 shadow-sm z-50 transition-all"
+            className="hidden lg:flex ml-auto p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
-            {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            <PanelLeft size={20} className={sidebarCollapsed ? "rotate-180" : ""} />
           </button>
 
           <button
@@ -222,7 +285,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className={`p-2 rounded-full transition-colors relative ${showNotifications ? 'bg-gray-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
               >
                 <Bell size={20} />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                {notifications.length > 0 && (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                )}
               </button>
               
               {/* Notification Dropdown */}
@@ -235,10 +300,28 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <button className="text-xs text-primary-600 font-medium hover:underline">Mark all as read</button>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
-                      <div className="p-4 text-center text-gray-500 text-sm">
-                        <Bell size={32} className="mx-auto text-gray-200 mb-2" />
-                        <p>No new notifications</p>
-                      </div>
+                      {notifications.length > 0 ? (
+                        <div className="divide-y divide-gray-50">
+                          {notifications.map((n, idx) => (
+                            <div key={idx} className="p-4 hover:bg-gray-50 transition-colors cursor-pointer">
+                              <div className="flex items-start gap-3">
+                                <div className={`mt-1 p-1.5 rounded-lg ${n.type === 'announcement' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                                  {n.type === 'announcement' ? <Bell size={14} /> : <Calendar size={14} />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{n.title}</p>
+                                  <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">{n.time}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center text-gray-500 text-sm">
+                          <Bell size={32} className="mx-auto text-gray-200 mb-2" />
+                          <p>No new notifications</p>
+                        </div>
+                      )}
                     </div>
                     <div className="p-3 bg-gray-50 border-t border-gray-100 text-center">
                       <button className="text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-wider">View All Activity</button>
@@ -250,13 +333,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             <div className="h-8 w-px bg-gray-200 mx-1"></div>
             
-            {/* AI Assistant Icon - Replacing Settings */}
+            {/* Manus Assistant Icon */}
             <button 
               onClick={() => setChatbotOpen(!chatbotOpen)}
               className={`p-2 rounded-full transition-all ${chatbotOpen ? 'bg-indigo-50 text-indigo-600 ring-2 ring-indigo-100' : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
-              title="AI Assistant"
+              title="Manus Assistant"
             >
-              <Sparkles size={20} />
+              <ManusIcon size={20} />
             </button>
           </div>
         </header>

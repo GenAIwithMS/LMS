@@ -216,31 +216,6 @@ const Dashboard: React.FC = () => {
               )}
             </div>
           </section>
-
-          {/* Recent Activity Placeholder */}
-          <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
-            <div className="bg-white border border-gray-100 rounded-xl overflow-hidden shadow-sm">
-              <div className="p-4 border-b border-gray-50 bg-gray-50/50 flex items-center gap-2">
-                <Activity size={16} className="text-primary-600" />
-                <span className="text-sm font-medium text-gray-700">System Updates</span>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="p-4 flex items-start gap-4">
-                    <div className="mt-1 p-1.5 bg-blue-50 text-blue-600 rounded-full">
-                      <CheckCircle2 size={14} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">System check completed</p>
-                      <p className="text-xs text-gray-500 mt-0.5">All modules are running smoothly. No issues detected.</p>
-                      <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">2 hours ago</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
         </div>
 
         {/* Sidebar Area */}

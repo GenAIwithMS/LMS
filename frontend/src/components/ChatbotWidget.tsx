@@ -5,6 +5,23 @@ import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+// Manus Icon Component
+const ManusIcon = ({ size = 20, className = "" }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+  </svg>
+);
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -137,10 +154,10 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
       <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-            <Sparkles size={20} />
+            <ManusIcon size={24} />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900">AI Assistant</h3>
+            <h3 className="font-bold text-gray-900">Manus Assistant</h3>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Online</span>
@@ -165,7 +182,7 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
               <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${
                 message.role === 'user' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-indigo-600 shadow-sm'
               }`}>
-                {message.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+                {message.role === 'user' ? <User size={16} /> : <ManusIcon size={18} />}
               </div>
               <div className={`p-3.5 rounded-2xl text-sm shadow-sm ${
                 message.role === 'user' 
@@ -183,7 +200,7 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
           <div className="flex justify-start">
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 text-indigo-600 flex items-center justify-center shadow-sm">
-                <Bot size={16} />
+                <ManusIcon size={18} />
               </div>
               <div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-tl-none shadow-sm">
                 <div className="flex gap-1">
@@ -218,7 +235,7 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
           </button>
         </form>
         <p className="text-[10px] text-center text-gray-400 mt-3 font-medium">
-          Powered by LMS AI • Always here to help
+          Powered by Manus AI • Always here to help
         </p>
       </div>
     </div>
