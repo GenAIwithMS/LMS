@@ -53,6 +53,7 @@ interface Notification {
   title: string;
   type: 'announcement' | 'event';
   time: string;
+  path: string;
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -74,6 +75,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   });
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [hasUnread, setHasUnread] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('sidebarOpen', sidebarOpen.toString());
@@ -96,31 +98,60 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           getEvents()
         ]);
         
+        const announcementPath = userRole === 'admin' ? '/admin/announcements' : `/${userRole}/announcements`;
+        const eventPath = userRole === 'admin' ? '/admin/events' : '/dashboard';
+
         const combined: Notification[] = [
           ...(Array.isArray(announcements) ? announcements.slice(0, 3).map((a: any) => ({
-            id: a.id,
+            id: `a-${a.id}`,
             title: a.title,
             type: 'announcement' as const,
-            time: 'Recently'
+            time: 'Recently',
+            path: announcementPath
           })) : []),
           ...(Array.isArray(events) ? events.slice(0, 3).map((e: any) => ({
-            id: e.id,
+            id: `e-${e.id}`,
             title: e.title,
             type: 'event' as const,
-            time: e.event_date || 'Upcoming'
+            time: e.event_date || 'Upcoming',
+            path: eventPath
           })) : [])
         ];
         
         setNotifications(combined);
+        if (combined.length > 0 && !localStorage.getItem('notificationsRead')) {
+          setHasUnread(true);
+        }
       } catch (error) {
         console.error('Failed to fetch notifications');
       }
     };
 
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // Refresh every minute
+    const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [userRole]);
+
+  const handleMarkAllRead = () => {
+    setHasUnread(false);
+    localStorage.setItem('notificationsRead', 'true');
+    toast.success('All notifications marked as read');
+  };
+
+  const handleNotificationClick = (path: string) => {
+    navigate(path);
+    setShowNotifications(false);
+    setHasUnread(false);
+    localStorage.setItem('notificationsRead', 'true');
+  };
+
+  const handleViewAll = () => {
+    const path = userRole === 'admin' ? '/admin/events' : `/${userRole}/announcements`;
+    navigate(path);
+    setShowNotifications(false);
+    setHasUnread(false);
+    localStorage.setItem('notificationsRead', 'true');
+  };
 
   const handleLogout = () => {
     logout();
@@ -189,16 +220,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         }`}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center px-6 border-b border-gray-100 relative">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold">L</div>
-            {!sidebarCollapsed && <span className="text-xl font-bold text-gray-900 tracking-tight">LMS Pro</span>}
+        <div className="h-16 flex items-center px-6 border-b border-gray-100 relative overflow-hidden">
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">L</div>
+            {!sidebarCollapsed && <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>}
           </div>
           
-          {/* Sidebar Toggle - PanelLeft Icon inside sidebar */}
+          {/* Sidebar Toggle - Overwrites name when collapsed */}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="hidden lg:flex ml-auto p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+            className={`p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all ${sidebarCollapsed ? 'absolute left-1/2 -translate-x-1/2' : 'ml-auto'}`}
             title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
             <PanelLeft size={20} className={sidebarCollapsed ? "rotate-180" : ""} />
@@ -285,7 +316,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className={`p-2 rounded-full transition-colors relative ${showNotifications ? 'bg-gray-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
               >
                 <Bell size={20} />
-                {notifications.length > 0 && (
+                {hasUnread && (
                   <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
               </button>
@@ -297,13 +328,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in duration-200">
                     <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                       <h3 className="font-bold text-gray-900">Notifications</h3>
-                      <button className="text-xs text-primary-600 font-medium hover:underline">Mark all as read</button>
+                      <button 
+                        onClick={handleMarkAllRead}
+                        className="text-xs text-primary-600 font-medium hover:underline"
+                      >
+                        Mark all as read
+                      </button>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
                       {notifications.length > 0 ? (
                         <div className="divide-y divide-gray-50">
-                          {notifications.map((n, idx) => (
-                            <div key={idx} className="p-4 hover:bg-gray-50 transition-colors cursor-pointer">
+                          {notifications.map((n) => (
+                            <div 
+                              key={n.id} 
+                              onClick={() => handleNotificationClick(n.path)}
+                              className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                            >
                               <div className="flex items-start gap-3">
                                 <div className={`mt-1 p-1.5 rounded-lg ${n.type === 'announcement' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
                                   {n.type === 'announcement' ? <Bell size={14} /> : <Calendar size={14} />}
@@ -324,7 +364,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       )}
                     </div>
                     <div className="p-3 bg-gray-50 border-t border-gray-100 text-center">
-                      <button className="text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-wider">View All Activity</button>
+                      <button 
+                        onClick={handleViewAll}
+                        className="text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-wider"
+                      >
+                        View All Activity
+                      </button>
                     </div>
                   </div>
                 </>
