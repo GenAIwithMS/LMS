@@ -98,11 +98,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           getEvents()
         ]);
         
+        // Current user ID from auth context
         const currentUserId = user?.id;
 
         const combined: Notification[] = [
           ...(Array.isArray(announcements) ? announcements
-            .filter((a: any) => a.teacher_id !== currentUserId)
+            .filter((a: any) => a.teacher_id !== currentUserId) // Filter out self-created announcements
             .slice(0, 5)
             .map((a: any) => ({
               id: `a-${a.id}`,
@@ -112,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               creatorId: a.teacher_id
             })) : []),
           ...(Array.isArray(events) ? events
-            .filter((e: any) => e.admin_id !== currentUserId)
+            .filter((e: any) => e.admin_id !== currentUserId) // Filter out self-created events
             .slice(0, 5)
             .map((e: any) => ({
               id: `e-${e.id}`,
@@ -215,25 +216,35 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Navigation Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarWidth} bg-white border-r border-gray-200 transition-all duration-500 ease-in-out flex flex-col ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarWidth} bg-white border-r border-gray-200 transition-all duration-300 ease-in-out flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Logo Section */}
         <div className="h-16 flex items-center px-6 border-b border-gray-100 relative overflow-hidden">
-          <div className={`flex items-center gap-3 shrink-0 transition-all duration-500 ${sidebarCollapsed ? 'opacity-0 -translate-x-10' : 'opacity-100 translate-x-0'}`}>
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">L</div>
-            <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>
-          </div>
-          
-          {/* Sidebar Toggle - Centered when collapsed, right-aligned when expanded */}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className={`p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-500 absolute top-1/2 -translate-y-1/2 ${sidebarCollapsed ? 'left-1/2 -translate-x-1/2' : 'right-4'}`}
-            title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-          >
-            <PanelLeft size={20} className={`transition-transform duration-500 ${sidebarCollapsed ? 'rotate-180' : ''}`} />
-          </button>
+          {!sidebarCollapsed ? (
+            <div className="flex items-center gap-3 shrink-0 w-full">
+              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">L</div>
+              <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>
+              <button
+                onClick={() => setSidebarCollapsed(true)}
+                className="ml-auto p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                title="Collapse Sidebar"
+              >
+                <PanelLeft size={20} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center w-full">
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                title="Expand Sidebar"
+              >
+                <PanelLeft size={20} className="rotate-180" />
+              </button>
+            </div>
+          )}
 
           <button
             onClick={() => setSidebarOpen(false)}
@@ -260,9 +271,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 title={sidebarCollapsed ? item.label : ''}
               >
                 <Icon size={20} className={active ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'} />
-                <span className={`text-sm transition-all duration-500 ${sidebarCollapsed ? 'opacity-0 -translate-x-4 pointer-events-none' : 'opacity-100 translate-x-0'}`}>
-                  {item.label}
-                </span>
+                {!sidebarCollapsed && <span className="text-sm">{item.label}</span>}
               </Link>
             );
           })}
@@ -270,24 +279,24 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* User Profile Section */}
         <div className="p-4 border-t border-gray-100">
-          <div className={`flex items-center gap-3 transition-all duration-500 ${sidebarCollapsed ? 'justify-center' : 'px-2 py-2'}`}>
-            <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 border border-gray-200 shrink-0">
+          <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : 'px-2 py-2'}`}>
+            <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 border border-gray-200">
               <UserCircle size={24} />
             </div>
-            <div className={`flex-1 min-w-0 transition-all duration-500 ${sidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
-              <p className="text-sm font-semibold text-gray-900 truncate">{user?.name || 'User'}</p>
-              <p className="text-xs text-gray-500 capitalize">{userRole}</p>
-            </div>
+            {!sidebarCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{user?.name || 'User'}</p>
+                <p className="text-xs text-gray-500 capitalize">{userRole}</p>
+              </div>
+            )}
           </div>
           <button
             onClick={handleLogout}
-            className={`mt-2 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50 transition-all duration-500 ${sidebarCollapsed ? 'justify-center' : ''}`}
+            className={`mt-2 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors ${sidebarCollapsed ? 'justify-center' : ''}`}
             title={sidebarCollapsed ? 'Logout' : ''}
           >
-            <LogOut size={18} className="shrink-0" />
-            <span className={`text-sm font-medium transition-all duration-500 ${sidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
-              Logout
-            </span>
+            <LogOut size={18} />
+            {!sidebarCollapsed && <span className="text-sm font-medium">Logout</span>}
           </button>
         </div>
       </aside>
