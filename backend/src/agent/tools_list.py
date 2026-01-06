@@ -14,7 +14,6 @@ from src.agent.tools import (
     get_submissions_by_student_tool, get_submissions_by_assignment_tool, update_submission_tool
 )
 
-# Domain-specific tool lists
 announcement_tools = [create_announcement, get_announcements, get_announcement, update_announcement, remove_announcement]
 event_tools = [create_event, get_events, get_event, update_event_tool, remove_event]
 section_tools = [create_section, get_sections, get_section, update_section, remove_section]

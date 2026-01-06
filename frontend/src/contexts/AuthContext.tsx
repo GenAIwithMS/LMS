@@ -20,12 +20,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
     
-    if (storedToken && storedUser) {
+    if (storedToken) {
       setToken(storedToken);
-      const userData = JSON.parse(storedUser);
-      setUser(userData);
+      
+      // Always decode fresh user data from token to ensure we have latest info
+      const decoded = decodeJWT(storedToken);
+      const role = getRoleFromToken(storedToken);
+      
+      if (decoded) {
+        const userData: User = {
+          id: decoded.sub || decoded.id || decoded.user_id || 0,
+          email: decoded.email || '',
+          name: decoded.name || decoded.username || '',
+          username: decoded.username || decoded.email || '',
+          role: role || undefined,
+        };
+        
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
     }
   }, []);
 
@@ -40,10 +54,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const role = getRoleFromToken(response.token);
       
       const userData: User = {
-        id: decoded.id || decoded.user_id || 0,
+        id: decoded.sub || decoded.id || decoded.user_id || 0,
         email: decoded.email || credentials.email,
-        name: decoded.name || decoded.username,
-        username: decoded.username,
+        name: decoded.name || decoded.username || '',
+        username: decoded.username || decoded.email || '',
         role: role || undefined,
       };
       
@@ -59,6 +73,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    // Clear chat history on logout
+    sessionStorage.removeItem('lms_chatbot_history');
   };
 
   // Get role from user object or decode from token

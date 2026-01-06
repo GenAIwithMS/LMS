@@ -1,10 +1,9 @@
-from src.services.subject import add_subject, get_all_subjects, get_subject_by_id, delete_subject,update_subject
-from src.schemas.subject import subjectSchema,UpdateSubjectSchema
+from src.services import add_subject, get_all_subjects, get_subject_by_id, delete_subject,update_subject
+from src.schemas import subjectSchema,UpdateSubjectSchema
 from marshmallow import ValidationError
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
-from src.models.teacher import Teacher
-from src.models.course import Course
+from src.models import Teacher,Course
 
 subject_bp = Blueprint("subject", __name__)
 

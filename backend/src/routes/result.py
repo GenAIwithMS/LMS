@@ -1,11 +1,9 @@
-from src.services.result import add_result, get_result_by_id, get_all_results, edit_result, delete_result, get_results_by_student
+from src.services import add_result, get_result_by_id, get_all_results, edit_result, delete_result, get_results_by_student
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
-from src.schemas.result import ResultSchema,UpdateResultSchema
+from src.schemas import ResultSchema,UpdateResultSchema
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
-from src.models.student import Student
-from src.models.subject import Subject
-from src.models.result import Result
+from src.models import Student,Result,Subject 
 
 result_bp = Blueprint("result", __name__)
 

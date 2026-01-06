@@ -1,16 +1,14 @@
 from flask import Blueprint,request,jsonify
-from src.models.admin import Admin
-from src.models.student import Student
-from src.models.teacher import Teacher
+from src.models import Admin,Teacher,Student
 from flask_jwt_extended import create_access_token
 from marshmallow import ValidationError
-from src.schemas.auth_schema import loginSchema
+from src.schemas import loginSchema
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-auth = Blueprint('auth', __name__)
+auth_bp = Blueprint('auth', __name__)
 
 
-@auth.route('/api/login', methods=['POST'])
+@auth_bp.route('/api/login', methods=['POST'])
 def login():
     try:
         data = loginSchema().load(request.get_json())
@@ -53,7 +51,14 @@ def login():
             "message": "Invalid password"
         }), 401
     try:
-        token = create_access_token(identity=str(user.id),additional_claims={"role":role})
+        # Include user information in JWT token
+        additional_claims = {
+            "role": role,
+            "name": user.name,
+            "email": user.email,
+            "username": user.username if hasattr(user, 'username') else user.email
+        }
+        token = create_access_token(identity=str(user.id), additional_claims=additional_claims)
     except Exception as e:
         return jsonify({
             "message": f"you have an error: {str(e)}"
@@ -64,7 +69,7 @@ def login():
         "token": token
     })
 
-@auth.route("/api/protected", methods=["GET"])
+@auth_bp.route("/api/protected", methods=["GET"])
 @jwt_required()
 def protected():
     user_id = get_jwt_identity()

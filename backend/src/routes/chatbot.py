@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt
-from src.agent.main import create_chatbot_graph, get_tools_for_role
+from src.agent.main import create_chatbot_graph
 from langchain_core.messages import HumanMessage, AIMessage
 
 
@@ -29,13 +29,25 @@ def chat():
             }), 400
 
         user_message = data["message"]
+        conversation_history = data.get("history", [])
 
         with current_app.app_context():
             # user_id = token.get("id")
             graph = create_chatbot_graph(user_role)
 
+            # Convert conversation history to LangChain messages
+            messages = []
+            for msg in conversation_history:
+                if msg.get("role") == "user":
+                    messages.append(HumanMessage(content=msg.get("content", "")))
+                elif msg.get("role") == "assistant":
+                    messages.append(AIMessage(content=msg.get("content", "")))
+            
+            # Add the new user message
+            messages.append(HumanMessage(content=user_message))
+
             initial_state = {
-                "messages": [HumanMessage(content=user_message)],
+                "messages": messages,
                 "user_role": user_role,
                 "user_info": dict(token)
             }

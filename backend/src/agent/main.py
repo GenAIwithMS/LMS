@@ -14,6 +14,7 @@ env_path = backend_dir / ".env"
 
 load_dotenv(dotenv_path=str(env_path))
 
+# Use a faster model or optimize configuration if needed
 model = ChatGroq(model="qwen/qwen3-32b")
 
 class AgentState(TypedDict):
@@ -22,18 +23,14 @@ class AgentState(TypedDict):
     user_info: dict
 
 def get_tools_for_role(user_role: str):
-    """Get tools based on user role, with optional context injection."""
+    """Get tools based on user role."""
     if user_role == "admin":
-        tools = admin_tools
+        return admin_tools
     elif user_role == "teacher":
-        tools = teacher_tools
+        return teacher_tools
     elif user_role == "student":
-        tools = student_tools
-    else:
-        return []
-
-    
-    return tools
+        return student_tools
+    return []
 
 def get_system_prompt_for_role(user_role: str):
     """Get system prompt based on user role."""
@@ -56,10 +53,6 @@ def agent_node(state: AgentState, model_with_tools, system_prompt):
     response = model_with_tools.invoke(messages)
     return {"messages": [response]}
 
-def tools_node(state: AgentState, tool_node: ToolNode):
-    """Tools node that executes tool calls."""
-    return tool_node.invoke(state)
-
 def should_continue(state: AgentState) -> str:
     """Determine whether to continue with tools or end."""
     messages = state["messages"]
@@ -68,18 +61,24 @@ def should_continue(state: AgentState) -> str:
         return "tools"
     return END
 
-def create_chatbot_graph(user_role: str):
-    """Create a unified agent graph with all role-based tools."""
+def create_chatbot_graph(user_role:
+                         
+    """Create a unified agent graph with parallel tool execution."""
+                         
     tools = get_tools_for_role(user_role)
     system_prompt = get_system_prompt_for_role(user_role)
 
+    # ToolNode in LangGraph automatically handles parallel execution 
+    # if the model returns multiple tool calls in a single message.
     tool_node = ToolNode(tools)
+    
+    # Bind tools to the model
     model_with_tools = model.bind_tools(tools)
 
     workflow = StateGraph(AgentState)
 
     workflow.add_node("agent", lambda state: agent_node(state, model_with_tools, system_prompt))
-    workflow.add_node("tools", lambda state: tools_node(state, tool_node))
+    workflow.add_node("tools", tool_node)
 
     workflow.add_edge(START, "agent")
     workflow.add_conditional_edges("agent", should_continue, {"tools": "tools", END: END})

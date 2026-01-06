@@ -1,10 +1,9 @@
 from flask import Blueprint,request,jsonify
-from src.models.admin import Admin
+from src.models import Admin
 from flask_jwt_extended import jwt_required , get_jwt
-from src.services.admin import add_admin
-from src.schemas.auth_schema import RegisterAdminSchema
+from src.services import add_admin
+from src.schemas import RegisterAdminSchema
 from marshmallow import ValidationError
-import os 
 
 admin_bp = Blueprint("admin",__name__)
 

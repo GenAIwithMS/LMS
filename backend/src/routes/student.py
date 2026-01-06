@@ -1,10 +1,8 @@
 from flask import Blueprint, request,jsonify
-from src.db import db
-from src.models.student import Student
-from src.models.section import Section
-from src.services.students import add_students, get_all_students, get_student_by_id, update_student, delete_student
+from src.models import Section,Student
+from src.services import add_students, get_all_students, get_student_by_id, update_student, delete_student
 from flask_jwt_extended import jwt_required , get_jwt, get_jwt_identity
-from src.schemas.auth_schema import RegisterStudentSchema,UpdateStudentSchema
+from src.schemas import RegisterStudentSchema,UpdateStudentSchema
 from marshmallow import ValidationError
 
 student_bp = Blueprint("student",__name__)

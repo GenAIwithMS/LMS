@@ -1,9 +1,9 @@
-from src.services.course import add_course,get_all_courses,get_course_by_id,update_course,delete_course
-from src.schemas.course import CourseSchema, UpdateCourseSchema
+from src.services import add_course,get_all_courses,get_course_by_id,update_course,delete_course
+from src.schemas import CourseSchema, UpdateCourseSchema
 from flask import jsonify,Blueprint,request
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt
-from src.models.teacher import Teacher
+from src.models import Teacher
 
 course_bp = Blueprint("course",__name__)
 

@@ -1,11 +1,4 @@
-from src.models.course import Course
-from src.models.enrollment import Enrollment
-from src.models.subject import Subject
-from src.models.assignment import Assignment
-from src.models.assignment_submission import AssignmentSubmission
-from src.models.result import Result
-from src.models.attendance import Attendance
-from src.models.teacher import Teacher
+from src.models import Course,Enrollment,Subject,Assignment,AssignmentSubmission,Result,Attendance,Teacher
 from flask import jsonify
 from src.db import db
 

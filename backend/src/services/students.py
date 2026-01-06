@@ -1,7 +1,6 @@
-from src.models.student import Student
+from src.models import Student,Enrollment
 from flask import jsonify
 from src.db import db
-from src.models.enrollment import Enrollment
 
 
 

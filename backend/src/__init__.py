@@ -2,39 +2,11 @@ from flask import Flask
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
-from src.routes.home import home_bp
-from src.routes.auth import auth
-from src.routes.student import student_bp
-from src.routes.teacher import teacher_bp
-from src.routes.admin import admin_bp 
-from src.routes.assignments import assignment_bp
-from src.routes.subject import subject_bp
-from src.routes.result import result_bp
-from src.routes.section import section_bp
-from src.routes.assignment_submission import assignment_submission_bp
-from src.routes.announcement import announcement_bp
-from src.routes.chatbot import chatbot_bp
 from src.db import db
-from src.routes.course import course_bp
 from src.extention import bcrypt , jwt
-from src.routes.enrollment import enrollment_bp
-from src.routes.event import event_bp
-from src.routes.attendance import attendance_bp
+from src.models import Student, Teacher, Admin, Assignment, Attendance,Result,Subject,Course,Announcement,AssignmentSubmission,Enrollment,Event,Message,Section
 
-from src.models.student import Student
-from src.models.teacher import Teacher
-from src.models.admin import Admin
-from src.models.assignment import Assignment
-from src.models.attendance import Attendance
-from src.models.result import Result
-from src.models.subject import Subject
-from src.models.course import Course
-from src.models.announcement import Announcement
-from src.models.assignment_submission import AssignmentSubmission
-from src.models.enrollment import Enrollment
-from src.models.event import Event
-from src.models.message import Message
-from src.models.section import Section
+from src.routes import home_bp,auth_bp,student_bp,teacher_bp,admin_bp,assignment_bp,subject_bp,result_bp,section_bp,assignment_submission_bp,announcement_bp,chatbot_bp,course_bp,enrollment_bp,event_bp,attendance_bp
 
 load_dotenv()
 
@@ -60,7 +32,7 @@ def create_app():
     bcrypt.init_app(app)
     app.register_blueprint(home_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(auth)
+    app.register_blueprint(auth_bp)
     app.register_blueprint(student_bp)
     app.register_blueprint(teacher_bp)
     app.register_blueprint(assignment_bp)

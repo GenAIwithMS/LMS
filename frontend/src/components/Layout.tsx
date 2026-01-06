@@ -21,18 +21,46 @@ import {
   Clock,
   ChevronRight,
   ChevronLeft,
+  PanelLeft,
+  Sparkles,
 } from 'lucide-react';
+import { getAnnouncements, getEvents } from '../services/api';
+import toast from 'react-hot-toast';
+
+// Manus Icon Component
+const ManusIcon = ({ size = 20, className = "" }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+  </svg>
+);
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
+interface Notification {
+  id: string | number;
+  title: string;
+  type: 'announcement' | 'event';
+  time: string;
+  creatorId?: number | string;
+}
+
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { logout, userRole } = useAuth();
+  const { logout, userRole, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Load persisted states from localStorage
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const saved = localStorage.getItem('sidebarOpen');
     return saved !== null ? saved === 'true' : true;
@@ -41,27 +69,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const saved = localStorage.getItem('sidebarCollapsed');
     return saved !== null ? saved === 'true' : false;
   });
-  const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const saved = localStorage.getItem('sidebarWidth');
-    return saved ? parseInt(saved, 10) : 256;
-  });
-  const [isResizing, setIsResizing] = useState(false);
   const [chatbotOpen, setChatbotOpen] = useState(() => {
     const saved = localStorage.getItem('chatbotOpen');
-    return saved !== null ? saved === 'true' : true;
-  });
-  const [chatbotWidth, setChatbotWidth] = useState(() => {
-    const saved = localStorage.getItem('chatbotWidth');
-    return saved ? parseInt(saved, 10) : 400;
-  });
-  const [chatbotCollapsed, setChatbotCollapsed] = useState(() => {
-    const saved = localStorage.getItem('chatbotCollapsed');
     return saved !== null ? saved === 'true' : false;
   });
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [hasUnread, setHasUnread] = useState(false);
 
-  // Persist sidebar state to localStorage
   useEffect(() => {
     localStorage.setItem('sidebarOpen', sidebarOpen.toString());
   }, [sidebarOpen]);
@@ -71,21 +86,73 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [sidebarCollapsed]);
 
   useEffect(() => {
-    localStorage.setItem('sidebarWidth', sidebarWidth.toString());
-  }, [sidebarWidth]);
-
-  // Persist chatbot state to localStorage
-  useEffect(() => {
     localStorage.setItem('chatbotOpen', chatbotOpen.toString());
   }, [chatbotOpen]);
 
+  // Fetch real-time notifications
   useEffect(() => {
-    localStorage.setItem('chatbotWidth', chatbotWidth.toString());
-  }, [chatbotWidth]);
+    const fetchNotifications = async () => {
+      try {
+        const [announcements, events] = await Promise.all([
+          getAnnouncements(),
+          getEvents()
+        ]);
+        
+        // Current user ID from auth context
+        const currentUserId = user?.id;
 
-  useEffect(() => {
-    localStorage.setItem('chatbotCollapsed', chatbotCollapsed.toString());
-  }, [chatbotCollapsed]);
+        const combined: Notification[] = [
+          ...(Array.isArray(announcements) ? announcements
+            .filter((a: any) => a.teacher_id !== currentUserId) // Filter out self-created announcements
+            .slice(0, 5)
+            .map((a: any) => ({
+              id: `a-${a.id}`,
+              title: a.title,
+              type: 'announcement' as const,
+              time: 'Recently',
+              creatorId: a.teacher_id
+            })) : []),
+          ...(Array.isArray(events) ? events
+            .filter((e: any) => e.admin_id !== currentUserId) // Filter out self-created events
+            .slice(0, 5)
+            .map((e: any) => ({
+              id: `e-${e.id}`,
+              title: e.title,
+              type: 'event' as const,
+              time: e.event_date || 'Upcoming',
+              creatorId: e.admin_id
+            })) : [])
+        ];
+        
+        setNotifications(combined);
+        if (combined.length > 0 && !localStorage.getItem('notificationsRead')) {
+          setHasUnread(true);
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications');
+      }
+    };
+
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [user, userRole]);
+
+  const handleMarkAllRead = () => {
+    setHasUnread(false);
+    localStorage.setItem('notificationsRead', 'true');
+    toast.success('All notifications marked as read');
+  };
+
+  const handleViewAll = () => {
+    const path = userRole === 'admin' ? '/admin/events' : `/${userRole}/announcements`;
+    navigate(path);
+    setShowNotifications(false);
+    setHasUnread(false);
+    localStorage.setItem('notificationsRead', 'true');
+  };
 
   const handleLogout = () => {
     logout();
@@ -124,281 +191,225 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const menuItems = userRole === 'admin' ? adminMenuItems : userRole === 'teacher' ? teacherMenuItems : studentMenuItems;
 
-  // Keep sidebar open on desktop screens
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {
-        // On desktop (lg and above), always keep sidebar open
         setSidebarOpen(true);
       }
     };
-
-    // Check on mount and on resize
     handleResize();
     window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Handle sidebar resize
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isResizing && resizeStartRef.current) {
-        const deltaX = e.clientX - resizeStartRef.current.x; // Normal direction for left sidebar
-        const newWidth = Math.max(200, Math.min(400, resizeStartRef.current.width + deltaX));
-        setSidebarWidth(newWidth);
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      resizeStartRef.current = null;
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
-
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    resizeStartRef.current = {
-      x: e.clientX,
-      width: sidebarWidth,
-    };
-  };
-
-  const displayWidth = sidebarCollapsed ? 64 : sidebarWidth; // Show 64px (icon width) when collapsed
+  const sidebarWidth = sidebarCollapsed ? 'w-20' : 'w-64';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex overflow-hidden">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Navigation Sidebar - Left */}
+      {/* Navigation Sidebar */}
       <aside
-        ref={sidebarRef}
-        className={`fixed top-0 left-0 z-50 h-full bg-white shadow-lg transition-all duration-300 ease-in-out ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarWidth} bg-white border-r border-gray-200 transition-all duration-300 ease-in-out flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
-        style={{ width: `${displayWidth}px` }}
       >
-        <div className="flex flex-col h-full relative">
-          {/* Resize Handle */}
-          {!sidebarCollapsed && (
-            <div
-              className="absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-primary-200 bg-transparent transition-colors z-10"
-              onMouseDown={handleResizeStart}
-            />
+        {/* Logo Section */}
+        <div className="h-16 flex items-center px-6 border-b border-gray-100 relative overflow-hidden">
+          {!sidebarCollapsed ? (
+            <div className="flex items-center gap-3 shrink-0 w-full">
+              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">L</div>
+              <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>
+              <button
+                onClick={() => setSidebarCollapsed(true)}
+                className="ml-auto p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                title="Collapse Sidebar"
+              >
+                <PanelLeft size={20} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center w-full">
+              <button
+                onClick={() => setSidebarCollapsed(false)}
+                className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                title="Expand Sidebar"
+              >
+                <PanelLeft size={20} className="rotate-180" />
+              </button>
+            </div>
           )}
 
-          {/* Collapse Toggle Button */}
           <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="absolute -right-4 top-4 bg-white rounded-full p-1 shadow-md hover:bg-gray-100 transition-colors z-20 border border-gray-200"
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden ml-auto text-gray-400 hover:text-gray-600"
           >
-            {sidebarCollapsed ? (
-              <ChevronRight size={20} className="text-gray-600" />
-            ) : (
-              <ChevronLeft size={20} className="text-gray-600" />
-            )}
+            <X size={20} />
           </button>
+        </div>
 
-          {/* Logo */}
-          <div className="flex items-center justify-between p-6 border-b">
-            {!sidebarCollapsed && <h1 className="text-2xl font-bold text-primary-600">LMS</h1>}
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-gray-500 hover:text-gray-700"
-            >
-              <X size={24} />
-            </button>
-          </div>
+        {/* Navigation Links */}
+        <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.path);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                  active
+                    ? 'bg-primary-50 text-primary-700 font-semibold'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+                title={sidebarCollapsed ? item.label : ''}
+              >
+                <Icon size={20} className={active ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'} />
+                {!sidebarCollapsed && <span className="text-sm">{item.label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
 
-          {/* Navigation */}
-          {!sidebarCollapsed && (
-            <>
-              <nav className="flex-1 overflow-y-auto p-4">
-                <ul className="space-y-2">
-                  {menuItems.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <li key={item.path}>
-                        <Link
-                          to={item.path}
-                          onClick={() => {
-                            // Only close sidebar on mobile devices
-                            if (window.innerWidth < 1024) {
-                              setSidebarOpen(false);
-                            }
-                          }}
-                          className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                            isActive(item.path)
-                              ? 'bg-primary-100 text-primary-700 font-medium'
-                              : 'text-gray-700 hover:bg-gray-100'
-                          }`}
-                        >
-                          <Icon size={20} />
-                          <span>{item.label}</span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                  {/* Chatbot Toggle */}
-                  <li>
-                    <button
-                      onClick={() => {
-                        setChatbotOpen(!chatbotOpen);
-                        // Only close sidebar on mobile devices
-                        if (window.innerWidth < 1024) {
-                          setSidebarOpen(false);
-                        }
-                      }}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                        chatbotOpen
-                          ? 'bg-primary-100 text-primary-700 font-medium'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <MessageSquare size={20} />
-                      <span>Chatbot</span>
-                    </button>
-                  </li>
-                </ul>
-              </nav>
-
-              {/* User section */}
-              <div className="p-4 border-t">
-                <div className="flex items-center space-x-3 mb-3 px-4 py-2">
-                  <UserCircle size={24} className="text-gray-500" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-700">
-                      {userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : 'User'}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  <LogOut size={20} />
-                  <span>Logout</span>
-                </button>
+        {/* User Profile Section */}
+        <div className="p-4 border-t border-gray-100">
+          <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : 'px-2 py-2'}`}>
+            <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 border border-gray-200">
+              <UserCircle size={24} />
+            </div>
+            {!sidebarCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{user?.name || 'User'}</p>
+                <p className="text-xs text-gray-500 capitalize">{userRole}</p>
               </div>
-            </>
-          )}
-
-          {/* Collapsed Sidebar - Show only icons */}
-          {sidebarCollapsed && (
-            <nav className="flex-1 overflow-y-auto p-2">
-              <ul className="space-y-2">
-                {menuItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <li key={item.path}>
-                      <Link
-                        to={item.path}
-                        onClick={() => {
-                          // Only close sidebar on mobile devices
-                          if (window.innerWidth < 1024) {
-                            setSidebarOpen(false);
-                          }
-                        }}
-                        className={`flex items-center justify-center p-3 rounded-lg transition-colors ${
-                          isActive(item.path)
-                            ? 'bg-primary-100 text-primary-700'
-                            : 'text-gray-700 hover:bg-gray-100'
-                        }`}
-                        title={item.label}
-                      >
-                        <Icon size={20} />
-                      </Link>
-                    </li>
-                  );
-                })}
-                <li>
-                  <button
-                    onClick={() => {
-                      setChatbotOpen(!chatbotOpen);
-                      // Only close sidebar on mobile devices
-                      if (window.innerWidth < 1024) {
-                        setSidebarOpen(false);
-                      }
-                    }}
-                    className={`w-full flex items-center justify-center p-3 rounded-lg transition-colors ${
-                      chatbotOpen
-                        ? 'bg-primary-100 text-primary-700'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                    title="Chatbot"
-                  >
-                    <MessageSquare size={20} />
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center justify-center p-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-                    title="Logout"
-                  >
-                    <LogOut size={20} />
-                  </button>
-                </li>
-              </ul>
-            </nav>
-          )}
+            )}
+          </div>
+          <button
+            onClick={handleLogout}
+            className={`mt-2 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors ${sidebarCollapsed ? 'justify-center' : ''}`}
+            title={sidebarCollapsed ? 'Logout' : ''}
+          >
+            <LogOut size={18} />
+            {!sidebarCollapsed && <span className="text-sm font-medium">Logout</span>}
+          </button>
         </div>
       </aside>
 
-      {/* Main content */}
-      <div 
-        style={{ 
-          marginLeft: `${displayWidth}px`,
-          marginRight: chatbotOpen ? (chatbotCollapsed ? '64px' : `${chatbotWidth}px`) : '0px'
-        }} 
-        className="transition-all duration-300"
-      >
-        {/* Top bar */}
-        <header className="bg-white shadow-sm sticky top-0 z-30">
-          <div className="flex items-center justify-between px-6 py-4">
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Top Header */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0">
+          <div className="flex items-center gap-4">
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden text-gray-500 hover:text-gray-700"
-              title={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
             >
-              {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+              <Menu size={20} />
             </button>
-            <div className="flex-1" />
+            <div className="hidden lg:block">
+              <h2 className="text-sm font-medium text-gray-500">
+                {location.pathname.split('/').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' / ') || 'Dashboard'}
+              </h2>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {/* Notification Icon */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className={`p-2 rounded-full transition-colors relative ${showNotifications ? 'bg-gray-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+              >
+                <Bell size={20} />
+                {hasUnread && (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                )}
+              </button>
+              
+              {/* Notification Dropdown */}
+              {showNotifications && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)}></div>
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                      <h3 className="font-bold text-gray-900">Notifications</h3>
+                      <button 
+                        onClick={handleMarkAllRead}
+                        className="text-xs text-primary-600 font-medium hover:underline"
+                      >
+                        Mark all as read
+                      </button>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        <div className="divide-y divide-gray-50">
+                          {notifications.map((n) => (
+                            <div 
+                              key={n.id} 
+                              className="p-4 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className={`mt-1 p-1.5 rounded-lg ${n.type === 'announcement' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                                  {n.type === 'announcement' ? <Bell size={14} /> : <Calendar size={14} />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{n.title}</p>
+                                  <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">{n.time}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center text-gray-500 text-sm">
+                          <Bell size={32} className="mx-auto text-gray-200 mb-2" />
+                          <p>No new notifications</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 bg-gray-50 border-t border-gray-100 text-center">
+                      <button 
+                        onClick={handleViewAll}
+                        className="text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-wider"
+                      >
+                        View All Activity
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="h-8 w-px bg-gray-200 mx-1"></div>
+            
+            {/* Manus Assistant Icon */}
+            <button 
+              onClick={() => setChatbotOpen(!chatbotOpen)}
+              className={`p-2 rounded-full transition-all ${chatbotOpen ? 'bg-indigo-50 text-indigo-600 ring-2 ring-indigo-100' : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+              title="Manus Assistant"
+            >
+              <ManusIcon size={20} />
+            </button>
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="p-6">{children}</main>
-      </div>
+        {/* Page Content */}
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+          {children}
+        </div>
 
-      {/* Chatbot Sidebar - Right */}
-      <ChatbotWidget 
-        isOpen={chatbotOpen} 
-        onClose={() => setChatbotOpen(false)}
-        onWidthChange={setChatbotWidth}
-        onCollapseChange={setChatbotCollapsed}
-      />
+        {/* Chatbot Widget Integration */}
+        <ChatbotWidget 
+          isOpen={chatbotOpen} 
+          onClose={() => setChatbotOpen(false)} 
+        />
+      </main>
     </div>
   );
 };
-

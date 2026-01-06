@@ -1,4 +1,5 @@
 from src import create_app
+from src.models import Admin, Announcement 
 
 app = create_app()
 

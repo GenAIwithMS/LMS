@@ -1,5 +1,4 @@
-from src.models.assignment import Assignment
-from src.models.teacher import Teacher
+from src.models import Assignment
 from flask import jsonify
 from src.db import db
 

@@ -1,5 +1,4 @@
-from src.models.announcement import Announcement
-from src.models.section import Section
+from src.models import Announcement,Section
 from flask import jsonify
 from src.db import db
   
