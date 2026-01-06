@@ -61,7 +61,7 @@ def should_continue(state: AgentState) -> str:
         return "tools"
     return END
 
-def create_chatbot_graph(user_role:
+def create_chatbot_graph(user_role: str):
                          
     """Create a unified agent graph with parallel tool execution."""
                          
