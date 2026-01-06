@@ -58,7 +58,6 @@ TOOL_SETS = {
     }
 }
 
-# Dynamically generate flat tool lists from TOOL_SETS for backward compatibility
 def _flatten_tools(role_tool_sets):
     """Flatten domain-grouped tools into a single list, removing duplicates."""
     tools = []
