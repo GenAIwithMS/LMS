@@ -15,19 +15,7 @@ const Login: React.FC = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const role = getRoleFromToken(token);
-        if (role === 'admin') {
-          navigate('/admin/students', { replace: true });
-        } else if (role === 'teacher') {
-          navigate('/teacher/assignments', { replace: true });
-        } else if (role === 'student') {
-          navigate('/student/assignments', { replace: true });
-        } else {
-          navigate('/dashboard', { replace: true });
-        }
-      }
+      navigate('/dashboard', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
@@ -39,27 +27,9 @@ const Login: React.FC = () => {
       await login({ email, password });
       toast.success('Login successful!');
       
-      // Small delay to ensure context is updated
+      // Redirect to dashboard for all users
       setTimeout(() => {
-        // Get role from token in localStorage
-        const token = localStorage.getItem('token');
-        if (token) {
-          const role = getRoleFromToken(token);
-          
-          // Redirect based on role
-          if (role === 'admin') {
-            navigate('/admin/students');
-          } else if (role === 'teacher') {
-            navigate('/teacher/assignments');
-          } else if (role === 'student') {
-            navigate('/student/assignments');
-          } else {
-            // Fallback to dashboard if role is not determined
-            navigate('/dashboard');
-          }
-        } else {
-          navigate('/dashboard');
-        }
+        navigate('/dashboard');
       }, 100);
     } catch (error: any) {
       toast.error(error.message || 'Login failed');
