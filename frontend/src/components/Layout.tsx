@@ -221,27 +221,29 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         }`}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center px-6 border-b border-gray-100 relative overflow-hidden">
+        <div className="h-16 flex items-center px-6 border-b border-gray-100 relative overflow-hidden bg-gradient-to-r from-primary-50/30 to-transparent">
           {!sidebarCollapsed ? (
             <div className="flex items-center gap-3 shrink-0 w-full">
-              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">L</div>
+              <div className="w-9 h-9 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center text-white font-bold shrink-0 shadow-lg">
+                L
+              </div>
               <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="ml-auto p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                className="ml-auto p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
                 title="Collapse Sidebar"
               >
-                <PanelLeft size={20} />
+                <PanelLeft size={18} />
               </button>
             </div>
           ) : (
             <div className="flex items-center justify-center w-full">
               <button
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
                 title="Expand Sidebar"
               >
-                <PanelLeft size={20} className="rotate-180" />
+                <PanelLeft size={18} className="rotate-180" />
               </button>
             </div>
           )}
@@ -255,7 +257,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
@@ -263,40 +265,46 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${
                   active
-                    ? 'bg-primary-50 text-primary-700 font-semibold'
-                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-200'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
                 title={sidebarCollapsed ? item.label : ''}
               >
-                <Icon size={20} className={active ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600'} />
-                {!sidebarCollapsed && <span className="text-sm">{item.label}</span>}
+                {active && (
+                  <div className="absolute inset-0 bg-white/10 animate-shimmer"></div>
+                )}
+                <Icon size={20} className={`relative z-10 ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                {!sidebarCollapsed && <span className="text-sm relative z-10">{item.label}</span>}
+                {active && !sidebarCollapsed && (
+                  <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full relative z-10"></div>
+                )}
               </Link>
             );
           })}
         </nav>
 
         {/* User Profile Section */}
-        <div className="p-4 border-t border-gray-100">
+        <div className="p-4 border-t border-gray-100 bg-gray-50/50">
           <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : 'px-2 py-2'}`}>
-            <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 border border-gray-200">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl flex items-center justify-center text-primary-700 border-2 border-primary-300 shadow-md">
               <UserCircle size={24} />
             </div>
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{user?.name || 'User'}</p>
-                <p className="text-xs text-gray-500 capitalize">{userRole}</p>
+                <p className="text-sm font-bold text-gray-900 truncate">{user?.name || 'User'}</p>
+                <p className="text-xs text-gray-500 capitalize font-medium">{userRole}</p>
               </div>
             )}
           </div>
           <button
             onClick={handleLogout}
-            className={`mt-2 w-full flex items-center gap-3 px-3 py-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors ${sidebarCollapsed ? 'justify-center' : ''}`}
+            className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-all font-semibold shadow-sm hover:shadow-md ${sidebarCollapsed ? 'justify-center' : ''}`}
             title={sidebarCollapsed ? 'Logout' : ''}
           >
             <LogOut size={18} />
-            {!sidebarCollapsed && <span className="text-sm font-medium">Logout</span>}
+            {!sidebarCollapsed && <span className="text-sm">Logout</span>}
           </button>
         </div>
       </aside>
@@ -304,18 +312,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0">
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0 shadow-sm">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+              className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
             >
               <Menu size={20} />
             </button>
             <div className="hidden lg:block">
-              <h2 className="text-sm font-medium text-gray-500">
-                {location.pathname.split('/').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' / ') || 'Dashboard'}
-              </h2>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-primary-600 rounded-full"></div>
+                <h2 className="text-sm font-bold text-gray-800">
+                  {location.pathname.split('/').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' / ') || 'Dashboard'}
+                </h2>
+              </div>
             </div>
           </div>
           
@@ -324,11 +335,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="relative">
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
-                className={`p-2 rounded-full transition-colors relative ${showNotifications ? 'bg-gray-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}`}
+                className={`p-2.5 rounded-xl transition-all relative ${
+                  showNotifications 
+                    ? 'bg-primary-50 text-primary-600 shadow-md' 
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                }`}
               >
                 <Bell size={20} />
                 {hasUnread && (
-                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
                 )}
               </button>
               
@@ -391,7 +406,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* Manus Assistant Icon */}
             <button 
               onClick={() => setChatbotOpen(!chatbotOpen)}
-              className={`p-2 rounded-full transition-all ${chatbotOpen ? 'bg-indigo-50 text-indigo-600 ring-2 ring-indigo-100' : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+              className={`p-2.5 rounded-xl transition-all ${
+                chatbotOpen 
+                  ? 'bg-indigo-50 text-indigo-600 ring-2 ring-indigo-200 shadow-md' 
+                  : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'
+              }`}
               title="Manus Assistant"
             >
               <ManusIcon size={20} />
