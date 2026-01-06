@@ -1,8 +1,31 @@
 # Learning Management System (LMS) Agentic
 
-A comprehensive Learning Management System built with Flask (backend) and React (frontend), featuring role-based access control, assignment management, attendance tracking, and an AI-powered chatbot assistant.
+A modern, comprehensive Learning Management System built with Flask (backend) and React 18 + TypeScript (frontend), featuring role-based access control, assignment management, attendance tracking, and an AI-powered chatbot assistant with LangGraph.
+
+## ✨ Key Highlights
+
+- **Modern UI/UX**: Gradient-based design with smooth animations and responsive layouts
+- **Unified Dashboard**: All users (Admin, Teacher, Student) land on a centralized dashboard after login
+- **Static Navigation**: Fixed sidebar and navbar with scrollable content area for better UX
+- **AI-Powered Assistant**: Built-in chatbot widget accessible from any page
+- **Real-time Notifications**: Toast notifications and notification center
+- **Expandable Features**: Interactive feature cards with detailed descriptions on homepage
 
 ## 🚀 Features
+
+### UI/UX Features
+- **Modern Homepage**: 
+  - Gradient hero section with animated backgrounds
+  - Expandable feature cards with detailed capability lists
+  - Problem-solution narrative layout
+  - Role-based feature showcase
+  - Security highlights section
+- **Unified Dashboard**: Single dashboard for all user roles with role-specific quick actions
+- **Static Layout**: Fixed sidebar and navbar, scrollable content area only
+- **Responsive Design**: Mobile-first approach with collapsible sidebar
+- **Enhanced Visuals**: Gradient cards, hover animations, shadow effects
+- **Toast Notifications**: Real-time user feedback
+- **Notification Center**: Bell icon with dropdown for announcements and events
 
 ### Core Features
 - **Role-Based Access Control**: Three distinct user roles (Admin, Teacher, Student) with different permissions
@@ -45,26 +68,29 @@ A comprehensive Learning Management System built with Flask (backend) and React 
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Flask**: Python web framework
-- **SQLAlchemy**: ORM for database operations
+- **Flask**: Lightweight Python web framework
+- **SQLAlchemy**: ORM for database operations with relationship mapping
 - **PyMySQL**: MySQL database connector
-- **Flask-JWT-Extended**: JWT authentication
-- **Flask-Bcrypt**: Password hashing
-- **Marshmallow**: Data validation and serialization
-- **Flask-CORS**: Cross-origin resource sharing
-- **LangGraph**: AI agent framework
-- **LangChain**: LLM integration
-- **LangChain-Groq**: Groq API integration
+- **Flask-JWT-Extended**: JWT-based authentication and authorization
+- **Flask-Bcrypt**: Secure password hashing
+- **Marshmallow**: Data validation, serialization, and deserialization
+- **Flask-CORS**: Cross-origin resource sharing configuration
+- **LangGraph**: State-based AI agent orchestration framework
+- **LangChain**: LLM integration and prompt management
+- **LangChain-Groq**: Groq API integration for fast LLM inference
+- **python-dotenv**: Environment variable management
 
 ### Frontend
-- **React 18**: UI library
-- **TypeScript**: Type-safe JavaScript
-- **Vite**: Build tool and dev server
-- **React Router DOM**: Client-side routing
-- **Axios**: HTTP client
-- **Tailwind CSS**: Utility-first CSS framework
-- **Lucide React**: Icon library
-- **React Hot Toast**: Toast notifications
+- **React 18**: Latest React with hooks and concurrent features
+- **TypeScript**: Full type safety and better developer experience
+- **Vite**: Lightning-fast build tool and HMR dev server
+- **React Router DOM v6**: Modern client-side routing
+- **Axios**: Promise-based HTTP client with interceptors
+- **Tailwind CSS 3**: Utility-first CSS with custom design system
+- **Lucide React**: Modern icon library (350+ icons)
+- **React Hot Toast**: Beautiful toast notifications
+- **React Markdown**: Markdown rendering for chatbot responses
+- **Remark GFM**: GitHub Flavored Markdown support
 
 ### Database
 - **MySQL**: Relational database
@@ -76,29 +102,62 @@ LMS Agentic/
 ├── backend/
 │   ├── app.py                 # Flask application entry point
 │   ├── requirements.txt       # Python dependencies
+│   ├── .env.example          # Environment variables template
 │   └── src/
-│       ├── __init__.py        # Flask app factory
+│       ├── __init__.py        # Flask app factory with CORS config
 │       ├── db.py              # Database configuration
 │       ├── extention.py       # Flask extensions (JWT, Bcrypt)
-│       ├── models/            # SQLAlchemy models
-│       ├── routes/            # API route handlers
-│       ├── schemas/           # Marshmallow schemas
-│       ├── services/          # Business logic
+│       ├── models/            # SQLAlchemy models (14 models)
+│       │   ├── admin.py
+│       │   ├── student.py
+│       │   ├── teacher.py
+│       │   ├── course.py
+│       │   ├── assignment.py
+│       │   └── ... (9 more)
+│       ├── routes/            # API route handlers (15 blueprints)
+│       │   ├── auth.py
+│       │   ├── admin.py
+│       │   ├── student.py
+│       │   ├── chatbot.py
+│       │   └── ... (11 more)
+│       ├── schemas/           # Marshmallow schemas for validation
+│       ├── services/          # Business logic layer
 │       └── agent/             # AI chatbot implementation
+│           ├── main.py        # LangGraph agent workflow
+│           ├── tools.py       # 26 AI tools for database operations
+│           ├── tools_list.py  # Tool registry
+│           └── prompts.py     # System and role-specific prompts
 │
 └── frontend/
     ├── package.json           # Node.js dependencies
     ├── vite.config.ts         # Vite configuration
-    ├── tailwind.config.js     # Tailwind CSS configuration
+    ├── tailwind.config.js     # Tailwind CSS with custom colors
+    ├── tsconfig.json          # TypeScript configuration
     └── src/
         ├── main.tsx           # React entry point
-        ├── App.tsx            # Main app component
+        ├── App.tsx            # Main app with routing (20+ routes)
+        ├── index.css          # Global styles with custom animations
         ├── components/        # Reusable components
+        │   ├── Layout.tsx     # Main layout with sidebar & navbar
+        │   ├── ProtectedRoute.tsx
+        │   ├── ChatbotWidget.tsx
+        │   └── ...
         ├── contexts/          # React contexts
+        │   └── AuthContext.tsx
         ├── pages/             # Page components
+        │   ├── Homepage.tsx   # Landing page with features
+        │   ├── Login.tsx      # Authentication page
+        │   ├── Dashboard.tsx  # Unified dashboard
+        │   ├── admin/         # Admin pages (7 pages)
+        │   ├── teacher/       # Teacher pages (5 pages)
+        │   └── student/       # Student pages (4 pages)
         ├── services/          # API service layer
+        │   └── api.ts         # Axios instance with interceptors
         ├── types/             # TypeScript type definitions
+        │   └── index.ts
         └── utils/             # Utility functions
+            ├── jwt.ts
+            └── errorHandler.ts
 ```
 
 ## 📋 Prerequisites
@@ -247,42 +306,102 @@ The application uses JWT (JSON Web Tokens) for authentication:
 
 ## 🎨 Frontend Features
 
-- **Responsive Design**: Works on desktop, tablet, and mobile devices
-- **Modern UI**: Built with Tailwind CSS for a clean, modern interface
-- **Toast Notifications**: User-friendly feedback for actions
-- **Protected Routes**: Role-based route protection
-- **Error Handling**: Comprehensive error handling and user feedback
-- **Type Safety**: Full TypeScript support
+- **Modern Design System**: 
+  - Gradient backgrounds and cards
+  - Custom animations (fade-in-up, shimmer, pulse)
+  - Glassmorphism effects
+  - Smooth hover transitions
+- **Responsive Layout**: Works seamlessly on desktop, tablet, and mobile
+- **Fixed Navigation**: Sidebar and navbar stay static while content scrolls
+- **Unified Dashboard**: Single landing page for all user roles after login
+- **Interactive Homepage**: Expandable feature cards with detailed information
+- **Toast Notifications**: Instant user feedback for all actions
+- **Notification Center**: Real-time announcements and events dropdown
+- **Protected Routes**: Role-based route protection with automatic redirects
+- **Error Handling**: Comprehensive error handling with user-friendly messages
+- **Type Safety**: Full TypeScript coverage for better developer experience
+- **Loading States**: Skeleton loaders and spinners for better UX
+- **Form Validation**: Client-side validation before API calls
 
 ## 🤖 AI Chatbot
 
-The system includes an AI-powered chatbot that provides role-specific assistance:
+The system includes an intelligent AI-powered chatbot accessible from any page via a floating button:
 
-- **Admin Tools**: User management, course creation, system administration
-- **Teacher Tools**: Assignment creation, grading, attendance tracking
-- **Student Tools**: Assignment submission, course information, results viewing
+### Features
+- **Role-Aware Context**: Chatbot adapts responses based on user role
+- **26 Database Tools**: Complete CRUD operations via natural language
+- **LangGraph Workflow**: State-based agent with tool calling
+- **Markdown Rendering**: Rich formatting for chatbot responses
+- **Persistent Widget**: Accessible from any page without navigation
+- **Conversation History**: Maintains context within session
 
-The chatbot uses LangGraph for agent orchestration and Groq API for LLM inference.
+### Capabilities by Role
 
-**Note**: The chatbot requires a `GROQ_API_KEY` environment variable. The application will still run without it, but the chatbot feature will be unavailable.
+#### Admin Tools
+- User management (create, update, delete students/teachers)
+- Course and subject creation
+- Section and enrollment management
+- Event creation and management
+- System-wide data queries
+
+#### Teacher Tools
+- Assignment creation and management
+- Submission grading and feedback
+- Attendance marking and tracking
+- Result recording
+- Announcement posting
+
+#### Student Tools
+- Assignment submission
+- Grade and attendance viewing
+- Course information queries
+- Announcement viewing
+- Schedule information
+
+### Technical Implementation
+- **LangGraph**: Orchestrates agent workflow with state management
+- **Groq API**: Fast LLM inference (llama-3.3-70b-versatile model)
+- **Tool Binding**: 26 Python functions exposed as tools
+- **Error Handling**: Graceful fallbacks and error messages
+
+**Note**: Requires `GROQ_API_KEY` in environment variables. Application runs without it, but chatbot will be unavailable.
 
 ## 🚦 Running the Application
 
 ### Development Mode
 
-1. **Start the Backend**:
+1. **Start the Backend** (Terminal 1):
    ```bash
    cd backend
    python app.py
    ```
+   Backend runs on `http://localhost:5000`
 
-2. **Start the Frontend** (in a new terminal):
+2. **Start the Frontend** (Terminal 2):
    ```bash
    cd frontend
    npm run dev
    ```
+   Frontend runs on `http://localhost:5173`
 
-3. Open your browser and navigate to `http://localhost:5173`
+3. **Access the Application**:
+   - Open `http://localhost:5173` in your browser
+   - Login redirects all users to `/dashboard`
+   - Navigate using the fixed sidebar
+
+### First-Time Setup
+
+1. **Create Admin User** (via API or database):
+   ```bash
+   # Use API endpoint or insert directly into database
+   # Default credentials should be created in database
+   ```
+
+2. **Login Flow**:
+   - Visit homepage → Click "Get Started" or "Login"
+   - Enter credentials
+   - Automatically redirected to unified dashboard
+   - Access role-specific features from sidebar
 
 ### Production Build
 
@@ -321,11 +440,24 @@ npm run lint
 
 ### Backend (.env)
 ```env
+# Database Configuration
 DATABASE_URI=mysql+pymysql://username:password@localhost/llm_LMS
-JWT_SECRET_KEY=your-secret-key-here
+
+# JWT Configuration
+JWT_SECRET_KEY=your-secret-key-here-change-this-in-production
+
+# Flask Configuration
 FLASK_DEBUG=True
 PORT=5000
-GROQ_API_KEY=your-groq-api-key-here  # Optional
+
+# Groq API (Required for AI Chatbot)
+GROQ_API_KEY=your-groq-api-key-here
+```
+
+### Frontend (No .env needed)
+Frontend uses Vite's default configuration. API base URL is set in `src/services/api.ts`:
+```typescript
+const API_BASE_URL = 'http://localhost:5000/api';
 ```
 
 ## 🐛 Troubleshooting
@@ -339,7 +471,8 @@ GROQ_API_KEY=your-groq-api-key-here  # Optional
 
 2. **Import Errors**:
    - Ensure all dependencies are installed: `pip install -r requirements.txt`
-   - Check Python version (3.8+)
+   - Check Python version (3.13 recommended, 3.8+ minimum)
+   - Install `python-dotenv` separately if needed: `pip install python-dotenv`
 
 3. **Port Already in Use**:
    - Change the port in `.env` or `app.py`
@@ -349,17 +482,51 @@ GROQ_API_KEY=your-groq-api-key-here  # Optional
 
 1. **Cannot Connect to Backend**:
    - Verify backend is running on `http://localhost:5000`
-   - Check CORS configuration
+   - Check CORS configuration in `backend/src/__init__.py`
    - Verify API base URL in `frontend/src/services/api.ts`
+   - Ensure no proxy/firewall blocking localhost connections
 
 2. **Build Errors**:
-   - Clear `node_modules` and reinstall: `rm -rf node_modules && npm install`
-   - Check Node.js version (16+)
+   - Clear `node_modules` and reinstall: `rm -rf node_modules package-lock.json && npm install`
+   - Check Node.js version (16+ required, 18+ recommended)
+   - Clear Vite cache: `rm -rf node_modules/.vite`
+
+3. **Login Issues**:
+   - Check browser console for errors
+   - Verify JWT token is being stored in localStorage
+   - Clear localStorage and try again: `localStorage.clear()`
+   - Check Network tab for API response status
+
+4. **Styling Issues**:
+   - Ensure Tailwind CSS is properly configured
+   - Check `index.css` is imported in `main.tsx`
+   - Rebuild with `npm run build` and restart dev server
 
 ## 📚 Additional Documentation
 
-- Backend API Documentation: `backend/API_DOCUMENTATION.md`
-- Frontend API Documentation: `frontend/API_DOCUMENTATION.md`
+- **Backend API Documentation**: `backend/API_DOCUMENTATION.md`
+- **Frontend API Documentation**: `frontend/API_DOCUMENTATION.md`
+- **AI Agent Prompts**: `backend/src/agent/prompts.py`
+- **Database Models**: `backend/src/models/`
+
+## 🔄 Recent Updates
+
+### UI/UX Improvements
+- ✅ Modern gradient-based design system
+- ✅ Unified dashboard for all user roles
+- ✅ Fixed sidebar and navbar with scrollable content
+- ✅ Expandable feature cards on homepage
+- ✅ Enhanced notification system
+- ✅ Improved responsive design
+- ✅ Custom animations and transitions
+
+### Features Added
+- ✅ AI chatbot widget with 26 database tools
+- ✅ Role-based dashboard quick actions
+- ✅ Real-time notification center
+- ✅ Toast notification system
+- ✅ Markdown rendering for chatbot
+- ✅ System status indicators (removed from dashboard)
 
 ## 🤝 Contributing
 
