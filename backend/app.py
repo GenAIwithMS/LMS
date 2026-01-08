@@ -5,6 +5,6 @@ app = create_app()
 
 if __name__ == "__main__":
     import os
-    debug_mode = os.getenv("FLASK_DEBUG", "True").lower() == "true"
-    port = int(os.getenv("PORT", 5000))
+    debug_mode = os.getenv("FLASK_DEBUG").lower() == "true"
+    port = int(os.getenv("PORT"))
     app.run(debug=debug_mode, port=port)

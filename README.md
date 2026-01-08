@@ -299,7 +299,7 @@ Authorization: Bearer <your-jwt-token>
 
 The application uses JWT (JSON Web Tokens) for authentication:
 
-1. Login with username and password
+1. Login with Email and password
 2. Receive a JWT token
 3. Include the token in subsequent requests via the `Authorization` header
 4. Tokens are stored in `localStorage` on the frontend
@@ -427,13 +427,13 @@ The built files will be in the `dist/` directory.
 ### Backend Testing
 ```bash
 cd backend
-# Add your test commands here
+flask run --debug
 ```
 
 ### Frontend Testing
 ```bash
 cd frontend
-npm run lint
+npm run dev
 ```
 
 ## 📝 Environment Variables
