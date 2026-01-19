@@ -17,6 +17,18 @@ load_dotenv(dotenv_path=str(env_path))
 # Use a faster model or optimize configuration if needed
 model = ChatGroq(model="qwen/qwen3-32b")
 
+# Cache tool schemas globally to reduce token usage in multi-turn conversations
+_CACHED_TOOL_SCHEMAS = {}
+
+def _build_tool_schemas_cache():
+    """Build and cache tool schemas for all roles on initialization."""
+    global _CACHED_TOOL_SCHEMAS
+    _CACHED_TOOL_SCHEMAS = {
+        "admin": model.bind_tools(admin_tools),
+        "teacher": model.bind_tools(teacher_tools),
+        "student": model.bind_tools(student_tools)
+    }
+
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
     user_role: str
@@ -63,8 +75,12 @@ def should_continue(state: AgentState) -> str:
 
 def create_chatbot_graph(user_role: str):
                          
-    """Create a unified agent graph with parallel tool execution."""
+    """Create a unified agent graph with parallel tool execution and cached tool schemas."""
                          
+    # Initialize cache on first call
+    if not _CACHED_TOOL_SCHEMAS:
+        _build_tool_schemas_cache()
+    
     tools = get_tools_for_role(user_role)
     system_prompt = get_system_prompt_for_role(user_role)
 
@@ -72,8 +88,8 @@ def create_chatbot_graph(user_role: str):
     # if the model returns multiple tool calls in a single message.
     tool_node = ToolNode(tools)
     
-    # Bind tools to the model
-    model_with_tools = model.bind_tools(tools)
+    # Use cached tool schemas instead of rebuilding them
+    model_with_tools = _CACHED_TOOL_SCHEMAS[user_role]
 
     workflow = StateGraph(AgentState)
 
