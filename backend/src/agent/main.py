@@ -6,7 +6,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.prebuilt import ToolNode
 import operator
 from pathlib import Path
-from src.agent.tools_list import admin_tools, teacher_tools, student_tools
+from backend.src.agent.tools_list import admin_tools, teacher_tools, student_tools
 from src.agent.prompts import admin_system_prompt, teacher_system_prompt, student_system_prompt
 
 backend_dir = Path(__file__).parent.parent.parent
