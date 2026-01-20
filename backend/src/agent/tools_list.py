@@ -1,5 +1,4 @@
-
-from src.agent.tools import (
+from backend.src.agent.tools import (
     create_announcement, get_announcements, get_announcement, update_announcement, remove_announcement,
     create_event, get_events, get_event, update_event_tool, remove_event,
     create_section, get_sections, get_section, update_section, remove_section,
