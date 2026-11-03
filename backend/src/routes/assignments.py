@@ -31,7 +31,7 @@ def create_assign():
     teacher_id = int(get_jwt_identity())  
     total_marks = data.get("total_marks")
 
-    subject = find_teacher_subject(teacher_id, subject_name)
+    subject = find_teacher_subject(teacher_id, subject_name, data.get("subject_id"))
     if not subject:
         return jsonify({
             "message": "Subject not found among the subjects you teach",
@@ -103,8 +103,11 @@ def update_assignment():
 
     kwargs = {}
     for key, value in data.items():
-        if key == 'subject_name':
-            subject = find_teacher_subject(teacher_id, value)
+        if key == 'subject_id' or key == 'subject_name':
+            # The ID wins when both are sent
+            if key == 'subject_name' and 'subject_id' in data:
+                continue
+            subject = find_teacher_subject(teacher_id, data.get('subject_name'), data.get('subject_id'))
             if not subject:
                 return jsonify({"message": "Subject not found among the subjects you teach", "status": "failed"}), 400
             kwargs['subject_id'] = subject.id

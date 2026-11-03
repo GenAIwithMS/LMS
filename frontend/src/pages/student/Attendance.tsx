@@ -16,9 +16,7 @@ const StudentAttendance: React.FC = () => {
   const fetchAttendance = async () => {
     try {
       setLoading(true);
-      console.log('Fetching attendance...');
       const data = await getAttendance();
-      console.log('Attendance API response:', data);
       
       // Handle different response formats
       let attendanceData: Attendance[] = [];
@@ -46,7 +44,6 @@ const StudentAttendance: React.FC = () => {
         mark_at: record.mark_at || record.markAt || record.date || new Date().toISOString(),
       }));
       
-      console.log('Processed attendance:', attendanceData);
       setAttendance(attendanceData);
     } catch (error: any) {
       console.error('Error fetching attendance:', error);

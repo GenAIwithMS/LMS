@@ -7,7 +7,7 @@ export interface ChatMessage {
   content: string;
 }
 
-// A delete the assistant asked for, waiting for the user to click Confirm or Cancel
+// A delete or edit the assistant asked for, waiting for the user to click Confirm or Cancel
 export interface PendingAction {
   id: number;
   description: string;

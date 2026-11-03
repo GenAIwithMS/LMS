@@ -34,6 +34,7 @@ def get_assignment_by_id(assignment_id):
             "title": assignment.title,
             "description": assignment.description,
             "due_date": assignment.due_date,
+            "subject_id": assignment.subject_id,
             "subject_name": assignment.subject.name,
             "teacher_name": assignment.teacher.name,
             "total_marks": str(assignment.total_marks)
@@ -50,6 +51,7 @@ def get_all_assignments():
             "title": assignment.title,
             "description": assignment.description,
             "due_date": assignment.due_date,
+            "subject_id": assignment.subject_id,
             "subject_name": assignment.subject.name,
             "teacher_name": assignment.teacher.name,
             "total_marks": str(assignment.total_marks)

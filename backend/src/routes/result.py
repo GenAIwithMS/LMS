@@ -41,7 +41,7 @@ def create_res():
     remarks = data.get("remarks")
     teacher_id = int(get_jwt_identity())
 
-    subject = find_teacher_subject(teacher_id, subject_name)
+    subject = find_teacher_subject(teacher_id, subject_name, data.get("subject_id"))
     if not subject:
         return jsonify({
             "message": "Subject not found among the subjects you teach",
@@ -167,8 +167,11 @@ def update_res():
             if not student:
                 return jsonify({"message": "Student not found among your students", "status": "failed"}), 400
             kwargs['student_id'] = student.id
-        elif key == 'subject_name':
-            subject = find_teacher_subject(teacher_id, value)
+        elif key == 'subject_id' or key == 'subject_name':
+            # The ID wins when both are sent
+            if key == 'subject_name' and 'subject_id' in data:
+                continue
+            subject = find_teacher_subject(teacher_id, data.get('subject_name'), data.get('subject_id'))
             if not subject:
                 return jsonify({"message": "Subject not found among the subjects you teach", "status": "failed"}), 400
             kwargs['subject_id'] = subject.id

@@ -5,6 +5,7 @@ from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt,get_jwt_identity
 from src.services.access import get_teacher_section_ids, filter_response_by_ids
 from src.models import Teacher
+from src.services.access import find_record
 
 section_bp = Blueprint("section", __name__)
 
@@ -25,9 +26,7 @@ def add_sec():
         return jsonify(e.messages), 400
     
     name = data.get("name")
-    teacher_name = data.get("teacher_name")
-    
-    teacher = Teacher.query.filter_by(name=teacher_name).first()
+    teacher = find_record(Teacher, data.get("teacher_id"), data.get("teacher_name"))
     if not teacher:
         return jsonify({
             "message": "Teacher not found",
@@ -75,8 +74,8 @@ def update_sec():
         return jsonify(e.messages), 400
 
     kwargs = {}
-    if 'teacher_name' in data:
-        teacher = Teacher.query.filter_by(name=data['teacher_name']).first()
+    if 'teacher_id' in data or 'teacher_name' in data:
+        teacher = find_record(Teacher, data.get('teacher_id'), data.get('teacher_name'))
         if not teacher:
             return jsonify({"message": "Teacher not found", "status": "failed"}), 400
         kwargs['teacher_id'] = teacher.id

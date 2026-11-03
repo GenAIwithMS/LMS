@@ -26,6 +26,7 @@ const TeacherAnnouncements: React.FC = () => {
     title: '',
     content: '',
     target_audience: 'all',
+    section_id: '',
     section_name: '',
   });
 
@@ -65,6 +66,7 @@ const TeacherAnnouncements: React.FC = () => {
       const announcementsData = list.map((announcement: any) => ({
         ...announcement,
         section: announcement.section || announcement.section_name || '',
+        section_id: announcement.section_id,
         teacher: announcement.teacher || announcement.teacher_name || '',
       }));
       setAnnouncements(announcementsData);
@@ -84,14 +86,27 @@ const TeacherAnnouncements: React.FC = () => {
     }
   };
 
+  // Keep the chosen section's ID and name together
+  const handleSectionChange = (sectionId: string) => {
+    let sectionName = '';
+    for (const section of sections) {
+      if (String(section.id) === sectionId) {
+        sectionName = section.name;
+      }
+    }
+    setFormData({ ...formData, section_id: sectionId, section_name: sectionName });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Send the ID: names can repeat, IDs can't
+    const submitData = { ...formData, section_id: formData.section_id ? Number(formData.section_id) : undefined };
     try {
       if (editingAnnouncement) {
-        await updateAnnouncement(editingAnnouncement.title, formData);
+        await updateAnnouncement(editingAnnouncement.title, submitData);
         showSuccess('Announcement updated successfully');
       } else {
-        await createAnnouncement(formData);
+        await createAnnouncement(submitData);
         showSuccess('Announcement created successfully');
       }
       setIsModalOpen(false);
@@ -108,6 +123,7 @@ const TeacherAnnouncements: React.FC = () => {
       title: announcement.title,
       content: announcement.content,
       target_audience: announcement.target_audience,
+      section_id: announcement.section_id ? String(announcement.section_id) : '',
       section_name: announcement.section,
     });
     setIsModalOpen(true);
@@ -136,7 +152,7 @@ const TeacherAnnouncements: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ title: '', content: '', target_audience: 'all', section_name: '' });
+    setFormData({ title: '', content: '', target_audience: 'all', section_id: '', section_name: '' });
     setEditingAnnouncement(null);
   };
 
@@ -335,10 +351,10 @@ const TeacherAnnouncements: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
-            <select required value={formData.section_name} onChange={(e) => setFormData({ ...formData, section_name: e.target.value })} className="input">
+            <select required value={formData.section_id} onChange={(e) => handleSectionChange(e.target.value)} className="input">
               <option value="">Select a section</option>
               {sections.map((section) => (
-                <option key={section.id} value={section.name}>{section.name}</option>
+                <option key={section.id} value={section.id}>{section.name}</option>
               ))}
             </select>
           </div>

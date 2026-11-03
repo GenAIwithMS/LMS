@@ -26,6 +26,7 @@ const TeacherAttendance: React.FC = () => {
   const [formData, setFormData] = useState({
     student_id: '',
     student_name: '',
+    subject_id: '',
     subject_name: '',
     status: 'present' as 'present' | 'absent' | 'late',
   });
@@ -56,9 +57,7 @@ const TeacherAttendance: React.FC = () => {
   const fetchAttendance = async () => {
     try {
       setLoading(true);
-      console.log('Fetching attendance...');
       const data = await getAttendance();
-      console.log('Attendance API response:', data);
       
       // Handle different response formats
       let attendanceData: Attendance[] = [];
@@ -83,11 +82,11 @@ const TeacherAttendance: React.FC = () => {
         student: record.student || record.student_name || '',
         student_id: record.student_id,
         subject: record.subject || record.subject_name || '',
+        subject_id: record.subject_id,
         status: (record.status || 'present') as 'present' | 'absent' | 'late',
         mark_at: record.mark_at || record.markAt || record.date || new Date().toISOString(),
       }));
       
-      console.log('Processed attendance:', attendanceData);
       setAttendance(attendanceData);
     } catch (error: any) {
       console.error('Error fetching attendance:', error);
@@ -110,7 +109,6 @@ const TeacherAttendance: React.FC = () => {
   const fetchSubjects = async () => {
     try {
       const data = await getSubjects();
-      console.log('Subjects API raw response:', data);
       
       // Handle different response formats
       let subjectsData: Subject[] = [];
@@ -137,13 +135,23 @@ const TeacherAttendance: React.FC = () => {
         course: subject.course || subject.course_name || '',
       }));
       
-      console.log('Processed subjects:', subjectsData);
       setSubjects(subjectsData);
     } catch (error: any) {
       console.error('Error fetching subjects:', error);
       showError(error, 'Failed to fetch subjects');
       setSubjects([]);
     }
+  };
+
+  // Keep the chosen subject's ID and name together
+  const handleSubjectChange = (subjectId: string) => {
+    let subjectName = '';
+    for (const subject of subjects) {
+      if (String(subject.id) === subjectId) {
+        subjectName = subject.name;
+      }
+    }
+    setFormData({ ...formData, subject_id: subjectId, subject_name: subjectName });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -154,6 +162,7 @@ const TeacherAttendance: React.FC = () => {
         student_id: Number(formData.student_id),
         student_name: formData.student_name,
         subject_name: formData.subject_name,
+        subject_id: formData.subject_id ? Number(formData.subject_id) : undefined,
         status: formData.status,
       };
       if (editingAttendance) {
@@ -187,6 +196,7 @@ const TeacherAttendance: React.FC = () => {
     setFormData({
       student_id: attendance.student_id ? String(attendance.student_id) : '',
       student_name: attendance.student || '',
+      subject_id: attendance.subject_id ? String(attendance.subject_id) : '',
       subject_name: attendance.subject || '',
       status: attendance.status || 'present',
     });
@@ -216,7 +226,7 @@ const TeacherAttendance: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ student_id: '', student_name: '', subject_name: '', status: 'present' });
+    setFormData({ student_id: '', student_name: '', subject_id: '', subject_name: '', status: 'present' });
     setEditingAttendance(null);
   };
 
@@ -442,10 +452,10 @@ const TeacherAttendance: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-            <select required value={formData.subject_name} onChange={(e) => setFormData({ ...formData, subject_name: e.target.value })} className="input">
+            <select required value={formData.subject_id} onChange={(e) => handleSubjectChange(e.target.value)} className="input">
               <option value="">Select a subject</option>
               {subjects.map((subject) => (
-                <option key={subject.id} value={subject.name}>{subject.name}</option>
+                <option key={subject.id} value={subject.id}>{subject.name} ({subject.course})</option>
               ))}
             </select>
           </div>

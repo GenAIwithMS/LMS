@@ -40,6 +40,7 @@ def get_all_announcements():
             "title": announcement.title,
             "content": announcement.content,
             "target_audience": announcement.target_audience,
+            "section_id": announcement.section_id,
             "section_name": section.name if section else None,
             "created_at": announcement.created_at,
             "teacher_id": announcement.teacher_id,
@@ -62,6 +63,7 @@ def get_announcement_by_title(announcement_title):
         "title": announcement.title,
         "content": announcement.content,
         "target_audience": announcement.target_audience,
+        "section_id": announcement.section_id,
         "section_name": section.name if section else None,
         "created_at": announcement.created_at,
         "teacher_id": announcement.teacher_id,
@@ -76,6 +78,16 @@ def edit_announcement(announcement_title, **kwargs):
             "message": "Announcement not found",
             "status": "error"
         }), 404
+
+    # Announcements are found by title, so two must never share one
+    new_title = kwargs.get('title')
+    if new_title and new_title != announcement.title:
+        other = Announcement.query.filter_by(title=new_title).first()
+        if other:
+            return jsonify({
+                "message": "Announcement title already exists try another",
+                "status": "failed"
+            }), 400
 
     for key, value in kwargs.items():
         if hasattr(announcement, key):

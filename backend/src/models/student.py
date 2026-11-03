@@ -10,7 +10,9 @@ class Student(db.Model):
     password = db.Column(db.String(255), nullable=False)
     section_id = db.Column(db.BigInteger, db.ForeignKey("sections.id") , nullable=False)
 
-    courses = db.relationship('Course', secondary='enrollment', backref='students', lazy=True)
+    # Read-only shortcut to a student's courses. Enrollments are created and changed
+    # through the Enrollment model, which also owns the status, grade and date.
+    courses = db.relationship('Course', secondary='enrollment', backref=db.backref('students', viewonly=True), lazy=True, viewonly=True)
     section = db.relationship('Section', backref='students', lazy=True)
 
     def set_password(self, password):

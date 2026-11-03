@@ -27,6 +27,7 @@ def get_all_courses():
             "name": course.name,
             "description": course.description,
             "course_code": course.course_code,
+            "teacher_id": course.teacher_id,
             "teacher_name": teacher.name if teacher else None,
             "created_at": course.created_at
         }
@@ -43,6 +44,7 @@ def get_course_by_id(course_id):
         "name": course.name,
         "description": course.description,
         "course_code": course.course_code,
+        "teacher_id": course.teacher_id,
         "teacher_name": teacher.name if teacher else None,
         "created_at": course.created_at
     }

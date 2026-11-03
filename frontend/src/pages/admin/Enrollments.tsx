@@ -49,6 +49,7 @@ const AdminEnrollments: React.FC = () => {
   const [formData, setFormData] = useState({
     student_id: '',
     student_name: '',
+    course_id: '',
     course_name: '',
     enrollment_date: '',
     status: 'active',
@@ -56,12 +57,9 @@ const AdminEnrollments: React.FC = () => {
   });
 
   const fetchEnrollments = async () => {
-    console.log('fetchEnrollments called');
     try {
       setLoading(true);
-      console.log('Calling getEnrollments API...');
       const data = await getEnrollments();
-      console.log('Enrollments API response:', data);
       
       // Handle different response formats
       let enrollmentsData: Enrollment[] = [];
@@ -86,12 +84,12 @@ const AdminEnrollments: React.FC = () => {
         student: enrollment.student || enrollment.student_name || '',
         student_id: enrollment.student_id,
         course: enrollment.course || enrollment.course_name || '',
+        course_id: enrollment.course_id,
         enrollment_date: enrollment.enrollment_date || enrollment.enrollmentDate || '',
         status: enrollment.status || 'active',
         grade: enrollment.grade || '',
       }));
       
-      console.log('Processed enrollments:', enrollmentsData);
       setEnrollments(enrollmentsData);
     } catch (error: any) {
       console.error('Error fetching enrollments:', error);
@@ -121,7 +119,6 @@ const AdminEnrollments: React.FC = () => {
   };
 
   useEffect(() => {
-    console.log('AdminEnrollments component mounted, fetching data...');
     fetchEnrollments();
     fetchStudents();
     fetchCourses();
@@ -144,6 +141,17 @@ const AdminEnrollments: React.FC = () => {
     };
   }, [showOptions]);
 
+  // Keep the chosen course's ID and name together
+  const handleCourseChange = (courseId: string) => {
+    let courseName = '';
+    for (const course of courses) {
+      if (String(course.id) === courseId) {
+        courseName = course.name;
+      }
+    }
+    setFormData({ ...formData, course_id: courseId, course_name: courseName });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -153,6 +161,7 @@ const AdminEnrollments: React.FC = () => {
         student_id: Number(formData.student_id),
         student_name: formData.student_name,
         course_name: formData.course_name,
+        course_id: formData.course_id ? Number(formData.course_id) : undefined,
         status: formData.status,
         grade: formData.grade,
       };
@@ -195,6 +204,7 @@ const AdminEnrollments: React.FC = () => {
     setFormData({
       student_id: enrollment.student_id ? String(enrollment.student_id) : '',
       student_name: enrollment.student,
+      course_id: enrollment.course_id ? String(enrollment.course_id) : '',
       course_name: enrollment.course,
       enrollment_date: formattedDate !== 'N/A' ? formattedDate : '',
       status: enrollment.status,
@@ -226,7 +236,7 @@ const AdminEnrollments: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ student_id: '', student_name: '', course_name: '', enrollment_date: '', status: 'active', grade: '' });
+    setFormData({ student_id: '', student_name: '', course_id: '', course_name: '', enrollment_date: '', status: 'active', grade: '' });
     setEditingEnrollment(null);
   };
 
@@ -453,10 +463,10 @@ const AdminEnrollments: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Course</label>
-            <select required value={formData.course_name} onChange={(e) => setFormData({ ...formData, course_name: e.target.value })} className="input" disabled={!!editingEnrollment}>
+            <select required value={formData.course_id} onChange={(e) => handleCourseChange(e.target.value)} className="input" disabled={!!editingEnrollment}>
               <option value="">Select a course</option>
               {courses.map((course) => (
-                <option key={course.id} value={course.name}>{course.name}</option>
+                <option key={course.id} value={course.id}>{course.name} ({course.course_code})</option>
               ))}
             </select>
           </div>

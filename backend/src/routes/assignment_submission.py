@@ -5,10 +5,13 @@ from src.models import AssignmentSubmission
 from src.services.access import teacher_owns_assignment, get_teacher_assignment_ids, get_student_assignment_ids, filter_response_by_ids
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt_identity, get_jwt
+import logging
 import os
 
 # Submissions are checked by teachers. A student sees only their own submissions,
 # a teacher only the submissions to their own assignments. The admin has no access.
+
+logger = logging.getLogger(__name__)
 
 assignment_submission_bp = Blueprint("assignment_submission", __name__)
 
@@ -115,12 +118,11 @@ def get_submissions_assignment():
 
         result = get_submissions_by_assignment(assignment_id)
         return result
-    except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"Error in get_submissions_assignment route: {error_trace}")
+    except Exception:
+        # Full details go to the server log; the browser gets a plain message
+        logger.exception("Could not load the submissions of an assignment")
         return jsonify({
-            "message": f"Error fetching submissions: {str(e)}",
+            "message": "Could not load the submissions. Please try again.",
             "status": "error",
             "data": []
         }), 500

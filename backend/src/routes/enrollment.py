@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from flask import jsonify,Blueprint,request
 from marshmallow import ValidationError
 from src.models import Student,Course
+from src.services.access import find_record
 
 enrollment_bp = Blueprint("enrollment",__name__)
 
@@ -48,7 +49,7 @@ def enroll_stu():
             "status": "failed"
         }), 400
     
-    course = Course.query.filter_by(name=course_name).first()
+    course = find_record(Course, data.get("course_id"), course_name)
     if not course:
         return jsonify({
             "message": "Course not found",
@@ -138,8 +139,8 @@ def update_enroll():
         if not student:
             return jsonify({"message": "Student not found", "status": "failed"}), 400
         kwargs['student_id'] = student.id
-    if 'course_name' in data:
-        course = Course.query.filter_by(name=data['course_name']).first()
+    if 'course_id' in data or 'course_name' in data:
+        course = find_record(Course, data.get('course_id'), data.get('course_name'))
         if not course:
             return jsonify({"message": "Course not found", "status": "failed"}), 400
         kwargs['course_id'] = course.id

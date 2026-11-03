@@ -32,6 +32,7 @@ export interface Student {
   username: string;
   email: string;
   section: string;
+  section_id?: number;
 }
 
 export interface Teacher {
@@ -46,6 +47,8 @@ export interface Section {
   id: number;
   name: string;
   teacher: string;
+  teacher_id?: number;
+  teacher_name?: string;
 }
 
 export interface Course {
@@ -54,6 +57,7 @@ export interface Course {
   description: string;
   course_code: string;
   teacher: string;
+  teacher_id?: number;
 }
 
 export interface Subject {
@@ -61,6 +65,8 @@ export interface Subject {
   name: string;
   teacher: string;
   course: string;
+  teacher_id?: number;
+  course_id?: number;
 }
 
 export interface Enrollment {
@@ -68,6 +74,7 @@ export interface Enrollment {
   student: string;
   student_id?: number;
   course: string;
+  course_id?: number;
   enrollment_date: string;
   status: string;
   grade: string;
@@ -75,6 +82,7 @@ export interface Enrollment {
 
 export interface Assignment {
   id: number;
+  subject_id?: number;
   title: string;
   description: string;
   due_date: string;
@@ -96,6 +104,7 @@ export interface Submission {
 
 export interface Attendance {
   id: number;
+  subject_id?: number;
   student: string;
   student_id?: number;
   subject: string;
@@ -105,6 +114,7 @@ export interface Attendance {
 
 export interface Result {
   id: number;
+  subject_id?: number;
   student: string;
   student_id?: number;
   subject: string;
@@ -116,6 +126,7 @@ export interface Result {
 
 export interface Announcement {
   id: number;
+  section_id?: number;
   title: string;
   content: string;
   target_audience: string;

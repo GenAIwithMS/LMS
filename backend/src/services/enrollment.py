@@ -3,13 +3,23 @@ from src.db import db
 from flask import jsonify
 
 def enroll_student(student_id, course_id, enrollment_date, status='active', grade=None):
+    existing = Enrollment.query.filter_by(student_id=student_id, course_id=course_id).first()
+    if existing:
+        return jsonify({
+            "message": "This student is already enrolled in this course",
+            "status": "failed"
+        }), 409
+
     new_enrollment = Enrollment(
         student_id=student_id,
         course_id=course_id,
-        enrollment_date=enrollment_date,
         status=status,
         grade=grade
     )
+    # Without a date, the column default (today) is used instead of an empty date
+    if enrollment_date:
+        new_enrollment.enrollment_date = enrollment_date
+
     db.session.add(new_enrollment)
     db.session.commit()
     return jsonify({"message": "Student enrolled successfully", "enrollment_id": new_enrollment.id}),201
@@ -22,6 +32,7 @@ def get_all_enrollments():
             "id": enrollment.id,
             "student_name": enrollment.student.name,
             "student_id": enrollment.student_id,
+            "course_id": enrollment.course_id,
             "course_name": enrollment.course.name,
             "enrollment_date": enrollment.enrollment_date,
             "status": enrollment.status,
@@ -36,6 +47,7 @@ def get_enrollments_by_student(student_id):
     for enrollment in enrollments:
         enrollment_data = {
             "id": enrollment.id,
+            "course_id": enrollment.course_id,
             "course_name": enrollment.course.name,
             "enrollment_date": enrollment.enrollment_date,
             "status": enrollment.status,

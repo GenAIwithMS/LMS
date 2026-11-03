@@ -51,6 +51,15 @@ def add_result(subject_id, student_id, total_marks,obtained_marks, exam_type, re
             "status": "failed"
         }), 400
 
+    # A student has one midterm and one final per subject (quizzes and assignments can repeat)
+    if exam_type in ['midterm', 'final']:
+        existing = Result.query.filter_by(student_id=student_id, subject_id=subject_id, exam_type=exam_type).first()
+        if existing:
+            return jsonify({
+                "message": f"This student already has a {exam_type} result in this subject. Edit that result instead.",
+                "status": "failed"
+            }), 409
+
     new_result = Result(
         subject_id=subject_id,
         student_id=student_id,
@@ -79,6 +88,7 @@ def get_result_by_id(result_id):
 
     return jsonify({
         "id": result.id,
+        "subject_id": result.subject_id,
         "subject_name": result.subject.name,
         "student_name": result.student.name,
         "student_id": result.student_id,
@@ -95,6 +105,7 @@ def get_all_results():
     for result in results:
         results_list.append({
             "id": result.id,
+            "subject_id": result.subject_id,
             "subject_name": result.subject.name,
             "student_name": result.student.name,
             "student_id": result.student_id,
@@ -112,6 +123,7 @@ def get_results_by_student(student_id):
     for result in results:
         results_list.append({
             "id": result.id,
+            "subject_id": result.subject_id,
             "subject_name": result.subject.name,
             "student_name": result.student.name,
             "student_id": result.student_id,

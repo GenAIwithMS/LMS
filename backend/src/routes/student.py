@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required , get_jwt, get_jwt_identity
 from src.schemas import RegisterStudentSchema,UpdateStudentSchema
 from marshmallow import ValidationError
 from src.services.access import get_teacher_student_ids, filter_response_by_ids
+from src.services.access import find_record
 
 student_bp = Blueprint("student",__name__)
 
@@ -25,8 +26,7 @@ def add_student():
         return jsonify(e.messages), 400
     
 
-    section_name = data['section_name']
-    section = Section.query.filter_by(name=section_name).first()
+    section = find_record(Section, data.get('section_id'), data.get('section_name'))
     if not section:
         return jsonify({
             "message": "Section not found",
@@ -105,8 +105,11 @@ def update_std():
 
     kwargs = {}
     for key, value in data.items():
-        if key == 'section_name':
-            section = Section.query.filter_by(name=value).first()
+        if key == 'section_id' or key == 'section_name':
+            # The ID wins when both are sent
+            if key == 'section_name' and 'section_id' in data:
+                continue
+            section = find_record(Section, data.get('section_id'), data.get('section_name'))
             if not section:
                 return jsonify({"message": "Section not found", "status": "failed"}), 400
             kwargs['section_id'] = section.id

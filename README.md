@@ -276,10 +276,18 @@ See `backend/tests/README.md`. The tests need no MySQL and no Groq key.
 #### Logins and Security
 
 - A login lasts 30 minutes (`JWT_EXPIRES_MINUTES`). The user is logged out the moment it ends.
-- Closing the tab or the browser logs the user out. So does leaving for another website and coming back with the Back button. Refreshing the page keeps the user logged in.
+- Closing the tab or the browser logs the user out. The browser forgets the login at once, and the server blocks that login 15 seconds later (a refresh cancels this, so refreshing keeps the user logged in). Leaving for another website and coming back with the Back button also logs the user out.
 - Each browser tab has its own login: opening the LMS in a new tab asks for the login again.
 - Logging out also blocks the token on the server, so it can't be reused.
 - Login is limited to 10 attempts a minute per address, and the chatbot to 20 messages a minute per user.
+- The chatbot never deletes or edits anything until the user clicks **Confirm** on the card it shows.
+- The built frontend (`npm run build`) has a Content-Security-Policy that only lets the site's own scripts run, so an injected script can't. The API sends `nosniff`, no-framing and a strict policy on every answer.
+
+#### Deploying Behind nginx (or Another Proxy)
+
+- Set `TRUSTED_PROXY_COUNT=1` in `backend/.env`, so rate limits see each visitor's real address instead of the proxy's.
+- Set `CORS_ORIGINS` to the frontend's address, and build the frontend with `VITE_API_URL` set to the API's address (see `frontend/.env.example`).
+- Serve the site over HTTPS, and add `frame-ancestors 'none'` and `X-Frame-Options: DENY` for the frontend pages in nginx (a policy in a `<meta>` tag can't block framing).
 
 ### 3. Frontend Setup
 

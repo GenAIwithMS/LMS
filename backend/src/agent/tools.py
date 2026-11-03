@@ -2,7 +2,7 @@ import functools
 from flask import Response
 from langchain.tools import tool
 from src.models import Subject,Student,Teacher,Course,Section,Attendance,Announcement,Result,AssignmentSubmission,Event,Enrollment,Assignment
-from src.agent.confirm import is_confirmed, ask_to_confirm
+from src.agent.confirm import is_confirmed, ask_to_confirm, describe_changes
 from src.agent.scope import (
     get_teacher_subject_ids, get_teacher_student_ids, get_teacher_assignment_ids,
     get_student_announcement_ids, filter_by_ids, find_student, find_subject, find_section,
@@ -54,6 +54,14 @@ def readable_result(func):
     def wrapper(*args, **kwargs):
         return to_tool_result(func(*args, **kwargs))
     return wrapper
+
+
+
+def record_label(record, kind, record_id, name_field):
+    """A readable name for a record in a confirmation, like: student 'Ali Khan'."""
+    if record is None:
+        return f"{kind} ID {record_id}"
+    return f"{kind} '{getattr(record, name_field)}'"
 
 
 @tool
@@ -155,6 +163,10 @@ def update_announcement(announcement_title, title=None, content=None, target_aud
         if error:
             return error
         kwargs['section_id'] = section.id
+    if not is_confirmed():
+        tool_args = {"announcement_title": announcement_title, "title": title, "content": content, "target_audience": target_audience, "section_name": section_name}
+        return ask_to_confirm("update_announcement", tool_args,
+                              "Update " + f"the announcement '{announcement_title}'" + ": " + describe_changes(tool_args, ["announcement_title"]))
     return edit_announcement(announcement_title, **kwargs)
 
 
@@ -254,6 +266,10 @@ def update_event_tool(event_id, title=None, description=None, event_date=None, e
         kwargs['event_date'] = event_date
     if event_time is not None:
         kwargs['event_time'] = event_time
+    if not is_confirmed():
+        tool_args = {"event_id": event_id, "title": title, "description": description, "event_date": event_date, "event_time": event_time}
+        return ask_to_confirm("update_event_tool", tool_args,
+                              "Update " + record_label(Event.query.get(int(event_id)), "event", event_id, "title") + ": " + describe_changes(tool_args, ["event_id"]))
     return update_event(event_id, **kwargs)
 
 
@@ -349,6 +365,10 @@ def update_section(section_id, name=None, teacher_name=None):
         if not teacher:
             return {"message": "Teacher not found", "status": "failed"}
         kwargs['teacher_id'] = teacher.id
+    if not is_confirmed():
+        tool_args = {"section_id": section_id, "name": name, "teacher_name": teacher_name}
+        return ask_to_confirm("update_section", tool_args,
+                              "Update " + record_label(Section.query.get(int(section_id)), "section", section_id, "name") + ": " + describe_changes(tool_args, ["section_id"]))
     return edit_section(section_id, **kwargs)
 
 
@@ -465,6 +485,10 @@ def update_student_tool(student_id, name=None, username=None, section_name=None,
         kwargs['section_id'] = section.id
     if email is not None:
         kwargs['email'] = email
+    if not is_confirmed():
+        tool_args = {"student_id": student_id, "name": name, "username": username, "section_name": section_name, "email": email}
+        return ask_to_confirm("update_student_tool", tool_args,
+                              "Update " + record_label(Student.query.get(int(student_id)), "student", student_id, "name") + ": " + describe_changes(tool_args, ["student_id"]))
     return update_student(student_id, **kwargs)
 
 
@@ -570,6 +594,10 @@ def update_course_tool(course_id, name=None, description=None, course_code=None,
         if not teacher:
             return {"message": "Teacher not found", "status": "failed"}
         kwargs['teacher_id'] = teacher.id
+    if not is_confirmed():
+        tool_args = {"course_id": course_id, "name": name, "description": description, "course_code": course_code, "teacher_name": teacher_name}
+        return ask_to_confirm("update_course_tool", tool_args,
+                              "Update " + record_label(Course.query.get(int(course_id)), "course", course_id, "name") + ": " + describe_changes(tool_args, ["course_id"]))
     return update_course(course_id, **kwargs)
 
 
@@ -693,6 +721,10 @@ def update_enrollment_tool(enrollment_id, status=None, grade=None):
         kwargs['status'] = status
     if grade is not None:
         kwargs['grade'] = grade
+    if not is_confirmed():
+        tool_args = {"enrollment_id": enrollment_id, "status": status, "grade": grade}
+        return ask_to_confirm("update_enrollment_tool", tool_args,
+                              "Update " + f"enrollment ID {enrollment_id}" + ": " + describe_changes(tool_args, ["enrollment_id"]))
     return update_enrollment(enrollment_id, **kwargs)
 
 
@@ -830,6 +862,10 @@ def update_result(result_id, obtained_marks=None, remarks=None):
         kwargs['obtained_marks'] = obtained_marks
     if remarks is not None:
         kwargs['remarks'] = remarks
+    if not is_confirmed():
+        tool_args = {"result_id": result_id, "obtained_marks": obtained_marks, "remarks": remarks}
+        return ask_to_confirm("update_result", tool_args,
+                              "Update " + f"result ID {result_id}" + ": " + describe_changes(tool_args, ["result_id"]))
     return edit_result(result_id, **kwargs)
 
 
@@ -929,6 +965,10 @@ def update_subject_tool(subject_id, name=None, teacher_id=None):
         kwargs['name'] = name
     if teacher_id is not None:
         kwargs['teacher_id'] = teacher_id
+    if not is_confirmed():
+        tool_args = {"subject_id": subject_id, "name": name, "teacher_id": teacher_id}
+        return ask_to_confirm("update_subject_tool", tool_args,
+                              "Update " + record_label(Subject.query.get(int(subject_id)), "subject", subject_id, "name") + ": " + describe_changes(tool_args, ["subject_id"]))
     return update_subject(subject_id, **kwargs)
 
 
@@ -1025,6 +1065,10 @@ def update_teacher_tool(teacher_id, name=None, username=None, email=None):
         kwargs['username'] = username
     if email is not None:
         kwargs['email'] = email
+    if not is_confirmed():
+        tool_args = {"teacher_id": teacher_id, "name": name, "username": username, "email": email}
+        return ask_to_confirm("update_teacher_tool", tool_args,
+                              "Update " + record_label(Teacher.query.get(int(teacher_id)), "teacher", teacher_id, "name") + ": " + describe_changes(tool_args, ["teacher_id"]))
     return update_teacher(teacher_id, **kwargs)
 
 
@@ -1153,6 +1197,10 @@ def update_assignment(assignment_id, title=None, description=None, due_date=None
         kwargs['due_date'] = due_date
     if total_marks is not None:
         kwargs['total_marks'] = total_marks
+    if not is_confirmed():
+        tool_args = {"assignment_id": assignment_id, "title": title, "description": description, "due_date": due_date, "total_marks": total_marks}
+        return ask_to_confirm("update_assignment", tool_args,
+                              "Update " + record_label(Assignment.query.get(int(assignment_id)), "assignment", assignment_id, "title") + ": " + describe_changes(tool_args, ["assignment_id"]))
     return edit_assignment(assignment_id, **kwargs)
 
 
@@ -1258,16 +1306,16 @@ def update_submission_tool(submission_id, feedback=None, marks=None, marks_obtai
         kwargs['marks'] = marks
     elif marks_obtained is not None:
         kwargs['marks'] = marks_obtained
+    if not is_confirmed():
+        tool_args = {"submission_id": submission_id, "feedback": feedback, "marks": marks, "marks_obtained": marks_obtained}
+        return ask_to_confirm("update_submission_tool", tool_args,
+                              "Update " + f"submission ID {submission_id}" + ": " + describe_changes(tool_args, ["submission_id"]))
     return update_submission(submission_id, **kwargs)
 
 
 def get_student_attendance(student_id):
     """A student's attendance as tool data. Teachers only get records in subjects they teach."""
     result = to_tool_result(get_attendance_by_student(student_id))
-
-    # The service answers "Student not found" when there are simply no records yet
-    if isinstance(result, dict) and result.get("message") == "Student not found":
-        return {"status": "success", "count": 0, "data": []}
 
     token = get_jwt()
     if token.get("role") == "teacher":
@@ -1414,6 +1462,10 @@ def update_attendance_tool(status, student_name=None, subject_name=None, student
     if error:
         return error
 
+    if not is_confirmed():
+        tool_args = {"status": status, "student_id": record.student_id, "subject_id": record.subject_id}
+        return ask_to_confirm("update_attendance_tool", tool_args,
+                              "Update " + f"{record.student.name}'s latest attendance in {record.subject.name}" + ": " + describe_changes(tool_args, ["student_id", "subject_id"]))
     return update_attendance(record.id, status=status)
 
 

@@ -49,6 +49,11 @@ A token is valid for 30 minutes (`JWT_EXPIRES_MINUTES`).
 
 Blocks the token on the server, so it can't be used again even before it expires. Any later request with it gets `401`.
 
+### Tab Closing / Refresh
+**Endpoints:** `POST /api/logout/closing`, `POST /api/logout/stay`
+
+When an LMS tab is closed or left, the frontend sends the token as the plain-text body of `POST /api/logout/closing` (with `navigator.sendBeacon`, which can't send headers). The token is blocked 15 seconds later. If the page was only refreshed, it calls `POST /api/logout/stay` (authenticated) as it starts, which cancels the block.
+
 ### Paging Lists
 
 Every endpoint that returns a list can be split into pages:
@@ -62,6 +67,16 @@ GET /api/get/student?page=2&per_page=50
 ```
 
 Without `page`, the whole list is returned in its usual shape. `per_page` is at most 200.
+
+### Picking Records by ID
+
+Names can repeat (two teachers called "Ali"), IDs can't. Wherever a request picks a student, teacher, course, section or subject by name (`student_name`, `teacher_name`, `course_name`, `section_name`, `subject_name`), it also accepts the matching ID (`student_id`, `teacher_id`, `course_id`, `section_id`, `subject_id`). When both are sent, the ID is used. The website's forms always send the ID; the name is still accepted for the chatbot and older requests. List answers include these IDs next to the names.
+
+### Errors
+
+Every error answer is JSON with a `message` and a `status`, including unknown addresses (404), wrong methods (405) and unexpected server errors (500). Server errors never include internal details; those go to the server log.
+
+Rate limits: login 10 a minute per address, password change 5 a minute per user, chat 20 messages a minute per user. Going over gives `429`.
 
 ---
 

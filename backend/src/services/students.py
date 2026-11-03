@@ -36,12 +36,8 @@ def add_students(name, username, section, password, email):
     }), 201
 
 def get_all_students():
+    # No students yet is not an error: the list is simply empty
     students = Student.query.all()
-    if not students:
-        return jsonify({
-            "message":"no students found",
-            "status":"failed"
-        }), 404
     
     student_list = []
     for student in students:
@@ -49,6 +45,7 @@ def get_all_students():
             "id": student.id,
             "name": student.name,
             "username": student.username,
+            "section_id": student.section_id,
             "section_name": student.section.name,
             "email": student.email,
         }
@@ -67,6 +64,7 @@ def get_student_by_id(student_id):
         "id": student.id,
         "name": student.name,
         "username": student.username,
+        "section_id": student.section_id,
         "section_name": student.section.name,
         "email": student.email,
     }

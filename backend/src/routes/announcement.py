@@ -38,7 +38,7 @@ def create_announce():
     section_name = data.get("section_name")
     teacher_id = int(get_jwt_identity())
 
-    section = find_teacher_section(teacher_id, section_name)
+    section = find_teacher_section(teacher_id, section_name, data.get("section_id"))
     if not section:
         return jsonify({
             "message": "Section not found among your sections",
@@ -111,15 +111,15 @@ def edit_announce():
             "status": "failed"
         }), 403
 
-    if 'section_name' in data:
-        section = find_teacher_section(teacher_id, data['section_name'])
+    if 'section_id' in data or 'section_name' in data:
+        section = find_teacher_section(teacher_id, data.get('section_name'), data.get('section_id'))
         if not section:
             return jsonify({
                 "message": "Section not found among your sections",
                 "status": "failed"
             }), 400
         data['section_id'] = section.id
-        del data['section_name']
+        data.pop('section_name', None)
 
     result = edit_announcement(announcement_title, **data)
     return result

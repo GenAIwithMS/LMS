@@ -32,37 +32,27 @@ const StudentSubmissions: React.FC = () => {
   const fetchSubmissions = async () => {
     try {
       setLoading(true);
-      console.log('Fetching submissions...');
       const response = await getSubmissionsByStudent();
-      console.log('Submissions API response:', response);
       
       // Handle different response formats
       let submissionsData: Submission[] = [];
       
       if (Array.isArray(response)) {
         submissionsData = response;
-        console.log('Response is direct array');
       } else if (response && typeof response === 'object') {
         if (Array.isArray(response.data)) {
           submissionsData = response.data;
-          console.log('Response has data array');
         } else if (Array.isArray(response.submissions)) {
           submissionsData = response.submissions;
-          console.log('Response has submissions array');
         } else {
           // Try to find any array in the response
           const submissionsArray = Object.values(response).find((val) => Array.isArray(val)) as Submission[] | undefined;
           if (submissionsArray) {
             submissionsData = submissionsArray;
-            console.log('Found array in response values');
-          } else {
-            console.log('No array found in response, response keys:', Object.keys(response));
           }
         }
       }
-      
-      console.log('Raw submissions data:', submissionsData);
-      
+
       // Map submissions to ensure proper format
       submissionsData = submissionsData.map((submission: any) => ({
         id: submission.id || 0,
@@ -75,7 +65,6 @@ const StudentSubmissions: React.FC = () => {
         feedback: submission.feedback || '',
       }));
       
-      console.log('Processed submissions:', submissionsData);
       setSubmissions(submissionsData);
     } catch (error: any) {
       console.error('Error fetching submissions:', error);
@@ -88,7 +77,7 @@ const StudentSubmissions: React.FC = () => {
       
       let errorMessage = 'Failed to fetch submissions';
       if (error.message?.includes('Network Error') || error.code === 'ECONNREFUSED') {
-        errorMessage = 'Cannot connect to server. Please make sure the backend is running on http://localhost:5000';
+        errorMessage = 'Cannot connect to the server. Please make sure the backend is running.';
       } else if (error.response) {
         errorMessage = error.response.data?.message || `Error: ${error.response.status} ${error.response.statusText}`;
       } else if (error.message) {
@@ -105,7 +94,6 @@ const StudentSubmissions: React.FC = () => {
   const fetchAssignments = async () => {
     try {
       const data = await getAssignments();
-      console.log('Assignments response:', data);
       
       // Handle different response formats
       let assignmentsData: Assignment[] = [];
@@ -169,14 +157,7 @@ const StudentSubmissions: React.FC = () => {
         formDataToSend.append('submission_file', formData.submission_file);
       }
 
-      console.log('Submitting assignment:', {
-        assignment_id: selectedAssignmentId,
-        has_text: !!formData.submission_text,
-        has_file: !!formData.submission_file
-      });
-
       const response = await submitAssignment(formDataToSend);
-      console.log('Submission response:', response);
       
       toast.success(response.message || 'Assignment submitted successfully');
       setIsModalOpen(false);

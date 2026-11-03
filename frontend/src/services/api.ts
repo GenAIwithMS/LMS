@@ -5,7 +5,9 @@ import type {
 } from '../types';
 import { getSavedLogin, clearSavedLogin } from '../utils/session';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+// The backend's address. Set VITE_API_URL in frontend/.env for a real server,
+// for example VITE_API_URL=https://lms.example.com/api
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -40,7 +42,7 @@ api.interceptors.response.use(
     if (!error.response) {
       console.error('Network error:', error);
       if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
-        throw new Error('Cannot connect to server. Please make sure the backend is running on http://localhost:5000');
+        throw new Error('Cannot connect to the server. Please make sure the backend is running.');
       }
       throw error;
     }
@@ -77,6 +79,21 @@ export const logoutOnServer = async (token?: string) => {
     headers.Authorization = `Bearer ${token}`;
   }
   await api.post('/logout', {}, { headers });
+};
+
+// Tell the server this tab is being closed or left. Its login is then blocked
+// a few seconds later, unless the page comes back (a refresh) and calls
+// keepLoginAfterRefresh. sendBeacon still gets through while the page closes;
+// it can't send headers, so the token goes in the body.
+export const sendTabClosingSignal = (token: string) => {
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(API_BASE_URL + '/logout/closing', new Blob([token], { type: 'text/plain' }));
+  }
+};
+
+// The page was refreshed: cancel the block that the closing signal scheduled
+export const keepLoginAfterRefresh = async () => {
+  await api.post('/logout/stay');
 };
 
 // My Account (any logged-in user)
@@ -195,9 +212,7 @@ export const createSubject = async (data: { name: string; teacher_name: string; 
 export const getSubjects = async (id?: number) => {
   const url = '/get/subjects';
   const params = id ? { id } : {};
-  console.log('Fetching subjects from:', `${API_BASE_URL}${url}`, params);
   const response = await api.get(url, { params });
-  console.log('Subjects API response:', response.data);
   return response.data;
 };
 
@@ -222,9 +237,7 @@ export const getEnrollments = async (course_name?: string, student_name?: string
   const params: any = {};
   if (course_name) params.course_name = course_name;
   if (student_name) params.student_name = student_name;
-  console.log('Fetching enrollments from:', `${API_BASE_URL}${url}`, params);
   const response = await api.get(url, { params });
-  console.log('Enrollments API response:', response.data);
   return response.data;
 };
 
@@ -247,9 +260,7 @@ export const createAssignment = async (data: { title: string; description: strin
 export const getAssignments = async (id?: number) => {
   const url = '/get/assignments';
   const params = id ? { id } : {};
-  console.log('Fetching assignments from:', `${API_BASE_URL}${url}`, params);
   const response = await api.get(url, { params });
-  console.log('Assignments API response:', response.data);
   return response.data;
 };
 
@@ -273,9 +284,7 @@ export const submitAssignment = async (formData: FormData) => {
 
 export const getSubmissionsByStudent = async (id?: number) => {
   try {
-    console.log('Calling getSubmissionsByStudent with id:', id);
     const response = await api.get('/get/submissions/by/student', { params: id ? { id } : {} });
-    console.log('getSubmissionsByStudent response:', response);
     return response.data;
   } catch (error: any) {
     console.error('getSubmissionsByStudent error:', error);
@@ -348,11 +357,8 @@ export const deleteAttendance = async (id: number, student_name?: string, subjec
 
 // Result
 export const createResult = async (data: { student_id?: number; student_name?: string; subject_name: string; total_marks: number; obtained_marks: number; exam_type: string; remarks: string }) => {
-  console.log('Creating result with data:', data);
-  console.log('API endpoint: POST', `${API_BASE_URL}/create/result`);
   try {
     const response = await api.post('/create/result', data);
-    console.log('Create result API response:', response.data);
     return response.data;
   } catch (error: any) {
     console.error('Create result API error:', error);
@@ -364,9 +370,7 @@ export const createResult = async (data: { student_id?: number; student_name?: s
 export const getResults = async (id?: number) => {
   const url = '/get/result';
   const params = id ? { id } : {};
-  console.log('Fetching results from:', `${API_BASE_URL}${url}`, params);
   const response = await api.get(url, { params });
-  console.log('Results API response:', response.data);
   return response.data;
 };
 
@@ -442,7 +446,7 @@ export const clearChatHistory = async () => {
   return response.data;
 };
 
-// The user clicked Confirm (approve = true) or Cancel on a delete the assistant asked for
+// The user clicked Confirm (approve = true) or Cancel on a delete or edit the assistant asked for
 export const answerChatAction = async (action_id: number, approve: boolean) => {
   const response = await api.post('/chat/confirm', { action_id, approve });
   return response.data;

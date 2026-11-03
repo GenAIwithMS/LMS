@@ -35,6 +35,7 @@ def get_section_by_id(section_id):
     return jsonify({
         "id": section.id,
         "name": section.name,
+        "teacher_id": section.teacher_id,
         "teacher_name": section.teacher.name
     })
 
@@ -45,6 +46,7 @@ def get_all_sections():
         section_list.append({
             "id": section.id,
             "name": section.name,
+            "teacher_id": section.teacher_id,
             "teacher_name": section.teacher.name
         })
     return jsonify(section_list)

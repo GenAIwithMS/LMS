@@ -4,6 +4,7 @@ from flask import jsonify,Blueprint,request
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt
 from src.models import Teacher
+from src.services.access import find_record
 
 course_bp = Blueprint("course",__name__)
 
@@ -26,10 +27,9 @@ def add_cour():
     name = data.get("name")
     description = data.get("description")
     course_code = data.get("course_code")
-    teacher_name = data.get("teacher_name")
     created_at = data.get("created_at")
 
-    teacher = Teacher.query.filter_by(name=teacher_name).first()
+    teacher = find_record(Teacher, data.get("teacher_id"), data.get("teacher_name"))
     if not teacher:
         return jsonify({
             "message": "Teacher not found",
@@ -80,15 +80,15 @@ def update_cour():
             "status": "error"
         }), 400
 
-    if 'teacher_name' in data:
-        teacher = Teacher.query.filter_by(name=data['teacher_name']).first()
+    if 'teacher_id' in data or 'teacher_name' in data:
+        teacher = find_record(Teacher, data.get('teacher_id'), data.get('teacher_name'))
         if not teacher:
             return jsonify({
                 "message": "Teacher not found",
                 "status": "failed"
             }), 400
         data['teacher_id'] = teacher.id
-        del data['teacher_name']
+        data.pop('teacher_name', None)
 
     result = update_course(course_id, **data)
     return result

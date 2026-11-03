@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 
+
+# Local settings (copy .env.example)
+.env
+.env.local

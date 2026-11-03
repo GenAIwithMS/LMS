@@ -43,7 +43,7 @@ def create_attendance():
         return jsonify(err.messages), 400
     
     student_name = data.get('student_name')
-    subject_name = data['subject_name']
+    subject_name = data.get('subject_name')
     status = data['status']
     teacher_id = int(get_jwt_identity())
 
@@ -64,7 +64,7 @@ def create_attendance():
             "status": "failed"
         }), 400
 
-    subject = find_teacher_subject(teacher_id, subject_name)
+    subject = find_teacher_subject(teacher_id, subject_name, data.get('subject_id'))
     if not subject:
         return jsonify({
             "message": "Subject not found among the subjects you teach",
@@ -79,9 +79,6 @@ def create_attendance():
 def fetch_attendance():
     # Students only ever get their own records, whatever filters they send.
     if get_jwt().get("role") == "student":
-        own_records = Attendance.query.filter_by(student_id=int(get_jwt_identity())).all()
-        if not own_records:
-            return jsonify([]), 200
         return get_attendance_by_student(int(get_jwt_identity()))
 
     student_name = request.args.get('student_name')
@@ -161,15 +158,15 @@ def modify_attendance():
         data['student_id'] = student.id
         del data['student_name']
 
-    if 'subject_name' in data:
-        subject = find_teacher_subject(teacher_id, data['subject_name'])
+    if 'subject_id' in data or 'subject_name' in data:
+        subject = find_teacher_subject(teacher_id, data.get('subject_name'), data.get('subject_id'))
         if not subject:
             return jsonify({
                 "message": "Subject not found among the subjects you teach",
                 "status": "failed"
             }), 400
         data['subject_id'] = subject.id
-        del data['subject_name']
+        data.pop('subject_name', None)
 
     result = update_attendance(attendance_id, **data)
     return result

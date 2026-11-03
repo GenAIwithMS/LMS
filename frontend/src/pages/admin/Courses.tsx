@@ -25,6 +25,7 @@ const AdminCourses: React.FC = () => {
     name: '',
     description: '',
     course_code: '',
+    teacher_id: '',
     teacher_name: '',
     created_at: new Date().toISOString().split('T')[0],
   });
@@ -55,7 +56,6 @@ const AdminCourses: React.FC = () => {
     try {
       setLoading(true);
       const data = await getCourses();
-      console.log('Courses API raw response:', data);
       
       // Handle different response formats
       let coursesData: Course[] = [];
@@ -81,9 +81,9 @@ const AdminCourses: React.FC = () => {
         description: course.description || '',
         course_code: course.course_code || course.courseCode || '',
         teacher: course.teacher || course.teacher_name || '',
+        teacher_id: course.teacher_id,
       }));
       
-      console.log('Courses after processing:', coursesData);
       setCourses(coursesData);
     } catch (error: any) {
       console.error('Error fetching courses:', error);
@@ -103,14 +103,27 @@ const AdminCourses: React.FC = () => {
     }
   };
 
+  // Keep the chosen teacher's ID and name together
+  const handleTeacherChange = (teacherId: string) => {
+    let teacherName = '';
+    for (const teacher of teachers) {
+      if (String(teacher.id) === teacherId) {
+        teacherName = teacher.name;
+      }
+    }
+    setFormData({ ...formData, teacher_id: teacherId, teacher_name: teacherName });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Send the ID: names can repeat, IDs can't
+    const submitData = { ...formData, teacher_id: formData.teacher_id ? Number(formData.teacher_id) : undefined };
     try {
       if (editingCourse) {
-        await updateCourse(editingCourse.id, formData);
+        await updateCourse(editingCourse.id, submitData);
         showSuccess('Course updated successfully');
       } else {
-        await addCourse(formData);
+        await addCourse(submitData);
         showSuccess('Course added successfully');
       }
       setIsModalOpen(false);
@@ -127,6 +140,7 @@ const AdminCourses: React.FC = () => {
       name: course.name,
       description: course.description,
       course_code: course.course_code,
+      teacher_id: course.teacher_id ? String(course.teacher_id) : '',
       teacher_name: course.teacher,
       created_at: new Date().toISOString().split('T')[0],
     });
@@ -156,7 +170,7 @@ const AdminCourses: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', description: '', course_code: '', teacher_name: '', created_at: new Date().toISOString().split('T')[0] });
+    setFormData({ name: '', description: '', course_code: '', teacher_id: '', teacher_name: '', created_at: new Date().toISOString().split('T')[0] });
     setEditingCourse(null);
   };
 
@@ -347,10 +361,10 @@ const AdminCourses: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Teacher</label>
-            <select required value={formData.teacher_name} onChange={(e) => setFormData({ ...formData, teacher_name: e.target.value })} className="input">
+            <select required value={formData.teacher_id} onChange={(e) => handleTeacherChange(e.target.value)} className="input">
               <option value="">Select a teacher</option>
               {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.name}>{teacher.name}</option>
+                <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
               ))}
             </select>
           </div>

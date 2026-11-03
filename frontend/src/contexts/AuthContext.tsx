@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { login as apiLogin, logoutOnServer } from '../services/api';
+import { login as apiLogin, logoutOnServer, sendTabClosingSignal, keepLoginAfterRefresh } from '../services/api';
 import { getSavedLogin, saveLogin, clearSavedLogin, markPageLeft, userCameBackAfterLeaving } from '../utils/session';
 import { decodeJWT, getRoleFromToken, isTokenExpired } from '../utils/jwt';
 import type { User, LoginCredentials, UserRole } from '../types';
@@ -78,6 +78,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return null;
   });
 
+  // The page was just refreshed with a saved login: tell the server we are still
+  // here, which cancels the block the "closing" signal scheduled. Sent twice, in
+  // case the closing signal reaches the server after the first one.
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    keepLoginAfterRefresh().catch(() => {});
+    const secondTry = setTimeout(() => {
+      keepLoginAfterRefresh().catch(() => {});
+    }, 4000);
+    return () => clearTimeout(secondTry);
+  }, []);
+
   // Log out the moment the login expires (30 minutes), not on the next click
   useEffect(() => {
     if (!token) {
@@ -98,6 +112,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // On the next load we can tell a refresh apart from coming back.
     const handlePageHide = () => {
       markPageLeft();
+      // If the tab is really closing, the server blocks this login a few seconds later
+      const savedToken = getSavedLogin();
+      if (savedToken) {
+        sendTabClosingSignal(savedToken);
+      }
     };
 
     // The browser can restore the page from memory when the user presses Back.
