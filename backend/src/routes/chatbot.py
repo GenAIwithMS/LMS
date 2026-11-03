@@ -1,8 +1,16 @@
-from flask import Blueprint, request, jsonify, current_app
+import logging
+
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
+from langgraph.errors import GraphRecursionError
 from src.agent.main import create_chatbot_graph
 from langchain_core.messages import HumanMessage, AIMessage
 
+logger = logging.getLogger(__name__)
+
+# Maximum agent steps per message (each model call or tool round counts as one).
+# Stops a confused model from looping and running up API costs.
+AGENT_RECURSION_LIMIT = 15
 
 chatbot_bp = Blueprint("chatbot", __name__)
 
@@ -31,34 +39,32 @@ def chat():
         user_message = data["message"]
         conversation_history = data.get("history", [])
 
-        with current_app.app_context():
-            # user_id = token.get("id")
-            graph = create_chatbot_graph(user_role)
+        graph = create_chatbot_graph(user_role)
 
-            # Convert conversation history to LangChain messages
-            messages = []
-            for msg in conversation_history:
-                if msg.get("role") == "user":
-                    messages.append(HumanMessage(content=msg.get("content", "")))
-                elif msg.get("role") == "assistant":
-                    messages.append(AIMessage(content=msg.get("content", "")))
-            
-            # Add the new user message
-            messages.append(HumanMessage(content=user_message))
+        # Convert conversation history to LangChain messages
+        messages = []
+        for msg in conversation_history:
+            if msg.get("role") == "user":
+                messages.append(HumanMessage(content=msg.get("content", "")))
+            elif msg.get("role") == "assistant":
+                messages.append(AIMessage(content=msg.get("content", "")))
 
-            initial_state = {
-                "messages": messages,
-                "user_role": user_role,
-                "user_info": dict(token)
-            }
+        # Add the new user message
+        messages.append(HumanMessage(content=user_message))
 
-            result = graph.invoke(initial_state)
+        initial_state = {
+            "messages": messages,
+            "user_role": user_role,
+            "user_info": dict(token)
+        }
 
-            ai_messages = [msg for msg in result["messages"] if isinstance(msg, AIMessage)]
-            if ai_messages:
-                response_text = ai_messages[-1].content
-            else:
-                response_text = "I couldn't process your request."
+        result = graph.invoke(initial_state, {"recursion_limit": AGENT_RECURSION_LIMIT})
+
+        ai_messages = [msg for msg in result["messages"] if isinstance(msg, AIMessage)]
+        if ai_messages and ai_messages[-1].content:
+            response_text = ai_messages[-1].content
+        else:
+            response_text = "I couldn't process your request."
 
         return jsonify({
             "message": response_text,
@@ -66,8 +72,16 @@ def chat():
             "role": user_role
         }), 200
 
-    except Exception as e:
+    except GraphRecursionError:
+        logger.warning("Chat agent hit the step limit for role %s", user_role)
         return jsonify({
-            "message": f"An error occurred: {str(e)}",
+            "message": "That request needed too many steps. Please try breaking it into smaller requests.",
+            "status": "failed"
+        }), 500
+
+    except Exception:
+        logger.exception("Chat request failed for role %s", user_role)
+        return jsonify({
+            "message": "Something went wrong while processing your message. Please try again.",
             "status": "failed"
         }), 500

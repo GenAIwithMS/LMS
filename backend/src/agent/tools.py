@@ -1,31 +1,46 @@
-import os
-import sys
+import functools
 from flask import Response
 from langchain.tools import tool
 from src.models import Subject,Student,Teacher,Course,Section,Attendance
 from flask_jwt_extended import get_jwt_identity, get_jwt,jwt_required
 
-from src.services import add_announcement,get_all_announcements,get_announcement_by_title,edit_announcement,delete_announcement,add_event,get_event_by_id,get_all_events,update_event,delete_event,add_section,get_section_by_id,get_all_sections,edit_section,delete_section,add_students,get_all_students,get_student_by_id,update_student,delete_student,add_course,get_all_courses,get_course_by_id,update_course,delete_course,enroll_student,get_enrollments_by_course,get_enrollments_by_student,update_enrollment,delete_enrollment,get_all_enrollments,add_result, get_result_by_id, get_all_results, edit_result, delete_result,add_subject, get_all_subjects, get_subject_by_id, delete_subject,update_subject,add_teacher, get_teacher_by_id, update_teacher, delete_teacher, get_all_teachers,mark_attend, get_attendance_by_student,get_attendance_by_subject,get_all_attendance,update_attendance,delete_attendance,add_assignment, get_assignment_by_id,get_all_assignments,edit_assignment,delete_assignment,get_submissions_by_student, get_submissions_by_assignment, update_submission
+from src.services import add_announcement,get_all_announcements,get_announcement_by_title,edit_announcement,delete_announcement,add_event,get_event_by_id,get_all_events,update_event,delete_event,add_section,get_section_by_id,get_all_sections,edit_section,delete_section,add_students,get_all_students,get_student_by_id,update_student,delete_student,add_course,get_all_courses,get_course_by_id,update_course,delete_course,enroll_student,get_enrollments_by_course,get_enrollments_by_student,update_enrollment,delete_enrollment,get_all_enrollments,add_result, get_result_by_id, get_all_results, get_results_by_student, edit_result, delete_result,add_subject, get_all_subjects, get_subject_by_id, delete_subject,update_subject,add_teacher, get_teacher_by_id, update_teacher, delete_teacher, get_all_teachers,mark_attend, get_attendance_by_student,get_attendance_by_subject,get_all_attendance,update_attendance,delete_attendance,add_assignment, get_assignment_by_id,get_all_assignments,edit_assignment,delete_assignment,get_submissions_by_student, get_submissions_by_assignment, update_submission
 
 
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, project_root)
+def to_tool_result(result):
+    """Turn a service result into plain data the model can read.
 
-def extract_data_from_response(response):
-    """Extract JSON data from Flask response objects for agent tools.
-    
-    Service functions return jsonify() responses which aren't directly usable by LangChain.
-    This helper extracts the actual data so the agent can work with it.
+    Services return Flask responses (jsonify) or (response, status_code) tuples.
+    Passed to the model as-is, they show up as "<Response 201 CREATED>" and the
+    model can't tell whether the call worked.
     """
-    if isinstance(response, tuple):
-        response = response[0]  # Get response object from (response, status_code) tuple
-    
-    if isinstance(response, Response):
-        return response.get_json()
-    
-    return response
+    status_code = None
+    if isinstance(result, tuple):
+        result, status_code = result[0], (result[1] if len(result) > 1 else None)
+
+    if isinstance(result, Response):
+        status_code = status_code or result.status_code
+        result = result.get_json(silent=True)
+
+    if isinstance(result, list):
+        return {"status": "success", "count": len(result), "data": result}
+
+    if isinstance(result, dict) and status_code and status_code >= 400:
+        result.setdefault("status", "failed")
+
+    return result
+
+
+def readable_result(func):
+    """Decorator: run the tool, then convert its result with to_tool_result."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return to_tool_result(func(*args, **kwargs))
+    return wrapper
+
 
 @tool
+@readable_result
 @jwt_required()
 def create_announcement(title, content, section_name, target_audience = 'all', created_at = None):
     """Create a new announcement in the LMS system.
@@ -46,10 +61,10 @@ def create_announcement(title, content, section_name, target_audience = 'all', c
         return {"message": "Section not found", "status": "failed"}
     
     teacher_id = int(get_jwt_identity())
-    add_announcement(title, content, teacher_id, section.id, target_audience, created_at)
-    return {"message": "Announcement created successfully", "status": "success"}
+    return add_announcement(title, content, teacher_id, section.id, target_audience, created_at)
 
 @tool
+@readable_result
 @jwt_required()
 def get_announcements():
     """Retrieve all announcements from the LMS system. Use this tool whenever users ask about announcements."""
@@ -61,6 +76,7 @@ def get_announcements():
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_announcement(announcement_title):
     """Retrieve a specific announcement by its title. Use this tool to get details of a specific announcement.
@@ -76,6 +92,7 @@ def get_announcement(announcement_title):
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_announcement(announcement_title, title=None, content=None, target_audience=None, section_name=None):
     """Update an existing announcement.
@@ -89,7 +106,7 @@ def update_announcement(announcement_title, title=None, content=None, target_aud
     """
     token = get_jwt()
     if token.get("role") != "teacher":
-        return "Only teachers can update announcements"
+        return {"message": "Only teachers can update announcements", "status": "failed"}
     
     kwargs = {}
     if title is not None:
@@ -101,13 +118,13 @@ def update_announcement(announcement_title, title=None, content=None, target_aud
     if section_name is not None:
         section = Section.query.filter_by(name=section_name).first()
         if not section:
-            return "Section not found"
+            return {"message": "Section not found", "status": "failed"}
         kwargs['section_id'] = section.id
-    edit_announcement(announcement_title, **kwargs)
-    return "Announcement updated successfully"
+    return edit_announcement(announcement_title, **kwargs)
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_announcement(announcement_title):
     """Delete an announcement from the LMS system.
@@ -117,10 +134,11 @@ def remove_announcement(announcement_title):
     """
     token = get_jwt()
     if token.get("role") != "teacher":
-        return "Only teachers can delete announcements"
+        return {"message": "Only teachers can delete announcements", "status": "failed"}
     return delete_announcement(announcement_title)
     
 @tool
+@readable_result
 @jwt_required()
 def create_event(title, description, event_date, event_time):
     """Create a new event in the LMS system.
@@ -140,6 +158,7 @@ def create_event(title, description, event_date, event_time):
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_event(event_id):
     """Retrieve a specific event by its ID. Use this tool when users ask about a specific event.
@@ -151,10 +170,11 @@ def get_event(event_id):
     if token.get("role") not in ["admin", "teacher", "student"]:
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_event_by_id(event_id))
+    return get_event_by_id(event_id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_events():
     """Retrieve all events from the LMS system. Use this tool when users ask about events."""
@@ -162,10 +182,11 @@ def get_events():
     if token.get("role") not in ["admin", "teacher", "student"]:
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_all_events())
+    return get_all_events()
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_event_tool(event_id, title=None, description=None, event_date=None, event_time=None):
     """Update an existing event.
@@ -193,6 +214,7 @@ def update_event_tool(event_id, title=None, description=None, event_date=None, e
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_event(event_id):
     """Delete an event from the LMS system.
@@ -207,6 +229,7 @@ def remove_event(event_id):
 
 
 @tool
+@readable_result
 @jwt_required()
 def create_section(name, teacher_name):
     """Create a new section in the LMS system.
@@ -226,6 +249,7 @@ def create_section(name, teacher_name):
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_section(section_id):
     """Retrieve a specific section by its ID. Use this when users ask about a specific section.
@@ -237,10 +261,11 @@ def get_section(section_id):
     if token.get("role") not in ["admin", "teacher", "student"]:
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_section_by_id(section_id))
+    return get_section_by_id(section_id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_sections():
     """Retrieve all sections from the LMS system. Use this when users ask about sections."""
@@ -248,10 +273,11 @@ def get_sections():
     if token.get("role") not in ["admin", "teacher", "student"]:
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_all_sections())
+    return get_all_sections()
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_section(section_id, name=None, teacher_name=None):
     """Update an existing section.
@@ -277,6 +303,7 @@ def update_section(section_id, name=None, teacher_name=None):
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_section(section_id):
     """Delete a section from the LMS system.
@@ -291,6 +318,7 @@ def remove_section(section_id):
 
 
 @tool
+@readable_result
 @jwt_required()
 def create_student(name, username, section_name, password, email):
     """Create a new student in the LMS system.
@@ -313,6 +341,7 @@ def create_student(name, username, section_name, password, email):
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_students():
     """Retrieve all students from the LMS system. Use this when users ask about students."""
@@ -320,10 +349,11 @@ def get_students():
     if token.get("role") not in ["admin", "teacher"]:
         return {"message": "Only admins and teachers can view students", "status": "failed"}
     
-    return extract_data_from_response(get_all_students())
+    return get_all_students()
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_student(student_id):
     """Retrieve a specific student by their ID. Use this when users ask about a specific student.
@@ -335,10 +365,11 @@ def get_student(student_id):
     if token.get("role") not in ["admin", "teacher"]:
         return {"message": "Only admins and teachers can view students", "status": "failed"}
     
-    return extract_data_from_response(get_student_by_id(student_id))
+    return get_student_by_id(student_id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_student_tool(student_id, name=None, username=None, section_name=None, email=None):
     """Update an existing student.
@@ -370,6 +401,7 @@ def update_student_tool(student_id, name=None, username=None, section_name=None,
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_student(student_id):
     """Delete a student from the LMS system.
@@ -385,6 +417,7 @@ def remove_student(student_id):
 
 
 @tool
+@readable_result
 @jwt_required()
 def create_course(name, description, course_code, teacher_name, created_at=None):
     """Create a new course in the LMS system.
@@ -402,23 +435,24 @@ def create_course(name, description, course_code, teacher_name, created_at=None)
     
     teacher = Teacher.query.filter_by(name=teacher_name).first()
     if not teacher:
-        return "Teacher not found"
-    add_course(name, description, course_code, teacher.id, created_at)
-    return "Course created successfully"
+        return {"message": "Teacher not found", "status": "failed"}
+    return add_course(name, description, course_code, teacher.id, created_at)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_courses():
     """Retrieve all courses from the LMS system. Use this when users ask about courses."""
     token = get_jwt()
-    if token.get("role") not in "admin":
+    if token.get("role") != "admin":
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_all_courses())
+    return get_all_courses()
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_course(course_id):
     """Retrieve a specific course by its ID. Use this when users ask about a specific course.
@@ -429,10 +463,11 @@ def get_course(course_id):
     token = get_jwt()
     if token.get("role") not in ["admin", "teacher", "student"]:
         return {"message": "Unauthorized access", "status": "failed"}
-    return extract_data_from_response(get_course_by_id(course_id))
+    return get_course_by_id(course_id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_course_tool(course_id, name=None, description=None, course_code=None, teacher_name=None):
     """Update an existing course.
@@ -458,13 +493,13 @@ def update_course_tool(course_id, name=None, description=None, course_code=None,
     if teacher_name is not None:
         teacher = Teacher.query.filter_by(name=teacher_name).first()
         if not teacher:
-            return "Teacher not found"
+            return {"message": "Teacher not found", "status": "failed"}
         kwargs['teacher_id'] = teacher.id
-    update_course(course_id, **kwargs)
-    return "Course updated successfully"
+    return update_course(course_id, **kwargs)
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_course(course_id):
     """Delete a course from the LMS system.
@@ -479,6 +514,7 @@ def remove_course(course_id):
 
 
 @tool
+@readable_result
 @jwt_required()
 def enroll_student_tool(student_name, course_name, enrollment_date, status='active', grade=None):
     """Enroll a student in a course.
@@ -504,6 +540,7 @@ def enroll_student_tool(student_name, course_name, enrollment_date, status='acti
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_enrollments():
     """Retrieve all enrollments from the LMS system. Use this when users ask about enrollments."""
@@ -511,10 +548,11 @@ def get_enrollments():
     if token.get("role") != "admin":
         return {"message": "Only admins can view enrollments", "status": "failed"}
     
-    return extract_data_from_response(get_all_enrollments())
+    return get_all_enrollments()
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_enrollments_by_student_tool(student_name):
     """Retrieve enrollments for a specific student.
@@ -529,10 +567,11 @@ def get_enrollments_by_student_tool(student_name):
     student = Student.query.filter_by(name=student_name).first()
     if not student:
         return {"message": "Student not found", "status": "failed"}
-    return extract_data_from_response(get_enrollments_by_student(student.id))
+    return get_enrollments_by_student(student.id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_enrollments_by_course_tool(course_name):
     """Retrieve enrollments for a specific course.
@@ -547,10 +586,11 @@ def get_enrollments_by_course_tool(course_name):
     course = Course.query.filter_by(name=course_name).first()
     if not course:
         return {"message": "Course not found", "status": "failed"}
-    return extract_data_from_response(get_enrollments_by_course(course.id))
+    return get_enrollments_by_course(course.id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_enrollment_tool(enrollment_id, status=None, grade=None):
     """Update an existing enrollment.
@@ -573,6 +613,7 @@ def update_enrollment_tool(enrollment_id, status=None, grade=None):
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_enrollment(enrollment_id):
     """Delete an enrollment from the LMS system.
@@ -588,6 +629,7 @@ def remove_enrollment(enrollment_id):
 
 
 @tool
+@readable_result
 @jwt_required()
 def add_result_tool(subject_name, student_name, total_marks, obtained_marks, exam_type, remarks=None):
     """Add a result for a student in a subject.
@@ -614,6 +656,7 @@ def add_result_tool(subject_name, student_name, total_marks, obtained_marks, exa
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_result(result_id):
     """Retrieve a specific result by its ID. Use this when users ask about a specific result.
@@ -622,13 +665,14 @@ def get_result(result_id):
         result_id: The ID of the result to retrieve
     """
     token = get_jwt()
-    if token.get("role") not in ["admin", "teacher", "student"]:
+    if token.get("role") not in ["admin", "teacher"]:
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_result_by_id(result_id))
+    return get_result_by_id(result_id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_results():
     """Retrieve all results from the LMS system. Use this when users ask about results."""
@@ -636,10 +680,11 @@ def get_results():
     if token.get("role") not in ["admin", "teacher"]:
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_all_results())
+    return get_all_results()
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_result(result_id, obtained_marks=None, remarks=None):
     """Update an existing result.
@@ -662,6 +707,7 @@ def update_result(result_id, obtained_marks=None, remarks=None):
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_result(result_id):
     """Delete a result from the LMS system.
@@ -676,6 +722,7 @@ def remove_result(result_id):
 
 
 @tool
+@readable_result
 @jwt_required()
 def create_subject(name, teacher_name, course_name):
     """Create a new subject in the LMS system.
@@ -699,17 +746,19 @@ def create_subject(name, teacher_name, course_name):
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_subjects():
     """Retrieve all subjects from the LMS system. Use this when users ask about subjects."""
     token = get_jwt()
-    if token.get("role") not in "admin":
+    if token.get("role") != "admin":
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_all_subjects())
+    return get_all_subjects()
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_subject(subject_id):
     """Retrieve a specific subject by its ID. Use this when users ask about a specific subject.
@@ -721,10 +770,11 @@ def get_subject(subject_id):
     if token.get("role") not in ["admin", "teacher", "student"]:
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_subject_by_id(subject_id))
+    return get_subject_by_id(subject_id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_subject_tool(subject_id, name=None, teacher_id=None):
     """Update an existing subject.
@@ -747,6 +797,7 @@ def update_subject_tool(subject_id, name=None, teacher_id=None):
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_subject(subject_id):
     """Delete a subject from the LMS system.
@@ -762,39 +813,39 @@ def remove_subject(subject_id):
 
 
 @tool
+@readable_result
 @jwt_required()
-def create_teacher(name, subject_name, username, email, password_hash):
-    """Create a new teacher in the LMS system.
+def create_teacher(name, username, email, password):
+    """Create a new teacher in the LMS system. A teacher does not need a subject;
+    assign subjects afterwards with create_subject.
     
     Args:
         name: The name of the teacher
-        subject_name: Name of the subject taught by the teacher
         username: Username for the teacher
         email: Email of the teacher
-        password_hash: Hashed password
+        password: Initial password for the teacher (it is hashed before saving)
     """
     token = get_jwt()
     if token.get("role") != "admin":
         return {"message": "Only admins can create teachers", "status": "failed"}
 
-    subject = Subject.query.filter_by(name=subject_name).first()
-    if not subject:
-        return {"message": "Subject not found", "status": "failed"}
-    return add_teacher(name, subject.id, username, email, password_hash)
+    return add_teacher(name, username, email, password)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_teachers():
     """Retrieve all teachers from the LMS system. Use this when users ask about teachers."""
     token = get_jwt()
-    if token.get("role") not in "admin":
+    if token.get("role") != "admin":
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_all_teachers())
+    return get_all_teachers()
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_teacher(teacher_id):
     """Retrieve a specific teacher by their ID. Use this when users ask about a specific teacher.
@@ -805,18 +856,19 @@ def get_teacher(teacher_id):
     token = get_jwt()
     if token.get("role") not in ["admin", "teacher"]:
         return {"message": "Unauthorized access", "status": "failed"}
-    return extract_data_from_response(get_teacher_by_id(teacher_id))
+    return get_teacher_by_id(teacher_id)
 
 
 @tool
+@readable_result
 @jwt_required()
-def update_teacher_tool(teacher_id, name=None, subject=None, username=None, email=None):
-    """Update an existing teacher.
+def update_teacher_tool(teacher_id, name=None, username=None, email=None):
+    """Update an existing teacher. To change which teacher teaches a subject,
+    use update_subject_tool instead.
     
     Args:
         teacher_id: The ID of the teacher to update
         name: New name (optional)
-        subject: New subject (optional)
         username: New username (optional)
         email: New email (optional)
     """
@@ -827,8 +879,6 @@ def update_teacher_tool(teacher_id, name=None, subject=None, username=None, emai
     kwargs = {}
     if name is not None:
         kwargs['name'] = name
-    if subject is not None:
-        kwargs['subject'] = subject
     if username is not None:
         kwargs['username'] = username
     if email is not None:
@@ -837,6 +887,7 @@ def update_teacher_tool(teacher_id, name=None, subject=None, username=None, emai
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_teacher(teacher_id):
     """Delete a teacher from the LMS system.
@@ -852,6 +903,7 @@ def remove_teacher(teacher_id):
 
 
 @tool
+@readable_result
 @jwt_required()
 def create_assignment(title, description, due_date, subject_name, total_marks):
     """Create a new assignment in the LMS system.
@@ -874,6 +926,7 @@ def create_assignment(title, description, due_date, subject_name, total_marks):
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_assignment(assignment_id):
     """Retrieve a specific assignment by its ID. Use this when users ask about a specific assignment.
@@ -881,18 +934,20 @@ def get_assignment(assignment_id):
     Args:
         assignment_id: The ID of the assignment to retrieve
     """
-    return extract_data_from_response(get_assignment_by_id(assignment_id))
+    return get_assignment_by_id(assignment_id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_assignments():
     """Retrieve all assignments from the LMS system. Use this when users ask about assignments."""
 
-    return extract_data_from_response(get_all_assignments())
+    return get_all_assignments()
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_assignment(assignment_id, title=None, description=None, due_date=None, total_marks=None):
     """Update an existing assignment.
@@ -921,6 +976,7 @@ def update_assignment(assignment_id, title=None, description=None, due_date=None
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_assignment(assignment_id):
     """Delete an assignment from the LMS system.
@@ -936,6 +992,7 @@ def remove_assignment(assignment_id):
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_submissions_by_student_tool(student_id):
     """Retrieve assignment submissions for a specific student.
@@ -948,10 +1005,11 @@ def get_submissions_by_student_tool(student_id):
         return {"message": "Unauthorized access", "status": "failed"}
     if student_id is None:
         raise ValueError("student_id must be provided")
-    return extract_data_from_response(get_submissions_by_student(student_id))
+    return get_submissions_by_student(student_id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_submissions_by_assignment_tool(assignment_id):
     """Retrieve assignment submissions for a specific assignment.
@@ -963,10 +1021,11 @@ def get_submissions_by_assignment_tool(assignment_id):
     if token.get("role") not in ["admin", "teacher"]:
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_submissions_by_assignment(assignment_id))
+    return get_submissions_by_assignment(assignment_id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_submission_tool(submission_id, submission_text=None, feedback=None, marks=None, marks_obtained=None):
     """Update an existing assignment submission.
@@ -995,6 +1054,7 @@ def update_submission_tool(submission_id, submission_text=None, feedback=None, m
 
 
 @tool
+@readable_result
 @jwt_required()
 def mark_attendance(student_name, subject_name, status):
     """Mark attendance for a student in a subject.
@@ -1014,11 +1074,11 @@ def mark_attendance(student_name, subject_name, status):
     subject = Subject.query.filter_by(name=subject_name).first()
     if not subject:
         return {"message": "Subject not found", "status": "failed"}
-    mark_attend(student.id, subject.id, status)
-    return {"message": "Attendance marked successfully", "status": "success"}
+    return mark_attend(student.id, subject.id, status)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_attendance_by_student_tool(student_name):
     """Retrieve attendance records for a specific student.
@@ -1033,10 +1093,11 @@ def get_attendance_by_student_tool(student_name):
     student = Student.query.filter_by(name=student_name).first()
     if not student:
         return {"message": "Student not found", "status": "failed"}
-    return extract_data_from_response(get_attendance_by_student(student.id))
+    return get_attendance_by_student(student.id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_attendance_by_subject_tool(subject_name):
     """Retrieve attendance records for a specific subject.
@@ -1051,10 +1112,11 @@ def get_attendance_by_subject_tool(subject_name):
     subject = Subject.query.filter_by(name=subject_name).first()
     if not subject:
         return {"message": "Subject not found", "status": "failed"}
-    return extract_data_from_response(get_attendance_by_subject(subject.id))
+    return get_attendance_by_subject(subject.id)
 
 
 @tool
+@readable_result
 @jwt_required()
 def get_all_attendance_tool():
     """Retrieve all attendance records from the LMS system."""
@@ -1062,10 +1124,11 @@ def get_all_attendance_tool():
     if token.get("role") not in ["admin", "teacher"]:
         return {"message": "Unauthorized access", "status": "failed"}
     
-    return extract_data_from_response(get_all_attendance())
+    return get_all_attendance()
 
 
 @tool
+@readable_result
 @jwt_required()
 def update_attendance_tool(student_name, subject_name, status=None):
     """Update an existing attendance record.
@@ -1091,11 +1154,11 @@ def update_attendance_tool(student_name, subject_name, status=None):
     kwargs = {}
     if status is not None:
         kwargs['status'] = status
-    update_attendance(attendance_record.id, **kwargs)
-    return {"message": "Attendance record updated successfully", "status": "success"}
+    return update_attendance(attendance_record.id, **kwargs)
 
 
 @tool
+@readable_result
 @jwt_required()
 def remove_attendance(student_name, subject_name):
     """Delete an attendance record from the LMS system.
@@ -1116,7 +1179,48 @@ def remove_attendance(student_name, subject_name):
         return {"message": "Subject not found", "status": "failed"}
     attendance_record = Attendance.query.filter_by(student_id=student.id, subject_id=subject.id).order_by(Attendance.mark_at.desc()).first()
     if not attendance_record:
-        return "Attendance record not found for this student and subject"
-    delete_attendance(attendance_record.id)
-    return "Attendance record deleted successfully"
+        return {"message": "Attendance record not found for this student and subject", "status": "failed"}
+    return delete_attendance(attendance_record.id)
 
+
+
+# --- Student tools: always scoped to the logged-in student --------------------
+# The student's ID comes from their JWT, never from the model, so a student can
+# only ever see their own records.
+
+@tool
+@readable_result
+@jwt_required()
+def get_my_attendance():
+    """Get the logged-in student's own attendance records. Use this when a student asks about their attendance."""
+    token = get_jwt()
+    if token.get("role") != "student":
+        return {"message": "Only students can use this tool", "status": "failed"}
+    result = to_tool_result(get_attendance_by_student(int(get_jwt_identity())))
+    # The service answers "Student not found" when there are simply no records yet.
+    # The student is logged in, so they do exist: report an empty list instead.
+    if isinstance(result, dict) and result.get("message") == "Student not found":
+        return {"status": "success", "count": 0, "data": []}
+    return result
+
+
+@tool
+@readable_result
+@jwt_required()
+def get_my_results():
+    """Get the logged-in student's own exam results and grades. Use this when a student asks about their results, marks or grades."""
+    token = get_jwt()
+    if token.get("role") != "student":
+        return {"message": "Only students can use this tool", "status": "failed"}
+    return get_results_by_student(int(get_jwt_identity()))
+
+
+@tool
+@readable_result
+@jwt_required()
+def get_my_submissions():
+    """Get the logged-in student's own assignment submissions, including marks and feedback. Use this when a student asks about their submissions."""
+    token = get_jwt()
+    if token.get("role") != "student":
+        return {"message": "Only students can use this tool", "status": "failed"}
+    return get_submissions_by_student(int(get_jwt_identity()))

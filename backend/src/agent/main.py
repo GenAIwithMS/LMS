@@ -1,56 +1,54 @@
+import operator
+import os
+from pathlib import Path
 from typing import TypedDict, Annotated, Sequence
+
 from dotenv import load_dotenv
+from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
-from langchain_core.messages import BaseMessage, SystemMessage
 from langgraph.prebuilt import ToolNode
-import operator
-from pathlib import Path
-from backend.src.agent.tools_list import admin_tools, teacher_tools, student_tools
+
+from src.agent.tools_list import admin_tools, teacher_tools, student_tools
 from src.agent.prompts import admin_system_prompt, teacher_system_prompt, student_system_prompt
 
 backend_dir = Path(__file__).parent.parent.parent
-env_path = backend_dir / ".env"
+load_dotenv(dotenv_path=str(backend_dir / ".env"))
 
-load_dotenv(dotenv_path=str(env_path))
+# Model settings come from .env so the model can be switched without code changes.
+# reasoning_format="hidden" stops reasoning models such as Qwen3 from putting their
+# <think>...</think> text into the reply. Set CHAT_REASONING_FORMAT to an empty
+# value when using a non-reasoning model.
+_model_kwargs = {
+    "model": os.getenv("CHAT_MODEL", "qwen/qwen3-32b"),
+    "temperature": 0,
+    "max_retries": 2,
+    "timeout": 60,
+}
+_reasoning_format = os.getenv("CHAT_REASONING_FORMAT", "hidden")
+if _reasoning_format:
+    _model_kwargs["reasoning_format"] = _reasoning_format
 
-# Use a faster model or optimize configuration if needed
-model = ChatGroq(model="qwen/qwen3-32b")
+model = ChatGroq(**_model_kwargs)
 
-# Cache tool schemas globally to reduce token usage in multi-turn conversations
-_CACHED_TOOL_SCHEMAS = {}
+ROLE_TOOLS = {
+    "admin": admin_tools,
+    "teacher": teacher_tools,
+    "student": student_tools,
+}
 
-def _build_tool_schemas_cache():
-    """Build and cache tool schemas for all roles on initialization."""
-    global _CACHED_TOOL_SCHEMAS
-    _CACHED_TOOL_SCHEMAS = {
-        "admin": model.bind_tools(admin_tools),
-        "teacher": model.bind_tools(teacher_tools),
-        "student": model.bind_tools(student_tools)
-    }
+ROLE_PROMPTS = {
+    "admin": admin_system_prompt,
+    "teacher": teacher_system_prompt,
+    "student": student_system_prompt,
+}
+
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
     user_role: str
     user_info: dict
 
-def get_tools_for_role(user_role: str):
-    """Get tools based on user role."""
-    if user_role == "admin":
-        return admin_tools
-    elif user_role == "teacher":
-        return teacher_tools
-    elif user_role == "student":
-        return student_tools
-    return []
-
-def get_system_prompt_for_role(user_role: str):
-    """Get system prompt based on user role."""
-    return {
-        "admin": admin_system_prompt,
-        "teacher": teacher_system_prompt,
-        "student": student_system_prompt
-    }.get(user_role, "You are a helpful assistant.")
 
 def agent_node(state: AgentState, model_with_tools, system_prompt):
     """Agent node that calls the model."""
@@ -65,34 +63,25 @@ def agent_node(state: AgentState, model_with_tools, system_prompt):
     response = model_with_tools.invoke(messages)
     return {"messages": [response]}
 
+
 def should_continue(state: AgentState) -> str:
     """Determine whether to continue with tools or end."""
-    messages = state["messages"]
-    last_message = messages[-1]
-    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+    last_message = state["messages"][-1]
+    if getattr(last_message, "tool_calls", None):
         return "tools"
     return END
 
-def create_chatbot_graph(user_role: str):
-                         
-    """Create a unified agent graph with parallel tool execution and cached tool schemas."""
-                         
-    # Initialize cache on first call
-    if not _CACHED_TOOL_SCHEMAS:
-        _build_tool_schemas_cache()
-    
-    tools = get_tools_for_role(user_role)
-    system_prompt = get_system_prompt_for_role(user_role)
 
-    # ToolNode in LangGraph automatically handles parallel execution 
-    # if the model returns multiple tool calls in a single message.
-    tool_node = ToolNode(tools)
-    
-    # Use cached tool schemas instead of rebuilding them
-    model_with_tools = _CACHED_TOOL_SCHEMAS[user_role]
+def _build_graph(user_role: str):
+    tools = ROLE_TOOLS[user_role]
+    system_prompt = ROLE_PROMPTS[user_role]
+    model_with_tools = model.bind_tools(tools)
+
+    # handle_tool_errors=True: if a tool raises, the model gets the error as a
+    # tool message and can explain it, instead of the whole request failing.
+    tool_node = ToolNode(tools, handle_tool_errors=True)
 
     workflow = StateGraph(AgentState)
-
     workflow.add_node("agent", lambda state: agent_node(state, model_with_tools, system_prompt))
     workflow.add_node("tools", tool_node)
 
@@ -101,3 +90,16 @@ def create_chatbot_graph(user_role: str):
     workflow.add_edge("tools", "agent")
 
     return workflow.compile()
+
+
+# Each role's graph is built once and reused, instead of on every request.
+_GRAPHS = {}
+
+
+def create_chatbot_graph(user_role: str):
+    """Return the compiled agent graph for a role, building it on first use."""
+    if user_role not in ROLE_TOOLS:
+        raise ValueError(f"Unknown role: {user_role}")
+    if user_role not in _GRAPHS:
+        _GRAPHS[user_role] = _build_graph(user_role)
+    return _GRAPHS[user_role]
