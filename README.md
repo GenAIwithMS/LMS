@@ -216,6 +216,18 @@ GROQ_API_KEY=your-groq-api-key-here
 
 The database tables will be created automatically when you first run the application.
 
+If you are updating an existing database, also run `backend/migrations/add_unique_username_email.sql` once (it makes usernames and emails unique).
+
+#### Create the Admin Account
+
+The LMS has a single admin, created once from the terminal. There is no sign-up page or API for admins.
+
+```bash
+python create_admin.py
+```
+
+It asks for the admin's name, email, username and password (typed hidden). The admin then adds teachers and students from the dashboard.
+
 #### Start the Backend Server
 
 ```bash
@@ -248,9 +260,12 @@ The API is organized by resource. All endpoints are prefixed with `/api/`.
 ### Authentication
 - `POST /api/login` - User login
 - `POST /api/logout` - User logout (if implemented)
+- `GET /api/account` - The logged-in user's own account details
+- `PUT /api/account/username` - Change your own username
+- `PUT /api/account/password` - Change your own password (needs the current password)
 
 ### Admin Endpoints
-- `POST /api/add/admin` - Create admin
+- The admin is created with `python create_admin.py`, not through the API
 - `GET /api/get/admin` - Get admin(s)
 - `PUT /api/update/admin` - Update admin
 - `DELETE /api/delete/admin` - Delete admin

@@ -38,3 +38,10 @@ class loginSchema(Schema):
     email = fields.Email(required=True)
     password = fields.String(required=True, validate=validate.Length(min=6))
 
+
+class UpdateMyUsernameSchema(Schema):
+    username = fields.String(required=True, validate=validate.Length(min=3, max=100))
+
+class ChangeMyPasswordSchema(Schema):
+    current_password = fields.String(required=True)
+    new_password = fields.String(required=True, validate=validate.Length(min=6))

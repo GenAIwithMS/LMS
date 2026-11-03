@@ -96,7 +96,11 @@ def update_student(student_id, **kwargs):
         }), 400
 
     for key, value in kwargs.items():
-        if value is not None and hasattr(student, key):
+        if value is None:
+            continue
+        if key == 'password':
+            student.set_password(value)
+        elif hasattr(student, key):
             setattr(student, key, value)
 
     db.session.commit()

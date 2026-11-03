@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
@@ -11,7 +11,19 @@ from src.routes import home_bp,auth_bp,student_bp,teacher_bp,admin_bp,assignment
 load_dotenv()
 
 def create_app():
-    app = Flask(__name__)
+    # static_folder=None: Flask serves no public files. Older versions saved uploaded
+    # submissions in src/static, where anyone could download them without logging in.
+    app = Flask(__name__, static_folder=None)
+
+    # Largest upload allowed (10 MB). Bigger files get a 413 error.
+    app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+
+    @app.errorhandler(413)
+    def file_too_large(error):
+        return jsonify({
+            "message": "File is too large. The maximum size is 10 MB.",
+            "status": "failed"
+        }), 413
     
     CORS(app, 
          resources={r"/api/*": {

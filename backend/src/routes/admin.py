@@ -1,30 +1,13 @@
 from flask import Blueprint,request,jsonify
 from src.models import Admin
 from flask_jwt_extended import jwt_required , get_jwt
-from src.services import add_admin
-from src.schemas import RegisterAdminSchema
-from marshmallow import ValidationError
 
 admin_bp = Blueprint("admin",__name__)
 
 
-@admin_bp.route("/api/add/admin", methods=["POST"])
-def add_adm():
+# There is no route to create an admin. The LMS has a single admin, created once
+# during setup with:  python create_admin.py
 
-    try:
-        data = RegisterAdminSchema().load(request.get_json())
-    except ValidationError as e:
-        return jsonify(e.messages), 400
-    
-
-    result = add_admin(
-        name=data["name"],
-        email=data["email"],
-        username=data["username"],
-        password=data["password"],
-    )
-    
-    return result
 
 @admin_bp.route("/api/get/admin", methods=["GET"])
 @jwt_required()
