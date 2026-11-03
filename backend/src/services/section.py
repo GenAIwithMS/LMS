@@ -1,5 +1,6 @@
 from src.models import Section
 from flask import jsonify
+from sqlalchemy.exc import IntegrityError
 from src.db import db
 
 def add_section(name, teacher_id):
@@ -76,7 +77,15 @@ def delete_section(section_id):
         }), 404
 
     db.session.delete(section)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Other records still point to this one, so the database refuses
+        db.session.rollback()
+        return jsonify({
+            "message": "Cannot delete this section because students or announcements still belong to it. Move or delete those first.",
+            "status": "failed"
+        }), 409
 
     return jsonify({
         "message":"section deleted successfully",

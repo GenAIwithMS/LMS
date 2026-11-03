@@ -15,7 +15,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
+  // A page for certain roles only: a missing or unknown role is not allowed either
+  if (allowedRoles && (!userRole || !allowedRoles.includes(userRole))) {
     return <Navigate to="/dashboard" replace />;
   }
 

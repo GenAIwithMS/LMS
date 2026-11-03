@@ -8,12 +8,10 @@ import {
   FileText,
   Calendar,
   Bell,
-  TrendingUp,
   Award,
   ArrowRight,
   Activity,
   Clock,
-  CheckCircle2,
 } from 'lucide-react';
 import { getStudents, getTeachers, getCourses, getAssignments, getAnnouncements, getEvents } from '../services/api';
 import toast from 'react-hot-toast';

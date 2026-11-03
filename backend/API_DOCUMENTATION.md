@@ -37,7 +37,31 @@ Obtain a JWT token by logging in with valid credentials.
 
 **Error Responses:**
 - `400`: Validation error
-- `401`: Invalid email or password
+- `401`: Invalid email or password (the same message for both, so nobody can find out which emails exist)
+- `429`: More than 10 login attempts in a minute from the same address
+
+A token is valid for 30 minutes (`JWT_EXPIRES_MINUTES`).
+
+### Logout
+**Endpoint:** `POST /api/logout`
+
+**Authentication:** Required
+
+Blocks the token on the server, so it can't be used again even before it expires. Any later request with it gets `401`.
+
+### Paging Lists
+
+Every endpoint that returns a list can be split into pages:
+
+```
+GET /api/get/student?page=2&per_page=50
+```
+
+```json
+{ "data": [ ... ], "page": 2, "per_page": 50, "total": 230, "pages": 5 }
+```
+
+Without `page`, the whole list is returned in its usual shape. `per_page` is at most 200.
 
 ---
 
@@ -815,7 +839,8 @@ The script asks for name, email, username and password, and refuses to run if an
 
 **Access Control:**
 - Students: Can only view their own submissions
-- Teachers/Admins: Can view any student's submissions
+- Teachers: Only that student's submissions to their own assignments
+- Admin: No access (teachers check submissions)
 
 **Response:**
 ```json
@@ -839,7 +864,7 @@ The script asks for name, email, username and password, and refuses to run if an
 **Query Parameters:**
 - `id` (required): Assignment ID
 
-**Access Control:** Admins, and the teacher of the assignment. Students get 403.
+**Access Control:** The teacher of the assignment only. Students and the admin get 403.
 
 **Response:**
 ```json
@@ -882,7 +907,7 @@ The script asks for name, email, username and password, and refuses to run if an
 #### Delete Submission
 **Endpoint:** `DELETE /api/delete/submission`
 
-**Authentication:** Required (admin, or the teacher of the assignment). Students cannot delete submissions.
+**Authentication:** Required (the teacher of the assignment only). Students and the admin cannot delete submissions.
 
 **Query Parameters:**
 - `id` (required): Submission ID
@@ -898,7 +923,7 @@ The script asks for name, email, username and password, and refuses to run if an
 #### Download Submission File
 **Endpoint:** `GET /api/submission/file`
 
-**Authentication:** Required (the student who submitted it, the teacher of the assignment, or the admin)
+**Authentication:** Required (the student who submitted it, or the teacher of the assignment)
 
 **Query Parameters:**
 - `id` (required): Submission ID
@@ -1298,11 +1323,33 @@ The script asks for name, email, username and password, and refuses to run if an
 {
   "message": "You have 3 assignments due this week...",
   "status": "success",
-  "role": "student"
+  "role": "student",
+  "pending_actions": []
 }
 ```
 
-**Note:** The chatbot provides role-specific assistance based on the authenticated user's role.
+**Note:** The chatbot provides role-specific assistance based on the authenticated user's role. The conversation is saved on the server (only the new message is sent), and the assistant sees the last 20 messages. Any `history` field sent by the browser is ignored.
+
+#### Get / Clear Chat History
+**Endpoints:** `GET /api/chat/history`, `DELETE /api/chat/history`
+
+**Authentication:** Required
+
+`GET` returns `{"messages": [{"role": "user" | "assistant", "content": "..."}], "pending_actions": [...]}` for the logged-in user. `DELETE` starts a new conversation and cancels any waiting deletes.
+
+#### Confirm or Cancel a Delete
+**Endpoint:** `POST /api/chat/confirm`
+
+**Authentication:** Required (only the user the action belongs to)
+
+The assistant never deletes straight away. A delete it wants to do appears in `pending_actions` as `{"id": 5, "description": "Delete the student Ali Khan (ali.khan)"}`, and the page shows Confirm / Cancel buttons.
+
+**Request Body:**
+```json
+{ "action_id": 5, "approve": true }
+```
+
+`approve: true` runs the delete (permissions are checked again); `false` cancels it. Each action can be answered once.
 
 ---
 

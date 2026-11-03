@@ -5,7 +5,6 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getSections, addSection, updateSection, deleteSection, getTeachers } from '../../services/api';
 import type { Section, Teacher } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import toast from 'react-hot-toast';
 
 const AdminSections: React.FC = () => {
   const [sections, setSections] = useState<Section[]>([]);

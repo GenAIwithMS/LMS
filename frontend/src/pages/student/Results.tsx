@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Award, TrendingUp } from 'lucide-react';
+import { Search, Award } from 'lucide-react';
 import { getResults } from '../../services/api';
 import type { Result } from '../../types';
 import toast from 'react-hot-toast';

@@ -1,9 +1,7 @@
-import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
-import { RoleRedirect } from './components/RoleRedirect';
 import Homepage from './pages/Homepage';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';

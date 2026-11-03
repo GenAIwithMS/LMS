@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ChatbotWidget from './ChatbotWidget';
@@ -10,7 +10,6 @@ import {
   FileText,
   Calendar,
   Bell,
-  MessageSquare,
   LogOut,
   Menu,
   X,
@@ -19,10 +18,7 @@ import {
   ClipboardList,
   Award,
   Clock,
-  ChevronRight,
-  ChevronLeft,
   PanelLeft,
-  Sparkles,
 } from 'lucide-react';
 import { getAnnouncements, getEvents } from '../services/api';
 import toast from 'react-hot-toast';

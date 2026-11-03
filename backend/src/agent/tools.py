@@ -1,7 +1,8 @@
 import functools
 from flask import Response
 from langchain.tools import tool
-from src.models import Subject,Student,Teacher,Course,Section,Attendance,Announcement,Result,AssignmentSubmission
+from src.models import Subject,Student,Teacher,Course,Section,Attendance,Announcement,Result,AssignmentSubmission,Event,Enrollment,Assignment
+from src.agent.confirm import is_confirmed, ask_to_confirm
 from src.agent.scope import (
     get_teacher_subject_ids, get_teacher_student_ids, get_teacher_assignment_ids,
     get_student_announcement_ids, filter_by_ids, find_student, find_subject, find_section,
@@ -175,6 +176,10 @@ def remove_announcement(announcement_title):
     if not announcement or announcement.teacher_id != teacher_id:
         return {"message": "You have no announcement with that title", "status": "failed"}
 
+
+    if not is_confirmed():
+        return ask_to_confirm("remove_announcement", {"announcement_title": announcement_title},
+                              f"Delete the announcement '{announcement_title}'")
     return delete_announcement(announcement_title)
 @tool
 @readable_result
@@ -264,6 +269,12 @@ def remove_event(event_id):
     token = get_jwt()
     if token.get("role") != "admin":
         return {"message": "Only admins can delete events", "status": "failed"}
+
+    event = Event.query.get(int(event_id))
+    if not event:
+        return {"message": "Event not found", "status": "failed"}
+    if not is_confirmed():
+        return ask_to_confirm("remove_event", {"event_id": event.id}, f"Delete the event '{event.title}'")
     return delete_event(event_id)
 
 
@@ -353,6 +364,12 @@ def remove_section(section_id):
     token = get_jwt()
     if token.get("role") != "admin":
         return {"message": "Only admins can delete sections", "status": "failed"}
+
+    section = Section.query.get(int(section_id))
+    if not section:
+        return {"message": "Section not found", "status": "failed"}
+    if not is_confirmed():
+        return ask_to_confirm("remove_section", {"section_id": section.id}, f"Delete the section '{section.name}'")
     return delete_section(section_id)
 
 
@@ -464,6 +481,13 @@ def remove_student(student_id):
     if token.get("role") != "admin":
         return {"message": "Only admins can delete students", "status": "failed"}
     
+
+    student = Student.query.get(int(student_id))
+    if not student:
+        return {"message": "Student not found", "status": "failed"}
+    if not is_confirmed():
+        return ask_to_confirm("remove_student", {"student_id": student.id},
+                              f"Delete the student {student.name} ({student.username})")
     return delete_student(student_id)
 
 
@@ -561,6 +585,13 @@ def remove_course(course_id):
     token = get_jwt()
     if token.get("role") != "admin":
         return {"message": "Only admins can delete courses", "status": "failed"}
+
+    course = Course.query.get(int(course_id))
+    if not course:
+        return {"message": "Course not found", "status": "failed"}
+    if not is_confirmed():
+        return ask_to_confirm("remove_course", {"course_id": course.id},
+                              f"Delete the course '{course.name}' and everything in it (subjects, assignments, results, attendance, enrollments)")
     return delete_course(course_id)
 
 
@@ -678,6 +709,13 @@ def remove_enrollment(enrollment_id):
     if token.get("role") != "admin":
         return {"message": "Only admins can delete enrollments", "status": "failed"}
     
+
+    enrollment = Enrollment.query.get(int(enrollment_id))
+    if not enrollment:
+        return {"message": "Enrollment not found", "status": "failed"}
+    if not is_confirmed():
+        return ask_to_confirm("remove_enrollment", {"enrollment_id": enrollment.id},
+                              f"Remove {enrollment.student.name} from the course '{enrollment.course.name}'")
     return delete_enrollment(enrollment_id)
 
 
@@ -811,6 +849,11 @@ def remove_result(result_id):
     if not can_access_result(result_id):
         return {"message": f"No result with ID {result_id} in the subjects you teach", "status": "failed"}
 
+
+    result = Result.query.get(int(result_id))
+    if not is_confirmed():
+        return ask_to_confirm("remove_result", {"result_id": result.id},
+                              f"Delete {result.student.name}'s {result.exam_type} result in {result.subject.name}")
     return delete_result(result_id)
 
 
@@ -902,6 +945,12 @@ def remove_subject(subject_id):
     if token.get("role") != "admin":
         return {"message": "Only admins can delete subjects", "status": "failed"}
     
+
+    subject = Subject.query.get(int(subject_id))
+    if not subject:
+        return {"message": "Subject not found", "status": "failed"}
+    if not is_confirmed():
+        return ask_to_confirm("remove_subject", {"subject_id": subject.id}, f"Delete the subject '{subject.name}'")
     return delete_subject(subject_id)
 
 
@@ -992,6 +1041,13 @@ def remove_teacher(teacher_id):
     if token.get("role") != "admin":
         return {"message": "Only admins can delete teachers", "status": "failed"}
     
+
+    teacher = Teacher.query.get(int(teacher_id))
+    if not teacher:
+        return {"message": "Teacher not found", "status": "failed"}
+    if not is_confirmed():
+        return ask_to_confirm("remove_teacher", {"teacher_id": teacher.id},
+                              f"Delete the teacher {teacher.name} ({teacher.username})")
     return delete_teacher(teacher_id)
 
 
@@ -1116,6 +1172,11 @@ def remove_assignment(assignment_id):
     if not can_access_assignment(assignment_id):
         return {"message": f"No assignment with ID {assignment_id} among your assignments", "status": "failed"}
 
+
+    assignment = Assignment.query.get(int(assignment_id))
+    if not is_confirmed():
+        return ask_to_confirm("remove_assignment", {"assignment_id": assignment.id},
+                              f"Delete the assignment '{assignment.title}'")
     return delete_assignment(assignment_id)
 
 
@@ -1130,8 +1191,8 @@ def get_submissions_by_student_tool(student_name=None, student_id=None):
         student_id: The student's ID, only needed when several students share the name
     """
     token = get_jwt()
-    if token.get("role") not in ["admin", "teacher"]:
-        return {"message": "Unauthorized access", "status": "failed"}
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can view submissions", "status": "failed"}
 
     student, error = find_student(student_name, student_id)
     if error:
@@ -1161,8 +1222,8 @@ def get_submissions_by_assignment_tool(assignment_id):
         assignment_id: The ID of the assignment
     """
     token = get_jwt()
-    if token.get("role") not in ["admin", "teacher"]:
-        return {"message": "Unauthorized access", "status": "failed"}
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can view submissions", "status": "failed"}
 
     if not can_access_assignment(assignment_id):
         return {"message": f"No assignment with ID {assignment_id} among your assignments", "status": "failed"}
@@ -1376,6 +1437,11 @@ def remove_attendance(student_name=None, subject_name=None, student_id=None, sub
     if error:
         return error
 
+
+    if not is_confirmed():
+        # Save the exact IDs, so the confirmed delete removes the same record
+        return ask_to_confirm("remove_attendance", {"student_id": record.student_id, "subject_id": record.subject_id},
+                              f"Delete {record.student.name}'s latest attendance record in {record.subject.name}")
     return delete_attendance(record.id)
 
 

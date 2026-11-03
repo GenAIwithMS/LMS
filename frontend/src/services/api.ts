@@ -2,19 +2,8 @@ import axios from 'axios';
 import type {
   LoginCredentials,
   AuthResponse,
-  Student,
-  Teacher,
-  Section,
-  Course,
-  Subject,
-  Enrollment,
-  Assignment,
-  Submission,
-  Attendance,
-  Result,
-  Announcement,
-  Event,
 } from '../types';
+import { getSavedLogin, clearSavedLogin } from '../utils/session';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -28,7 +17,7 @@ const api = axios.create({
 
 // Add token to requests
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = getSavedLogin();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -56,13 +45,18 @@ api.interceptors.response.use(
       throw error;
     }
     
-    // Handle JWT signature verification failed (422) or unauthorized (401)
-    if (error.response?.status === 401 || error.response?.status === 422) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      // Only redirect if not already on login page
+    // The login is no longer valid: 401 (expired or missing token), or 422 with a
+    // "msg" field (Flask-JWT's answer for a broken token). Other 422 errors are
+    // ordinary form validation errors and must not log the user out.
+    const status = error.response?.status;
+    const isBadToken = status === 422 && error.response?.data && typeof error.response.data.msg === 'string';
+
+    if (status === 401 || isBadToken) {
+      clearSavedLogin();
+
+      // Only redirect if not already on login page. "expired=1" tells the login page to explain why.
       if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+        window.location.href = '/login?expired=1';
       }
     }
     return Promise.reject(error);
@@ -73,6 +67,16 @@ api.interceptors.response.use(
 export const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
   const response = await api.post<AuthResponse>('/login', credentials);
   return response.data;
+};
+
+// Log out on the server too, so the token stops working straight away.
+// A token can be passed in when it is no longer saved (for example after the user left the site).
+export const logoutOnServer = async (token?: string) => {
+  const headers: any = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  await api.post('/logout', {}, { headers });
 };
 
 // My Account (any logged-in user)
@@ -208,7 +212,7 @@ export const deleteSubject = async (id: number) => {
 };
 
 // Enrollment
-export const enrollStudent = async (data: { student_name: string; course_name: string; enrollment_date: string; status: string; grade: string }) => {
+export const enrollStudent = async (data: { student_id?: number; student_name?: string; course_name: string; enrollment_date: string; status: string; grade: string }) => {
   const response = await api.post('/enroll/student', data);
   return response.data;
 };
@@ -291,13 +295,38 @@ export const updateSubmission = async (id: number, data: { submission_text?: str
   return response.data;
 };
 
+// Download a submission's file. Files are private, so this goes through the
+// logged-in API (with the token) and then saves the file in the browser.
+export const downloadSubmissionFile = async (id: number) => {
+  const response = await api.get('/submission/file', { params: { id }, responseType: 'blob' });
+
+  // Read the original file name from the server's "Content-Disposition" header
+  let fileName = 'submission';
+  const disposition = response.headers['content-disposition'];
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match) {
+      fileName = match[1];
+    }
+  }
+
+  const fileUrl = window.URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = fileUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(fileUrl);
+};
+
 export const deleteSubmission = async (id: number) => {
   const response = await api.delete('/delete/submission', { params: { id } });
   return response.data;
 };
 
 // Attendance
-export const markAttendance = async (data: { student_name: string; subject_name: string; status: 'present' | 'absent' | 'late' }) => {
+export const markAttendance = async (data: { student_id?: number; student_name?: string; subject_name: string; status: 'present' | 'absent' | 'late' }) => {
   const response = await api.post('/attendance', data);
   return response.data;
 };
@@ -307,7 +336,7 @@ export const getAttendance = async (student_name?: string, subject_name?: string
   return response.data;
 };
 
-export const updateAttendance = async (id: number, data: { status?: 'present' | 'absent' | 'late'; student_name?: string; subject_name?: string }) => {
+export const updateAttendance = async (id: number, data: { status?: 'present' | 'absent' | 'late'; student_id?: number; student_name?: string; subject_name?: string }) => {
   const response = await api.put('/update/attendance', data, { params: { id } });
   return response.data;
 };
@@ -318,7 +347,7 @@ export const deleteAttendance = async (id: number, student_name?: string, subjec
 };
 
 // Result
-export const createResult = async (data: { student_name: string; subject_name: string; total_marks: number; obtained_marks: number; exam_type: string; remarks: string }) => {
+export const createResult = async (data: { student_id?: number; student_name?: string; subject_name: string; total_marks: number; obtained_marks: number; exam_type: string; remarks: string }) => {
   console.log('Creating result with data:', data);
   console.log('API endpoint: POST', `${API_BASE_URL}/create/result`);
   try {
@@ -362,13 +391,14 @@ export const getAnnouncements = async (id?: number) => {
   return response.data;
 };
 
-export const updateAnnouncement = async (id: number, data: { title?: string; content?: string; section_name?: string }) => {
-  const response = await api.put('/update/announcement', data, { params: { id } });
+// The backend finds announcements by their title, not by id
+export const updateAnnouncement = async (title: string, data: { title?: string; content?: string; section_name?: string }) => {
+  const response = await api.put('/update/announcement', data, { params: { title } });
   return response.data;
 };
 
-export const deleteAnnouncement = async (id: number) => {
-  const response = await api.delete('/delete/announcement', { params: { id } });
+export const deleteAnnouncement = async (title: string) => {
+  const response = await api.delete('/delete/announcement', { params: { title } });
   return response.data;
 };
 
@@ -394,10 +424,27 @@ export const deleteEvent = async (id: number) => {
 };
 
 // Chatbot - Extended timeout for AI processing
-export const chatWithBot = async (message: string, conversationHistory?: Array<{role: string; content: string}>) => {
-  const response = await api.post('/chat', { message, history: conversationHistory }, {
+// The conversation is saved on the server, so only the new message is sent
+export const chatWithBot = async (message: string) => {
+  const response = await api.post('/chat', { message }, {
     timeout: 120000, // 120 seconds (2 minutes) for chatbot responses
   });
+  return response.data;
+};
+
+export const getChatHistory = async () => {
+  const response = await api.get('/chat/history');
+  return response.data;
+};
+
+export const clearChatHistory = async () => {
+  const response = await api.delete('/chat/history');
+  return response.data;
+};
+
+// The user clicked Confirm (approve = true) or Cancel on a delete the assistant asked for
+export const answerChatAction = async (action_id: number, approve: boolean) => {
+  const response = await api.post('/chat/confirm', { action_id, approve });
   return response.data;
 };
 

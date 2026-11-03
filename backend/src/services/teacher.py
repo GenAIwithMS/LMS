@@ -2,6 +2,7 @@ from src.models import Teacher
 from src.services.users import is_email_taken, is_username_taken
 from src.db import db
 from flask import jsonify
+from sqlalchemy.exc import IntegrityError
 
 def add_teacher(name, username, email, password_hash):
     if is_email_taken(email):
@@ -103,7 +104,15 @@ def delete_teacher(teacher_id):
         }), 400
     
     db.session.delete(teacher)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Other records still point to this one, so the database refuses
+        db.session.rollback()
+        return jsonify({
+            "message": "Cannot delete this teacher because they still have courses, subjects, sections, assignments or announcements. Reassign or delete those first.",
+            "status": "failed"
+        }), 409
     
     return jsonify({
         "message":"teacher deleted successfully",

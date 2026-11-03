@@ -12,5 +12,7 @@ from .enrollment import Enrollment
 from .event import Event
 from .message import Message
 from .section import Section
+from .chat import ChatMessage, PendingAction
+from .revoked_token import RevokedToken
 
-__all__ = ["Student", "Teacher", "Admin", "Assignment", "Attendance","Result","Subject","Course","Announcement","AssignmentSubmission","Enrollment","Event","Message","Section"]
+__all__ = ["Student", "Teacher", "Admin", "Assignment", "Attendance","Result","Subject","Course","Announcement","AssignmentSubmission","Enrollment","Event","Message","Section","ChatMessage","PendingAction","RevokedToken"]

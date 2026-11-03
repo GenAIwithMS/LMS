@@ -5,7 +5,6 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getEnrollments, enrollStudent, updateEnrollment, deleteEnrollment, getStudents, getCourses } from '../../services/api';
 import type { Enrollment, Student, Course } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import toast from 'react-hot-toast';
 
 // Utility function to format date from database
 const formatDate = (dateString: string | undefined | null): string => {
@@ -48,6 +47,7 @@ const AdminEnrollments: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
+    student_id: '',
     student_name: '',
     course_name: '',
     enrollment_date: '',
@@ -84,6 +84,7 @@ const AdminEnrollments: React.FC = () => {
       enrollmentsData = enrollmentsData.map((enrollment: any) => ({
         id: enrollment.id || 0,
         student: enrollment.student || enrollment.student_name || '',
+        student_id: enrollment.student_id,
         course: enrollment.course || enrollment.course_name || '',
         enrollment_date: enrollment.enrollment_date || enrollment.enrollmentDate || '',
         status: enrollment.status || 'active',
@@ -148,6 +149,8 @@ const AdminEnrollments: React.FC = () => {
     try {
       // Prepare data, only include enrollment_date if it's provided
       const submitData: any = {
+        // Send the student's ID: names are not unique, IDs are
+        student_id: Number(formData.student_id),
         student_name: formData.student_name,
         course_name: formData.course_name,
         status: formData.status,
@@ -174,11 +177,23 @@ const AdminEnrollments: React.FC = () => {
     }
   };
 
+  // Keep the chosen student's ID and name together
+  const handleStudentChange = (studentId: string) => {
+    let studentName = '';
+    for (const student of students) {
+      if (String(student.id) === studentId) {
+        studentName = student.name;
+      }
+    }
+    setFormData({ ...formData, student_id: studentId, student_name: studentName });
+  };
+
   const handleEdit = (enrollment: Enrollment) => {
     setEditingEnrollment(enrollment);
     // Format the date for the input field (YYYY-MM-DD format)
     const formattedDate = formatDate(enrollment.enrollment_date);
     setFormData({
+      student_id: enrollment.student_id ? String(enrollment.student_id) : '',
       student_name: enrollment.student,
       course_name: enrollment.course,
       enrollment_date: formattedDate !== 'N/A' ? formattedDate : '',
@@ -211,7 +226,7 @@ const AdminEnrollments: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ student_name: '', course_name: '', enrollment_date: '', status: 'active', grade: '' });
+    setFormData({ student_id: '', student_name: '', course_name: '', enrollment_date: '', status: 'active', grade: '' });
     setEditingEnrollment(null);
   };
 
@@ -429,10 +444,10 @@ const AdminEnrollments: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Student</label>
-            <select required value={formData.student_name} onChange={(e) => setFormData({ ...formData, student_name: e.target.value })} className="input" disabled={!!editingEnrollment}>
+            <select required value={formData.student_id} onChange={(e) => handleStudentChange(e.target.value)} className="input" disabled={!!editingEnrollment}>
               <option value="">Select a student</option>
               {students.map((student) => (
-                <option key={student.id} value={student.name}>{student.name}</option>
+                <option key={student.id} value={student.id}>{student.name} ({student.username})</option>
               ))}
             </select>
           </div>

@@ -20,7 +20,7 @@ export interface AuthResponse {
   token: string;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse {
   status: string;
   message?: string;
   [key: string]: any;
@@ -66,6 +66,7 @@ export interface Subject {
 export interface Enrollment {
   id: number;
   student: string;
+  student_id?: number;
   course: string;
   enrollment_date: string;
   status: string;
@@ -87,6 +88,7 @@ export interface Submission {
   assignment: string;
   student?: string;
   submission_text?: string;
+  submission_file?: string;
   submitted_at?: string;
   marks_obtained?: number;
   feedback?: string;
@@ -95,6 +97,7 @@ export interface Submission {
 export interface Attendance {
   id: number;
   student: string;
+  student_id?: number;
   subject: string;
   status: 'present' | 'absent' | 'late';
   mark_at: string;
@@ -103,6 +106,7 @@ export interface Attendance {
 export interface Result {
   id: number;
   student: string;
+  student_id?: number;
   subject: string;
   total_marks: number;
   obtained_marks: number;

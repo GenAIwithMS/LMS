@@ -5,7 +5,6 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getCourses, addCourse, updateCourse, deleteCourse, getTeachers } from '../../services/api';
 import type { Course, Teacher } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import toast from 'react-hot-toast';
 
 const AdminCourses: React.FC = () => {
   const [courses, setCourses] = useState<Course[]>([]);

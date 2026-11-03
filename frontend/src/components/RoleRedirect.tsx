@@ -1,10 +1,9 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getRoleFromToken } from '../utils/jwt';
 
 export const RoleRedirect: React.FC = () => {
-  const { isAuthenticated, userRole } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

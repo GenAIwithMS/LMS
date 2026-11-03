@@ -4,6 +4,7 @@ from src.services import add_students, get_all_students, get_student_by_id, upda
 from flask_jwt_extended import jwt_required , get_jwt, get_jwt_identity
 from src.schemas import RegisterStudentSchema,UpdateStudentSchema
 from marshmallow import ValidationError
+from src.services.access import get_teacher_student_ids, filter_response_by_ids
 
 student_bp = Blueprint("student",__name__)
 
@@ -57,7 +58,11 @@ def get_student():
             return jsonify({
                 "message":"Only admin and teacher can access all student details"
             }),403
-        return get_all_students()
+        result = get_all_students()
+        # A teacher only sees their own students
+        if user_role == "teacher":
+            result = filter_response_by_ids(result, get_teacher_student_ids(user_id))
+        return result
 
     student_data = Student.query.get(student_id)
 
@@ -68,6 +73,11 @@ def get_student():
     if user_role == "student" and student_id != user_id:
         return jsonify({
             "message":"You can only view your own student details"
+        }),403
+
+    if user_role == "teacher" and student_id not in get_teacher_student_ids(user_id):
+        return jsonify({
+            "message":"You can only view your own students"
         }),403
     
     result = get_student_by_id(student_id)

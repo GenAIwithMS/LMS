@@ -1,14 +1,35 @@
-flask
-flask_sqlalchemy
-pymysql
-flask_bcrypt
-flask-jwt-extended
-marshmallow
-flask-cors
-cryptography
-langgraph 
-langchain-core 
-langchain-groq 
-langchain
-dotenv
-tzdata
+# Exact versions, so every install gets the same, tested packages.
+# To upgrade one: change its version here, reinstall, and run the tests (backend/tests).
+
+# Web framework and database
+Flask==3.1.3
+Werkzeug==3.1.9
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.1.6
+PyMySQL==1.2.3
+cryptography==50.0.2
+Flask-Migrate==4.1.0
+alembic==1.20.1
+
+# Login, passwords, security
+Flask-JWT-Extended==4.7.4
+Flask-Bcrypt==1.0.1
+flask-cors==6.0.5
+Flask-Limiter==4.1.1
+
+# Validation and settings
+marshmallow==4.3.1
+python-dotenv==1.2.4
+tzdata==2026.6
+
+# AI assistant
+langgraph==1.2.19
+langchain==1.4.8
+langchain-core==1.7.4
+langchain-groq==1.1.3
+
+# Production server (use instead of "python app.py" on a real server)
+gunicorn==26.2.0
+
+# Tests
+pytest==9.0.1

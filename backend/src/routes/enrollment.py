@@ -1,6 +1,6 @@
 from src.services import enroll_student,get_enrollments_by_course,get_enrollments_by_student,update_enrollment,delete_enrollment,get_all_enrollments
 from src.schemas import EnrollmentSchema,UpdateEnrollmentSchema
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from flask import jsonify,Blueprint,request
 from marshmallow import ValidationError
 from src.models import Student,Course
@@ -31,7 +31,17 @@ def enroll_stu():
     status = data.get("status", "active")
     grade = data.get("grade")
 
-    student = Student.query.filter_by(name=student_name).first()
+    # Prefer the ID: two students can have the same name
+    if data.get("student_id"):
+        student = Student.query.get(data["student_id"])
+    elif student_name:
+        student = Student.query.filter_by(name=student_name).first()
+    else:
+        return jsonify({
+            "message": "student_id or student_name is required",
+            "status": "failed"
+        }), 400
+
     if not student:
         return jsonify({
             "message": "Student not found",
@@ -57,6 +67,18 @@ def enroll_stu():
 @enrollment_bp.route("/api/get/enrollments", methods=["GET"])
 @jwt_required()
 def get_enrollments():
+    # Enrollments include grades, so only the admin sees everyone's.
+    # A student only sees their own; teachers use their own pages instead.
+    token = get_jwt()
+    if token["role"] == "student":
+        student_id = int(get_jwt_identity())
+        return get_enrollments_by_student(student_id)
+    if token["role"] != "admin":
+        return jsonify({
+            "message": "Only the admin can view enrollments",
+            "status": "failed"
+        }), 403
+
     course_name = request.args.get("course_name")
     if course_name:
         course = Course.query.filter_by(name=course_name).first()
@@ -105,7 +127,13 @@ def update_enroll():
         }), 400
 
     kwargs = {}
-    if 'student_name' in data:
+    # Prefer the ID: two students can have the same name
+    if 'student_id' in data:
+        student = Student.query.get(data['student_id'])
+        if not student:
+            return jsonify({"message": "Student not found", "status": "failed"}), 400
+        kwargs['student_id'] = student.id
+    elif 'student_name' in data:
         student = Student.query.filter_by(name=data['student_name']).first()
         if not student:
             return jsonify({"message": "Student not found", "status": "failed"}), 400

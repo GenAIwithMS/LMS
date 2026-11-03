@@ -1,16 +1,44 @@
 from flask import Flask, jsonify
+from sqlalchemy.exc import IntegrityError
 from flask_cors import CORS
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 from src.db import db
-from src.extention import bcrypt , jwt
-from src.models import Student, Teacher, Admin, Assignment, Attendance,Result,Subject,Course,Announcement,AssignmentSubmission,Enrollment,Event,Message,Section
+from src.services.pagination import paginate_list_response
+from src.extention import bcrypt , jwt, limiter, migrate
+from src.models import Student, Teacher, Admin, Assignment, Attendance,Result,Subject,Course,Announcement,AssignmentSubmission,Enrollment,Event,Message,Section,RevokedToken
 
 from src.routes import home_bp,auth_bp,student_bp,teacher_bp,admin_bp,assignment_bp,subject_bp,result_bp,section_bp,assignment_submission_bp,announcement_bp,chatbot_bp,course_bp,enrollment_bp,event_bp,attendance_bp
 
 load_dotenv()
 
+
+def check_settings():
+    """Stop at start-up with a clear message if a required setting is missing or unsafe."""
+    secret_key = os.getenv("JWT_SECRET_KEY") or ""
+    if len(secret_key) < 32:
+        raise RuntimeError(
+            "JWT_SECRET_KEY in .env must be at least 32 characters. "
+            "Generate one with:  python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
+    if not os.getenv("DATABASE_URI"):
+        raise RuntimeError("DATABASE_URI is missing from .env")
+
+
+def get_allowed_origins():
+    """Websites allowed to call the API, from CORS_ORIGINS in .env (comma separated)."""
+    origins_text = os.getenv("CORS_ORIGINS", "http://localhost:3000")
+    origins = []
+    for origin in origins_text.split(","):
+        if origin.strip():
+            origins.append(origin.strip())
+    return origins
+
+
 def create_app():
+    check_settings()
+
     # static_folder=None: Flask serves no public files. Older versions saved uploaded
     # submissions in src/static, where anyone could download them without logging in.
     app = Flask(__name__, static_folder=None)
@@ -25,22 +53,71 @@ def create_app():
             "status": "failed"
         }), 413
     
+    @app.errorhandler(IntegrityError)
+    def database_refused(error):
+        # The database refused a change (for example a duplicate username, or a
+        # delete that other records still need). Undo it so the next query works.
+        db.session.rollback()
+        return jsonify({
+            "message": "This change conflicts with existing data, so it was not saved.",
+            "status": "failed"
+        }), 409
+
+    @app.errorhandler(429)
+    def too_many_requests(error):
+        return jsonify({
+            "message": "Too many requests. Please wait a minute and try again.",
+            "status": "failed"
+        }), 429
+
+    # Only our own frontend may call the API (not any website)
     CORS(app, 
          resources={r"/api/*": {
-             "origins": "*",
+             "origins": get_allowed_origins(),
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-             "allow_headers": ["Content-Type", "Authorization"]
+             "allow_headers": ["Content-Type", "Authorization"],
+             # Lets the browser read the file name of downloaded submissions
+             "expose_headers": ["Content-Disposition"]
          }}, 
          supports_credentials=True) 
 
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+
+    # A login lasts a fixed 30 minutes (change with JWT_EXPIRES_MINUTES in .env).
+    # After that the user must log in again.
+    login_minutes = int(os.getenv("JWT_EXPIRES_MINUTES", "30"))
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=login_minutes)
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
         "DATABASE_URI"
     )
 
+    # Rate limits are on unless RATELIMIT_ENABLED=false (only for automated tests).
+    # With several server processes, point RATELIMIT_STORAGE_URI at Redis so they share counts.
+    app.config["RATELIMIT_ENABLED"] = os.getenv("RATELIMIT_ENABLED", "true").lower() == "true"
+    app.config["RATELIMIT_STORAGE_URI"] = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
+
     db.init_app(app)
     jwt.init_app(app)
     bcrypt.init_app(app)
+    limiter.init_app(app)
+    # render_as_batch: lets migrations change tables on SQLite too (used by the tests)
+    migrate.init_app(app, db, render_as_batch=True)
+
+    # Any list can be split into pages with ?page=&per_page= (see services/pagination.py)
+    app.after_request(paginate_list_response)
+
+    # A token that was logged out can't be used again, even before it expires
+    @jwt.token_in_blocklist_loader
+    def is_token_revoked(jwt_header, jwt_payload):
+        revoked = RevokedToken.query.filter_by(jti=jwt_payload["jti"]).first()
+        return revoked is not None
+
+    @jwt.revoked_token_loader
+    def revoked_token_answer(jwt_header, jwt_payload):
+        return jsonify({
+            "message": "You have been logged out. Please log in again.",
+            "status": "failed"
+        }), 401
     app.register_blueprint(home_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(auth_bp)
@@ -59,7 +136,8 @@ def create_app():
     app.register_blueprint(chatbot_bp)
 
 
-    with app.app_context():
-        db.create_all()
+    # Tables are created and updated with migrations, not db.create_all():
+    #   flask --app app db upgrade
+    # (create_all never changes existing tables, so new columns or rules were missed.)
 
     return app

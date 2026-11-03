@@ -27,13 +27,12 @@ attendance_tools = [mark_attendance, get_attendance_by_student_tool, get_attenda
 assignment_tools = [create_assignment, get_assignments, get_assignment, update_assignment, remove_assignment]
 submission_tools = [get_submissions_by_student_tool, get_submissions_by_assignment_tool, update_submission_tool]
 
-# Admins can view announcements, assignments, attendance and submissions, but only
-# teachers can change them (the tools themselves enforce this). Giving admins the
-# write tools only made the model call tools that always fail.
+# Admins can view announcements, assignments and attendance, but only teachers can
+# change them (the tools themselves enforce this). Submissions are checked by
+# teachers only, so admins get no submission tools.
 admin_announcement_tools = [get_announcements, get_announcement]
 admin_assignment_tools = [get_assignments, get_assignment]
 admin_attendance_tools = [get_attendance_by_student_tool, get_attendance_by_subject_tool, get_all_attendance_tool]
-admin_submission_tools = [get_submissions_by_student_tool, get_submissions_by_assignment_tool]
 
 TOOL_SETS = {
     "admin": {
@@ -46,7 +45,6 @@ TOOL_SETS = {
         "event": event_tools,
         "result": [get_results, get_result],
         "assignment": admin_assignment_tools,
-        "submission": admin_submission_tools,
         "attendance": admin_attendance_tools,
         "announcement": admin_announcement_tools
     },

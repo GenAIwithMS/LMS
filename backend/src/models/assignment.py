@@ -1,6 +1,4 @@
-from src.db import db
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from src.db import db, pakistan_time
 
 class Assignment(db.Model):
     __tablename__ = 'assignments'
@@ -11,7 +9,7 @@ class Assignment(db.Model):
     due_date = db.Column(db.Date, nullable=False)
     description = db.Column(db.Text, nullable=False)
     total_marks = db.Column(db.Numeric(5, 2), default=100.00)
-    created_at = db.Column(db.DateTime, default=datetime.now(ZoneInfo("Asia/Karachi")))
+    created_at = db.Column(db.DateTime, default=pakistan_time)
 
     subject = db.relationship('Subject', backref='assignments', lazy=True)
     teacher = db.relationship('Teacher', backref='assignments', lazy=True)

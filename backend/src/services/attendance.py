@@ -33,6 +33,7 @@ def get_attendance_by_student(student_id):
         result.append({
             "id": record.id,
             "student_name": student.name if student else None,
+            "student_id": record.student_id,
             "subject_name": subject.name if subject else None,
             "mark_at": record.mark_at,
             "status": record.status
@@ -54,6 +55,7 @@ def get_attendance_by_subject(subject_id):
         result.append({
             "id": record.id,
             "student_name": student.name if student else None,
+            "student_id": record.student_id,
             "subject_name": subject.name if subject else None,
             "mark_at": record.mark_at,
             "status": record.status
@@ -71,6 +73,7 @@ def get_all_attendance():
         result.append({
             "id": record.id,
             "student_name": student.name if student else None,
+            "student_id": record.student_id,
             "subject_name": subject.name if subject else None,
             "mark_at": record.mark_at,
             "status": record.status

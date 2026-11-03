@@ -1,5 +1,6 @@
 from src.models import Subject
 from flask import jsonify
+from sqlalchemy.exc import IntegrityError
 from src.db import db
 
 def add_subject(name, teacher_id, course_id):
@@ -65,7 +66,15 @@ def delete_subject(subject_id):
         }), 404
     
     db.session.delete(subject)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Other records still point to this one, so the database refuses
+        db.session.rollback()
+        return jsonify({
+            "message": "Cannot delete this subject because it still has assignments, attendance or results. Delete those first.",
+            "status": "failed"
+        }), 409
     
     return jsonify({
         "message": "Subject deleted successfully",
