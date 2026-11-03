@@ -1317,10 +1317,6 @@ def get_student_attendance(student_id):
     """A student's attendance as tool data. Teachers only get records in subjects they teach."""
     result = to_tool_result(get_attendance_by_student(student_id))
 
-    # The service answers "Student not found" when there are simply no records yet
-    if isinstance(result, dict) and result.get("message") == "Student not found":
-        return {"status": "success", "count": 0, "data": []}
-
     token = get_jwt()
     if token.get("role") == "teacher":
         teacher_id = int(get_jwt_identity())

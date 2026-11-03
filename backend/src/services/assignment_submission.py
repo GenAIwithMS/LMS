@@ -2,8 +2,11 @@ from src.models import AssignmentSubmission,Assignment,Student
 from src.db import db, pakistan_time
 from flask import jsonify
 from werkzeug.utils import secure_filename
+import logging
 import os
 import uuid
+
+logger = logging.getLogger(__name__)
 
 # Uploaded files are kept outside the "static" folder, so nobody can download them
 # without logging in. They are only served through /api/submission/file.
@@ -153,7 +156,7 @@ def get_submissions_by_student(student_id):
                 try:
                     submitted_at_str = submission.submitted_at.isoformat()
                 except Exception as e:
-                    print(f"Error converting date for submission {submission.id}: {e}")
+                    logger.warning("Could not convert the date of submission %s: %s", submission.id, e)
                     submitted_at_str = str(submission.submitted_at)
             
             marks_value = None
@@ -161,7 +164,7 @@ def get_submissions_by_student(student_id):
                 try:
                     marks_value = float(submission.marks)
                 except (ValueError, TypeError) as e:
-                    print(f"Error converting marks for submission {submission.id}: {e}")
+                    logger.warning("Could not convert the marks of submission %s: %s", submission.id, e)
                     marks_value = None
             
             submission_data = {
@@ -181,12 +184,11 @@ def get_submissions_by_student(student_id):
             "data": submission_list,
             "status": "success"
         })
-    except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"Error in get_submissions_by_student: {error_trace}")
+    except Exception:
+        # Full details go to the server log; the browser gets a plain message
+        logger.exception("Could not load the submissions of student %s", student_id)
         return jsonify({
-            "message": f"Error fetching submissions: {str(e)}",
+            "message": "Could not load the submissions. Please try again.",
             "status": "error",
             "data": []
         }), 500
@@ -214,16 +216,14 @@ def get_submissions_by_assignment(assignment_id):
                     students = Student.query.filter(Student.id.in_(tuple(student_ids))).all()
                     student_dict = {student.id: student.name for student in students}
             except Exception as e:
-                print(f"Error fetching students with batch query: {e}")
-                import traceback
-                print(traceback.format_exc())
+                logger.exception("Could not load the students in one query: %s", e)
                 for student_id in student_ids:
                     try:
                         student = Student.query.get(student_id)
                         if student:
                             student_dict[student_id] = student.name
                     except Exception as e2:
-                        print(f"Error fetching student {student_id}: {e2}")
+                        logger.warning("Could not load student %s: %s", student_id, e2)
         
         submission_list = []
         for submission in submissions:
@@ -234,7 +234,7 @@ def get_submissions_by_assignment(assignment_id):
                 try:
                     submitted_at_str = submission.submitted_at.isoformat()
                 except Exception as e:
-                    print(f"Error converting date for submission {submission.id}: {e}")
+                    logger.warning("Could not convert the date of submission %s: %s", submission.id, e)
                     submitted_at_str = str(submission.submitted_at)
             
             marks_value = None
@@ -242,7 +242,7 @@ def get_submissions_by_assignment(assignment_id):
                 try:
                     marks_value = float(submission.marks)
                 except (ValueError, TypeError) as e:
-                    print(f"Error converting marks for submission {submission.id}: {e}")
+                    logger.warning("Could not convert the marks of submission %s: %s", submission.id, e)
                     marks_value = None
             
             submission_data = {
@@ -263,12 +263,11 @@ def get_submissions_by_assignment(assignment_id):
             "data": submission_list,
             "status": "success"
         })
-    except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        print(f"Error in get_submissions_by_assignment: {error_trace}")
+    except Exception:
+        # Full details go to the server log; the browser gets a plain message
+        logger.exception("Could not load the submissions of assignment %s", assignment_id)
         return jsonify({
-            "message": f"Error fetching submissions: {str(e)}",
+            "message": "Could not load the submissions. Please try again.",
             "status": "error",
             "data": []
         }), 500

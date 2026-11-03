@@ -18,6 +18,9 @@ const TeacherSubmissions: React.FC = () => {
   const [sortBy, setSortBy] = useState('id');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const optionsRef = useRef<HTMLDivElement>(null);
+  // The assignment whose submissions were asked for last. When the teacher
+  // switches quickly, an older answer can arrive late; it is then ignored.
+  const latestRequestRef = useRef<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssignment, setSelectedAssignment] = useState<number | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -69,10 +72,8 @@ const TeacherSubmissions: React.FC = () => {
 
   useEffect(() => {
     if (selectedAssignment && selectedAssignment > 0) {
-      console.log('Selected assignment changed, fetching submissions for:', selectedAssignment);
       fetchSubmissions();
     } else {
-      console.log('No valid assignment selected, clearing submissions');
       setSubmissions([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,49 +102,43 @@ const TeacherSubmissions: React.FC = () => {
       setSubmissionsLoading(false);
       return;
     }
+    const requestedAssignment = selectedAssignment;
+    latestRequestRef.current = requestedAssignment;
     try {
       setSubmissionsLoading(true);
-      console.log('Fetching submissions for assignment:', selectedAssignment);
-      const response = await getSubmissionsByAssignment(selectedAssignment);
-      console.log('Submissions API raw response:', response);
-      console.log('Response type:', typeof response);
-      console.log('Is array:', Array.isArray(response));
-      console.log('Response keys:', response && typeof response === 'object' ? Object.keys(response) : 'N/A');
-      
+      const response = await getSubmissionsByAssignment(requestedAssignment);
+
+      // The teacher picked another assignment while this one was loading
+      if (latestRequestRef.current !== requestedAssignment) {
+        return;
+      }
+
       // Handle different response formats
       let submissionsData: Submission[] = [];
       
       if (Array.isArray(response)) {
         // Direct array response
         submissionsData = response;
-        console.log('Using direct array format');
       } else if (response && typeof response === 'object' && response !== null) {
         // Object response - check for data field first
         if (Array.isArray(response.data)) {
           submissionsData = response.data;
-          console.log('Using data.data format, count:', submissionsData.length);
         } else if (Array.isArray(response.submissions)) {
           submissionsData = response.submissions;
-          console.log('Using data.submissions format');
         } else if (response.submission) {
           submissionsData = Array.isArray(response.submission) ? response.submission : [response.submission];
-          console.log('Using data.submission format');
         } else {
           // Try to find any array in the response
           const submissionsArray = Object.values(response).find((val) => Array.isArray(val)) as Submission[] | undefined;
           if (submissionsArray) {
             submissionsData = submissionsArray;
-            console.log('Found array in response values');
           } else {
             // If it's a single object, wrap it in an array
             submissionsData = [response];
-            console.log('Wrapping single object in array');
           }
         }
       }
-      
-      console.log('Raw submissions data before mapping:', submissionsData);
-      
+
       // Ensure all submissions have required fields
       submissionsData = submissionsData.map((submission: any) => {
         const mapped = {
@@ -156,37 +151,29 @@ const TeacherSubmissions: React.FC = () => {
           marks_obtained: submission.marks_obtained !== undefined && submission.marks_obtained !== null ? submission.marks_obtained : (submission.marks !== undefined && submission.marks !== null ? submission.marks : (submission.marksObtained !== undefined && submission.marksObtained !== null ? submission.marksObtained : null)),
           feedback: submission.feedback || '',
         };
-        console.log('Mapped submission:', mapped);
         return mapped;
       });
       
       // Only filter out truly invalid submissions (no ID at all)
-      submissionsData = submissionsData.filter((sub) => {
-        const isValid = sub.id > 0;
-        if (!isValid) {
-          console.log('Filtered out invalid submission:', sub);
-        }
-        return isValid;
-      });
+      submissionsData = submissionsData.filter((sub) => sub.id > 0);
       
-      console.log('Final processed submissions:', submissionsData);
-      console.log('Number of submissions after processing:', submissionsData.length);
       setSubmissions(submissionsData);
     } catch (error: any) {
-      console.error('Error fetching submissions:', error);
-      console.error('Error response:', error.response);
-      console.error('Error data:', error.response?.data);
+      if (latestRequestRef.current !== requestedAssignment) {
+        return;
+      }
       showError(error, 'Failed to fetch submissions');
       setSubmissions([]);
     } finally {
-      setSubmissionsLoading(false);
+      if (latestRequestRef.current === requestedAssignment) {
+        setSubmissionsLoading(false);
+      }
     }
   };
 
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      console.log('Starting to fetch assignments...');
       
       // Add timeout handling
       const timeoutPromise = new Promise((_, reject) => {
@@ -197,9 +184,7 @@ const TeacherSubmissions: React.FC = () => {
         getAssignments(),
         timeoutPromise
       ]) as any;
-      
-      console.log('Assignments API response:', data);
-      
+
       // Handle different response formats
       let assignmentsData: Assignment[] = [];
       
@@ -228,7 +213,6 @@ const TeacherSubmissions: React.FC = () => {
         total_marks: assignment.total_marks || assignment.totalMarks || 100,
       }));
       
-      console.log('Processed assignments:', assignmentsData);
       setAssignments(assignmentsData);
     } catch (error: any) {
       console.error('Error fetching assignments:', error);

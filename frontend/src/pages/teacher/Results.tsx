@@ -58,9 +58,7 @@ const TeacherResults: React.FC = () => {
   const fetchResults = async () => {
     try {
       setLoading(true);
-      console.log('Fetching results...');
       const data = await getResults();
-      console.log('Results API response:', data);
       
       // Handle different response formats
       let resultsData: Result[] = [];
@@ -91,7 +89,6 @@ const TeacherResults: React.FC = () => {
         remarks: result.remarks || '',
       }));
       
-      console.log('Processed results:', resultsData);
       setResults(resultsData);
     } catch (error: any) {
       console.error('Error fetching results:', error);
@@ -104,9 +101,7 @@ const TeacherResults: React.FC = () => {
 
   const fetchStudents = async () => {
     try {
-      console.log('Fetching students for result modal...');
       const data = await getStudents();
-      console.log('Students API response:', data);
       
       // Handle different response formats
       let studentsData: Student[] = [];
@@ -134,7 +129,6 @@ const TeacherResults: React.FC = () => {
         section: student.section || student.section_name || '',
       }));
       
-      console.log('Processed students:', studentsData);
       setStudents(studentsData);
     } catch (error: any) {
       console.error('Failed to fetch students:', error);
@@ -145,9 +139,7 @@ const TeacherResults: React.FC = () => {
 
   const fetchSubjects = async () => {
     try {
-      console.log('Fetching subjects for result modal...');
       const data = await getSubjects();
-      console.log('Subjects API response:', data);
       
       // Handle different response formats
       let subjectsData: Subject[] = [];
@@ -174,7 +166,6 @@ const TeacherResults: React.FC = () => {
         course: subject.course || subject.course_name || '',
       }));
       
-      console.log('Processed subjects:', subjectsData);
       setSubjects(subjectsData);
     } catch (error: any) {
       console.error('Failed to fetch subjects:', error);
@@ -205,15 +196,11 @@ const TeacherResults: React.FC = () => {
     };
     
     try {
-      console.log('Submitting result form data:', submitData);
       if (editingResult) {
-        console.log('Updating result:', editingResult.id);
         await updateResult(editingResult.id, submitData);
         showSuccess('Result updated successfully');
       } else {
-        console.log('Creating new result...');
-        const response = await createResult(submitData);
-        console.log('Create result response:', response);
+        await createResult(submitData);
         showSuccess('Result created successfully');
       }
       setIsModalOpen(false);

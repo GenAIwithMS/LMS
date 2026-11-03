@@ -94,12 +94,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           getEvents()
         ]);
         
-        // Current user ID from auth context
-        const currentUserId = user?.id;
+        // Hide the user's own posts: a teacher's own announcements and the admin's
+        // own events. The id in the login is text, so turn it into a number first,
+        // and check the role too (a teacher and the admin can have the same id).
+        const currentUserId = Number(user?.id);
 
         const combined: Notification[] = [
           ...(Array.isArray(announcements) ? announcements
-            .filter((a: any) => a.teacher_id !== currentUserId) // Filter out self-created announcements
+            .filter((a: any) => !(userRole === 'teacher' && a.teacher_id === currentUserId))
             .slice(0, 5)
             .map((a: any) => ({
               id: `a-${a.id}`,
@@ -109,7 +111,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               creatorId: a.teacher_id
             })) : []),
           ...(Array.isArray(events) ? events
-            .filter((e: any) => e.admin_id !== currentUserId) // Filter out self-created events
+            .filter((e: any) => !(userRole === 'admin' && e.admin_id === currentUserId))
             .slice(0, 5)
             .map((e: any) => ({
               id: `e-${e.id}`,

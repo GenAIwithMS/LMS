@@ -56,12 +56,9 @@ const AdminEnrollments: React.FC = () => {
   });
 
   const fetchEnrollments = async () => {
-    console.log('fetchEnrollments called');
     try {
       setLoading(true);
-      console.log('Calling getEnrollments API...');
       const data = await getEnrollments();
-      console.log('Enrollments API response:', data);
       
       // Handle different response formats
       let enrollmentsData: Enrollment[] = [];
@@ -91,7 +88,6 @@ const AdminEnrollments: React.FC = () => {
         grade: enrollment.grade || '',
       }));
       
-      console.log('Processed enrollments:', enrollmentsData);
       setEnrollments(enrollmentsData);
     } catch (error: any) {
       console.error('Error fetching enrollments:', error);
@@ -121,7 +117,6 @@ const AdminEnrollments: React.FC = () => {
   };
 
   useEffect(() => {
-    console.log('AdminEnrollments component mounted, fetching data...');
     fetchEnrollments();
     fetchStudents();
     fetchCourses();

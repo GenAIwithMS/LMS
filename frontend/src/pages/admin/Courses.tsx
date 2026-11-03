@@ -55,7 +55,6 @@ const AdminCourses: React.FC = () => {
     try {
       setLoading(true);
       const data = await getCourses();
-      console.log('Courses API raw response:', data);
       
       // Handle different response formats
       let coursesData: Course[] = [];
@@ -83,7 +82,6 @@ const AdminCourses: React.FC = () => {
         teacher: course.teacher || course.teacher_name || '',
       }));
       
-      console.log('Courses after processing:', coursesData);
       setCourses(coursesData);
     } catch (error: any) {
       console.error('Error fetching courses:', error);

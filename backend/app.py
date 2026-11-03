@@ -1,5 +1,12 @@
+import logging
 import os
 from src import create_app
+
+# Show the server's log messages (errors, warnings and info) with time and source
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
 
 app = create_app()
 

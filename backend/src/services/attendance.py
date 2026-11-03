@@ -29,12 +29,8 @@ def mark_attend(student_id, subject_id, status):
     }), 201
 
 def get_attendance_by_student(student_id):
+    # No records yet is not an error: the list is simply empty
     id_student = Attendance.query.filter_by(student_id=student_id).all()
-    if not id_student:
-        return jsonify({
-            "message": "Student not found",
-            "status": "error"
-        }), 404
     
     result = []
     for record in id_student:
@@ -51,12 +47,8 @@ def get_attendance_by_student(student_id):
     return jsonify(result)
 
 def get_attendance_by_subject(subject_id):
+    # No records yet is not an error: the list is simply empty
     subject_attendance = Attendance.query.filter_by(subject_id=subject_id).all()
-    if not subject_attendance:
-        return jsonify({
-            "message": "No attendance records found for this subject",
-            "status": "error"
-        }), 404
     
     result = []
     for record in subject_attendance:

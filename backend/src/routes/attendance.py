@@ -79,9 +79,6 @@ def create_attendance():
 def fetch_attendance():
     # Students only ever get their own records, whatever filters they send.
     if get_jwt().get("role") == "student":
-        own_records = Attendance.query.filter_by(student_id=int(get_jwt_identity())).all()
-        if not own_records:
-            return jsonify([]), 200
         return get_attendance_by_student(int(get_jwt_identity()))
 
     student_name = request.args.get('student_name')

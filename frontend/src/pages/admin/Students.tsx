@@ -61,7 +61,6 @@ const AdminStudents: React.FC = () => {
     try {
       setLoading(true);
       const data = await getStudents();
-      console.log('Students API raw response:', data);
       
       // Handle different response formats
       let studentsData: Student[] = [];
@@ -89,7 +88,6 @@ const AdminStudents: React.FC = () => {
         section: student.section || student.section_name || '',
       }));
       
-      console.log('Students after processing:', studentsData);
       setStudents(studentsData);
     } catch (error: any) {
       console.error('Error fetching students:', error);

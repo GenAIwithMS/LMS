@@ -212,9 +212,7 @@ export const createSubject = async (data: { name: string; teacher_name: string; 
 export const getSubjects = async (id?: number) => {
   const url = '/get/subjects';
   const params = id ? { id } : {};
-  console.log('Fetching subjects from:', `${API_BASE_URL}${url}`, params);
   const response = await api.get(url, { params });
-  console.log('Subjects API response:', response.data);
   return response.data;
 };
 
@@ -239,9 +237,7 @@ export const getEnrollments = async (course_name?: string, student_name?: string
   const params: any = {};
   if (course_name) params.course_name = course_name;
   if (student_name) params.student_name = student_name;
-  console.log('Fetching enrollments from:', `${API_BASE_URL}${url}`, params);
   const response = await api.get(url, { params });
-  console.log('Enrollments API response:', response.data);
   return response.data;
 };
 
@@ -264,9 +260,7 @@ export const createAssignment = async (data: { title: string; description: strin
 export const getAssignments = async (id?: number) => {
   const url = '/get/assignments';
   const params = id ? { id } : {};
-  console.log('Fetching assignments from:', `${API_BASE_URL}${url}`, params);
   const response = await api.get(url, { params });
-  console.log('Assignments API response:', response.data);
   return response.data;
 };
 
@@ -290,9 +284,7 @@ export const submitAssignment = async (formData: FormData) => {
 
 export const getSubmissionsByStudent = async (id?: number) => {
   try {
-    console.log('Calling getSubmissionsByStudent with id:', id);
     const response = await api.get('/get/submissions/by/student', { params: id ? { id } : {} });
-    console.log('getSubmissionsByStudent response:', response);
     return response.data;
   } catch (error: any) {
     console.error('getSubmissionsByStudent error:', error);
@@ -365,11 +357,8 @@ export const deleteAttendance = async (id: number, student_name?: string, subjec
 
 // Result
 export const createResult = async (data: { student_id?: number; student_name?: string; subject_name: string; total_marks: number; obtained_marks: number; exam_type: string; remarks: string }) => {
-  console.log('Creating result with data:', data);
-  console.log('API endpoint: POST', `${API_BASE_URL}/create/result`);
   try {
     const response = await api.post('/create/result', data);
-    console.log('Create result API response:', response.data);
     return response.data;
   } catch (error: any) {
     console.error('Create result API error:', error);
@@ -381,9 +370,7 @@ export const createResult = async (data: { student_id?: number; student_name?: s
 export const getResults = async (id?: number) => {
   const url = '/get/result';
   const params = id ? { id } : {};
-  console.log('Fetching results from:', `${API_BASE_URL}${url}`, params);
   const response = await api.get(url, { params });
-  console.log('Results API response:', response.data);
   return response.data;
 };
 

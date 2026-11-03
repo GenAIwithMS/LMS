@@ -56,9 +56,7 @@ const TeacherAttendance: React.FC = () => {
   const fetchAttendance = async () => {
     try {
       setLoading(true);
-      console.log('Fetching attendance...');
       const data = await getAttendance();
-      console.log('Attendance API response:', data);
       
       // Handle different response formats
       let attendanceData: Attendance[] = [];
@@ -87,7 +85,6 @@ const TeacherAttendance: React.FC = () => {
         mark_at: record.mark_at || record.markAt || record.date || new Date().toISOString(),
       }));
       
-      console.log('Processed attendance:', attendanceData);
       setAttendance(attendanceData);
     } catch (error: any) {
       console.error('Error fetching attendance:', error);
@@ -110,7 +107,6 @@ const TeacherAttendance: React.FC = () => {
   const fetchSubjects = async () => {
     try {
       const data = await getSubjects();
-      console.log('Subjects API raw response:', data);
       
       // Handle different response formats
       let subjectsData: Subject[] = [];
@@ -137,7 +133,6 @@ const TeacherAttendance: React.FC = () => {
         course: subject.course || subject.course_name || '',
       }));
       
-      console.log('Processed subjects:', subjectsData);
       setSubjects(subjectsData);
     } catch (error: any) {
       console.error('Error fetching subjects:', error);

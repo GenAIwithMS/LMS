@@ -52,7 +52,6 @@ const AdminSubjects: React.FC = () => {
     try {
       setLoading(true);
       const data = await getSubjects();
-      console.log('Subjects API raw response:', data);
       
       // Handle different response formats
       let subjectsData: Subject[] = [];
@@ -79,7 +78,6 @@ const AdminSubjects: React.FC = () => {
         course: subject.course || subject.course_name || '',
       }));
       
-      console.log('Subjects after processing:', subjectsData);
       setSubjects(subjectsData);
     } catch (error: any) {
       console.error('Error fetching subjects:', error);

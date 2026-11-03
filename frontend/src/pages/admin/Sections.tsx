@@ -49,7 +49,6 @@ const AdminSections: React.FC = () => {
     try {
       setLoading(true);
       const data = await getSections();
-      console.log('Sections API response:', data);
       
       // Handle different response formats
       let sectionsData: Section[] = [];
@@ -74,7 +73,6 @@ const AdminSections: React.FC = () => {
         teacher: section.teacher || section.teacher_name || '',
       }));
       
-      console.log('Processed sections:', sectionsData);
       setSections(sectionsData);
     } catch (error: any) {
       console.error('Error fetching sections:', error);

@@ -56,9 +56,7 @@ const TeacherAssignments: React.FC = () => {
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      console.log('Fetching assignments...');
       const data = await getAssignments();
-      console.log('Assignments API response:', data);
       
       // Handle different response formats
       let assignmentsData: Assignment[] = [];
@@ -88,7 +86,6 @@ const TeacherAssignments: React.FC = () => {
         total_marks: assignment.total_marks || assignment.totalMarks || 100,
       }));
       
-      console.log('Processed assignments:', assignmentsData);
       setAssignments(assignmentsData);
     } catch (error: any) {
       console.error('Error fetching assignments:', error);
@@ -101,9 +98,7 @@ const TeacherAssignments: React.FC = () => {
 
   const fetchSubjects = async () => {
     try {
-      console.log('Fetching subjects for assignment modal...');
       const data = await getSubjects();
-      console.log('Subjects API response:', data);
       
       // Handle different response formats
       let subjectsData: Subject[] = [];
@@ -130,7 +125,6 @@ const TeacherAssignments: React.FC = () => {
         course: subject.course || subject.course_name || '',
       }));
       
-      console.log('Processed subjects:', subjectsData);
       setSubjects(subjectsData);
     } catch (error: any) {
       console.error('Failed to fetch subjects:', error);
