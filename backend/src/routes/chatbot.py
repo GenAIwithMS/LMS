@@ -7,6 +7,7 @@ from langgraph.errors import GraphRecursionError
 from src.agent.main import create_chatbot_graph, ROLE_TOOLS
 from src.models import ChatMessage, PendingAction
 from src.db import db
+from src.extention import limiter, logged_in_user_key
 from langchain_core.messages import HumanMessage, AIMessage
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ def get_waiting_actions(user_role, user_id):
 
 @chatbot_bp.route("/api/chat", methods=["POST"])
 @jwt_required()
+@limiter.limit("20 per minute", key_func=logged_in_user_key)   # each message costs an AI call
 def chat():
     """Chat with the LMS assistant based on user role."""
 

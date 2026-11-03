@@ -6,6 +6,16 @@ from src.schemas import loginSchema, UpdateMyUsernameSchema, ChangeMyPasswordSch
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from src.db import db
 from src.services.users import is_username_taken
+from src.extention import limiter
+from src.models import RevokedToken
+
+
+def revoke_current_token():
+    """Block the token used for this request, so it can't be used again."""
+    jti = get_jwt()["jti"]
+    if not RevokedToken.query.filter_by(jti=jti).first():
+        db.session.add(RevokedToken(jti=jti))
+        db.session.commit()
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -37,6 +47,7 @@ def get_logged_in_user():
 
 
 @auth_bp.route('/api/login', methods=['POST'])
+@limiter.limit("10 per minute")   # slows down password guessing
 def login():
     try:
         data = loginSchema().load(request.get_json())
@@ -68,27 +79,36 @@ def login():
             role = 'student'
 
 
-    if not user:
+    # The same message for a wrong email and a wrong password, so nobody can
+    # find out which emails have an account
+    if not user or not user.check_password(password):
         return jsonify({
             "status": False,
-            "message": "Invalid email"
-        }), 401
-    if not user.check_password(password):
-        return jsonify({
-            "status": False,
-            "message": "Invalid password"
+            "message": "Invalid email or password"
         }), 401
     try:
         token = make_token(user, role)
-    except Exception as e:
+    except Exception:
         return jsonify({
-            "message": f"you have an error: {str(e)}"
-        })
+            "status": False,
+            "message": "Could not log you in. Please try again."
+        }), 500
     return jsonify({
         "status": True,
         "message": "Login successful",
         "token": token
     })
+
+@auth_bp.route("/api/logout", methods=["POST"])
+@jwt_required()
+def logout():
+    """Log out on the server too: this token stops working straight away."""
+    revoke_current_token()
+    return jsonify({
+        "message": "Logged out",
+        "status": "success"
+    })
+
 
 @auth_bp.route("/api/protected", methods=["GET"])
 @jwt_required()
@@ -147,8 +167,10 @@ def update_my_username():
     db.session.commit()
 
     # The old token still has the old username in it, so send a fresh one
+    # and block the old one
     role = get_jwt().get("role")
     new_token = make_token(user, role)
+    revoke_current_token()
 
     return jsonify({
         "message": "Username updated successfully",

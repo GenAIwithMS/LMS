@@ -194,33 +194,57 @@ pip install -r requirements.txt
 CREATE DATABASE llm_LMS;
 ```
 
-2. Create a `.env` file in the `backend/` directory:
+2. Create a `.env` file in the `backend/` directory (copy `backend/.env.example`):
 ```env
 # Database Configuration
 DATABASE_URI=mysql+pymysql://username:password@localhost/llm_LMS
 
-# JWT Configuration
-JWT_SECRET_KEY=your-secret-key-here
+# At least 32 characters, or the server refuses to start. Generate one with:
+#   python -c "import secrets; print(secrets.token_hex(32))"
+JWT_SECRET_KEY=paste-the-generated-value-here
 
-# Flask Configuration
-FLASK_DEBUG=True
+# A login lasts this many minutes, then the user must log in again
+JWT_EXPIRES_MINUTES=30
+
+# The frontend's address (only this website may call the API)
+CORS_ORIGINS=http://localhost:3000
+
+# Only True on your own computer, never on a server
+FLASK_DEBUG=False
 PORT=5000
 
-# Groq API (Optional - for chatbot)
+# Groq API (for the chatbot)
 GROQ_API_KEY=your-groq-api-key-here
 ```
 
 **Note**: Replace `username` and `password` with your MySQL credentials.
 
-#### Run Database Migrations
+#### Create or Update the Database Tables
 
-The database tables will be created automatically when you first run the application.
+Tables are managed with migrations (Flask-Migrate). Run these from the `backend/` folder.
 
-If you are updating an existing database, also run `backend/migrations/add_unique_username_email.sql` once (it makes usernames and emails unique).
+**New, empty database:**
+```bash
+flask --app app db upgrade
+```
+
+**Existing database from before this update** (it already has the original tables):
+```bash
+flask --app app db stamp 0001     # once: "my database already has the original tables"
+flask --app app db upgrade        # adds unique usernames/emails and the new chat and login tables
+```
+If two accounts share a username or email, the upgrade stops and lists them without
+changing anything. Change the username or email of the extra account, then run the upgrade again.
+
+**After changing a model later:**
+```bash
+flask --app app db migrate -m "describe the change"
+flask --app app db upgrade
+```
 
 #### Create the Admin Account
 
-The LMS has a single admin, created once from the terminal. There is no sign-up page or API for admins.
+The LMS has a single admin, created once from the terminal (after the tables exist). There is no sign-up page or API for admins.
 
 ```bash
 python create_admin.py
@@ -235,6 +259,27 @@ python app.py
 ```
 
 The backend will run on `http://localhost:5000`
+
+On a real server use gunicorn instead of `python app.py`:
+```bash
+gunicorn -w 1 -b 0.0.0.0:5000 app:app
+```
+(With more than one worker, set `RATELIMIT_STORAGE_URI` to a Redis address so the workers share their rate-limit counts.)
+
+#### Run the Tests
+
+```bash
+pytest tests -v
+```
+See `backend/tests/README.md`. The tests need no MySQL and no Groq key.
+
+#### Logins and Security
+
+- A login lasts 30 minutes (`JWT_EXPIRES_MINUTES`). The user is logged out the moment it ends.
+- Closing the tab or the browser logs the user out. So does leaving for another website and coming back with the Back button. Refreshing the page keeps the user logged in.
+- Each browser tab has its own login: opening the LMS in a new tab asks for the login again.
+- Logging out also blocks the token on the server, so it can't be reused.
+- Login is limited to 10 attempts a minute per address, and the chatbot to 20 messages a minute per user.
 
 ### 3. Frontend Setup
 
@@ -259,7 +304,7 @@ The API is organized by resource. All endpoints are prefixed with `/api/`.
 
 ### Authentication
 - `POST /api/login` - User login
-- `POST /api/logout` - User logout (if implemented)
+- `POST /api/logout` - Log out (also blocks the token on the server)
 - `GET /api/account` - The logged-in user's own account details
 - `PUT /api/account/username` - Change your own username
 - `PUT /api/account/password` - Change your own password (needs the current password)

@@ -37,7 +37,31 @@ Obtain a JWT token by logging in with valid credentials.
 
 **Error Responses:**
 - `400`: Validation error
-- `401`: Invalid email or password
+- `401`: Invalid email or password (the same message for both, so nobody can find out which emails exist)
+- `429`: More than 10 login attempts in a minute from the same address
+
+A token is valid for 30 minutes (`JWT_EXPIRES_MINUTES`).
+
+### Logout
+**Endpoint:** `POST /api/logout`
+
+**Authentication:** Required
+
+Blocks the token on the server, so it can't be used again even before it expires. Any later request with it gets `401`.
+
+### Paging Lists
+
+Every endpoint that returns a list can be split into pages:
+
+```
+GET /api/get/student?page=2&per_page=50
+```
+
+```json
+{ "data": [ ... ], "page": 2, "per_page": 50, "total": 230, "pages": 5 }
+```
+
+Without `page`, the whole list is returned in its usual shape. `per_page` is at most 200.
 
 ---
 
