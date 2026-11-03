@@ -3,6 +3,7 @@ import type {
   LoginCredentials,
   AuthResponse,
 } from '../types';
+import { getSavedLogin, clearSavedLogin } from '../utils/session';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -16,7 +17,7 @@ const api = axios.create({
 
 // Add token to requests
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = getSavedLogin();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -51,8 +52,7 @@ api.interceptors.response.use(
     const isBadToken = status === 422 && error.response?.data && typeof error.response.data.msg === 'string';
 
     if (status === 401 || isBadToken) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearSavedLogin();
 
       // Only redirect if not already on login page. "expired=1" tells the login page to explain why.
       if (window.location.pathname !== '/login') {
@@ -67,6 +67,16 @@ api.interceptors.response.use(
 export const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
   const response = await api.post<AuthResponse>('/login', credentials);
   return response.data;
+};
+
+// Log out on the server too, so the token stops working straight away.
+// A token can be passed in when it is no longer saved (for example after the user left the site).
+export const logoutOnServer = async (token?: string) => {
+  const headers: any = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  await api.post('/logout', {}, { headers });
 };
 
 // My Account (any logged-in user)
