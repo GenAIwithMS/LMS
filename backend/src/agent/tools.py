@@ -1130,8 +1130,8 @@ def get_submissions_by_student_tool(student_name=None, student_id=None):
         student_id: The student's ID, only needed when several students share the name
     """
     token = get_jwt()
-    if token.get("role") not in ["admin", "teacher"]:
-        return {"message": "Unauthorized access", "status": "failed"}
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can view submissions", "status": "failed"}
 
     student, error = find_student(student_name, student_id)
     if error:
@@ -1161,8 +1161,8 @@ def get_submissions_by_assignment_tool(assignment_id):
         assignment_id: The ID of the assignment
     """
     token = get_jwt()
-    if token.get("role") not in ["admin", "teacher"]:
-        return {"message": "Unauthorized access", "status": "failed"}
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can view submissions", "status": "failed"}
 
     if not can_access_assignment(assignment_id):
         return {"message": f"No assignment with ID {assignment_id} among your assignments", "status": "failed"}

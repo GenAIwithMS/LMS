@@ -4,6 +4,7 @@ from src.schemas import assignmentSchema,UpdateAssignmentSchema
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from src.models import Subject
+from src.services.access import find_teacher_subject, teacher_owns_assignment, get_teacher_assignment_ids, filter_response_by_ids
 
 assignment_bp = Blueprint("assignment", __name__)
 
@@ -30,10 +31,10 @@ def create_assign():
     teacher_id = int(get_jwt_identity())  
     total_marks = data.get("total_marks")
 
-    subject = Subject.query.filter_by(name=subject_name).first()
+    subject = find_teacher_subject(teacher_id, subject_name)
     if not subject:
         return jsonify({
-            "message": "Subject not found",
+            "message": "Subject not found among the subjects you teach",
             "status": "failed"
         }), 400
 
@@ -43,11 +44,23 @@ def create_assign():
 @assignment_bp.route("/api/get/assignments", methods=["GET"])
 @jwt_required()
 def get_assignments():
+    token = get_jwt()
+    user_role = token["role"]
+    user_id = int(get_jwt_identity())
+
     assignment_id = request.args.get("id", type=int)
     if assignment_id:
+        if user_role == "teacher" and not teacher_owns_assignment(user_id, assignment_id):
+            return jsonify({
+                "message": "You can only view your own assignments",
+                "status": "failed"
+            }), 403
         result = get_assignment_by_id(assignment_id)
     else:
         result = get_all_assignments()
+        # A teacher only sees their own assignments
+        if user_role == "teacher":
+            result = filter_response_by_ids(result, get_teacher_assignment_ids(user_id))
     return result
 
 @assignment_bp.route("/api/update/assignments/", methods=["PUT"])
@@ -57,7 +70,7 @@ def update_assignment():
     token = get_jwt()
     if token["role"] != "teacher":
         return jsonify({
-            "message":"only teachers can create assignment",
+            "message":"only teachers can update assignments",
             "status":"failed"
         }),403
     
@@ -67,6 +80,14 @@ def update_assignment():
             "message": "Assignment ID is required",
             "status": "error"
         }), 400
+
+    teacher_id = int(get_jwt_identity())
+    if not teacher_owns_assignment(teacher_id, assignment_id):
+        return jsonify({
+            "message": "You can only update your own assignments",
+            "status": "failed"
+        }), 403
+
     try:
         data = UpdateAssignmentSchema().load(request.get_json())
     except ValidationError as e:
@@ -75,9 +96,9 @@ def update_assignment():
     kwargs = {}
     for key, value in data.items():
         if key == 'subject_name':
-            subject = Subject.query.filter_by(name=value).first()
+            subject = find_teacher_subject(teacher_id, value)
             if not subject:
-                return jsonify({"message": "Subject not found", "status": "failed"}), 400
+                return jsonify({"message": "Subject not found among the subjects you teach", "status": "failed"}), 400
             kwargs['subject_id'] = subject.id
         else:
             kwargs[key] = value
@@ -92,7 +113,7 @@ def delete_assig():
     token = get_jwt()
     if token["role"] != "teacher":
         return jsonify({
-            "message":"only teachers can create assignment",
+            "message":"only teachers can delete assignments",
             "status":"failed"
         }),403
     
@@ -102,6 +123,13 @@ def delete_assig():
             "message": "Assignment ID is required",
             "status": "error"
         }), 400
+
+    teacher_id = int(get_jwt_identity())
+    if not teacher_owns_assignment(teacher_id, assignment_id):
+        return jsonify({
+            "message": "You can only delete your own assignments",
+            "status": "failed"
+        }), 403
 
     result = delete_assignment(assignment_id)
     return result

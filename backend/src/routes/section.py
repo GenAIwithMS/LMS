@@ -2,7 +2,8 @@ from src.services import add_section,get_all_sections,get_section_by_id,edit_sec
 from flask import Blueprint, request, jsonify
 from src.schemas import SectionSchema,UpdateSectionSchema
 from marshmallow import ValidationError
-from flask_jwt_extended import jwt_required,get_jwt
+from flask_jwt_extended import jwt_required,get_jwt,get_jwt_identity
+from src.services.access import get_teacher_section_ids, filter_response_by_ids
 from src.models import Teacher
 
 section_bp = Blueprint("section", __name__)
@@ -42,6 +43,10 @@ def get_sec():
     section_id = request.args.get("id", type=int)
     if section_id is None:
         result = get_all_sections()
+        # A teacher only sees their own sections
+        if get_jwt().get("role") == "teacher":
+            teacher_id = int(get_jwt_identity())
+            result = filter_response_by_ids(result, get_teacher_section_ids(teacher_id))
         return result
 
     result = get_section_by_id(section_id)

@@ -1,6 +1,4 @@
-from src.db import db
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from src.db import db, pakistan_time
 
 class Event(db.Model):
     __tablename__ = 'events'
@@ -10,6 +8,6 @@ class Event(db.Model):
     event_date = db.Column(db.Date, nullable=False)
     event_time = db.Column(db.Time, nullable=True)
     admin_id = db.Column(db.BigInteger,db.ForeignKey("admin.id"), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now(ZoneInfo("Asia/Karachi")))
+    created_at = db.Column(db.DateTime, default=pakistan_time)
 
     admin = db.relationship('Admin', backref='events', lazy=True)

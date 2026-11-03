@@ -1,6 +1,6 @@
 from src.services import enroll_student,get_enrollments_by_course,get_enrollments_by_student,update_enrollment,delete_enrollment,get_all_enrollments
 from src.schemas import EnrollmentSchema,UpdateEnrollmentSchema
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from flask import jsonify,Blueprint,request
 from marshmallow import ValidationError
 from src.models import Student,Course
@@ -57,6 +57,18 @@ def enroll_stu():
 @enrollment_bp.route("/api/get/enrollments", methods=["GET"])
 @jwt_required()
 def get_enrollments():
+    # Enrollments include grades, so only the admin sees everyone's.
+    # A student only sees their own; teachers use their own pages instead.
+    token = get_jwt()
+    if token["role"] == "student":
+        student_id = int(get_jwt_identity())
+        return get_enrollments_by_student(student_id)
+    if token["role"] != "admin":
+        return jsonify({
+            "message": "Only the admin can view enrollments",
+            "status": "failed"
+        }), 403
+
     course_name = request.args.get("course_name")
     if course_name:
         course = Course.query.filter_by(name=course_name).first()

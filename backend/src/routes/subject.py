@@ -2,7 +2,8 @@ from src.services import add_subject, get_all_subjects, get_subject_by_id, delet
 from src.schemas import subjectSchema,UpdateSubjectSchema
 from marshmallow import ValidationError
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
+from src.services.access import get_teacher_subject_ids, filter_response_by_ids
 from src.models import Teacher,Course
 
 subject_bp = Blueprint("subject", __name__)
@@ -50,7 +51,12 @@ def get_subj():
     subject_id = request.args.get("id", type=int)
 
     if subject_id is None:
-        return get_all_subjects()
+        result = get_all_subjects()
+        # A teacher only sees the subjects they teach
+        if get_jwt().get("role") == "teacher":
+            teacher_id = int(get_jwt_identity())
+            result = filter_response_by_ids(result, get_teacher_subject_ids(teacher_id))
+        return result
         
 
     result = get_subject_by_id(subject_id)

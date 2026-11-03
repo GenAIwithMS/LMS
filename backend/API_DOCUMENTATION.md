@@ -815,7 +815,8 @@ The script asks for name, email, username and password, and refuses to run if an
 
 **Access Control:**
 - Students: Can only view their own submissions
-- Teachers/Admins: Can view any student's submissions
+- Teachers: Only that student's submissions to their own assignments
+- Admin: No access (teachers check submissions)
 
 **Response:**
 ```json
@@ -839,7 +840,7 @@ The script asks for name, email, username and password, and refuses to run if an
 **Query Parameters:**
 - `id` (required): Assignment ID
 
-**Access Control:** Admins, and the teacher of the assignment. Students get 403.
+**Access Control:** The teacher of the assignment only. Students and the admin get 403.
 
 **Response:**
 ```json
@@ -882,7 +883,7 @@ The script asks for name, email, username and password, and refuses to run if an
 #### Delete Submission
 **Endpoint:** `DELETE /api/delete/submission`
 
-**Authentication:** Required (admin, or the teacher of the assignment). Students cannot delete submissions.
+**Authentication:** Required (the teacher of the assignment only). Students and the admin cannot delete submissions.
 
 **Query Parameters:**
 - `id` (required): Submission ID
@@ -898,7 +899,7 @@ The script asks for name, email, username and password, and refuses to run if an
 #### Download Submission File
 **Endpoint:** `GET /api/submission/file`
 
-**Authentication:** Required (the student who submitted it, the teacher of the assignment, or the admin)
+**Authentication:** Required (the student who submitted it, or the teacher of the assignment)
 
 **Query Parameters:**
 - `id` (required): Submission ID

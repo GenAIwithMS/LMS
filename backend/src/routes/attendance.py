@@ -4,6 +4,25 @@ from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt,get_jwt_identity
 from src.models import Student,Attendance,Subject
+from src.services.access import find_teacher_student, find_teacher_subject, get_teacher_subject_ids, filter_response_by_ids
+
+
+def teacher_can_access_attendance(teacher_id, attendance_id):
+    """True if the attendance record is in a subject this teacher teaches."""
+    record = Attendance.query.get(attendance_id)
+    if not record:
+        return False
+    return record.subject_id in get_teacher_subject_ids(teacher_id)
+
+
+def get_teacher_attendance_ids(teacher_id):
+    """IDs of all attendance records in the subjects this teacher teaches."""
+    attendance_ids = []
+    for subject_id in get_teacher_subject_ids(teacher_id):
+        records = Attendance.query.filter_by(subject_id=subject_id).all()
+        for record in records:
+            attendance_ids.append(record.id)
+    return attendance_ids
 
 attendance_bp = Blueprint('attendance', __name__)
 
@@ -26,18 +45,19 @@ def create_attendance():
     student_name = data['student_name']
     subject_name = data['subject_name']
     status = data['status']
+    teacher_id = int(get_jwt_identity())
 
-    student = Student.query.filter_by(name=student_name).first()
+    student = find_teacher_student(teacher_id, student_name)
     if not student:
         return jsonify({
-            "message": "Student not found",
+            "message": "Student not found among your students",
             "status": "failed"
         }), 400
 
-    subject = Subject.query.filter_by(name=subject_name).first()
+    subject = find_teacher_subject(teacher_id, subject_name)
     if not subject:
         return jsonify({
-            "message": "Subject not found",
+            "message": "Subject not found among the subjects you teach",
             "status": "failed"
         }), 400
 
@@ -64,7 +84,7 @@ def fetch_attendance():
                 "message": "Student not found",
                 "status": "failed"
             }), 400
-        return get_attendance_by_student(student.id)
+        result = get_attendance_by_student(student.id)
     elif subject_name:
         subject = Subject.query.filter_by(name=subject_name).first()
         if not subject:
@@ -72,9 +92,16 @@ def fetch_attendance():
                 "message": "Subject not found",
                 "status": "failed"
             }), 400
-        return get_attendance_by_subject(subject.id)
+        result = get_attendance_by_subject(subject.id)
     else:
-        return get_all_attendance()
+        result = get_all_attendance()
+
+    # A teacher only sees attendance in the subjects they teach
+    if get_jwt().get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        result = filter_response_by_ids(result, get_teacher_attendance_ids(teacher_id))
+
+    return result
     
 @attendance_bp.route("/api/update/attendance", methods=["PUT"])
 @jwt_required()
@@ -94,26 +121,33 @@ def modify_attendance():
             "status": "error"
         }), 400
 
+    teacher_id = int(get_jwt_identity())
+    if not teacher_can_access_attendance(teacher_id, int(attendance_id)):
+        return jsonify({
+            "message": "You can only update attendance in subjects you teach",
+            "status": "failed"
+        }), 403
+
     try:
         data = UpdateAttendanceSchema().load(request.get_json())
     except ValidationError as err:
         return jsonify(err.messages), 400
 
     if 'student_name' in data:
-        student = Student.query.filter_by(name=data['student_name']).first()
+        student = find_teacher_student(teacher_id, data['student_name'])
         if not student:
             return jsonify({
-                "message": "Student not found",
+                "message": "Student not found among your students",
                 "status": "failed"
             }), 400
         data['student_id'] = student.id
         del data['student_name']
 
     if 'subject_name' in data:
-        subject = Subject.query.filter_by(name=data['subject_name']).first()
+        subject = find_teacher_subject(teacher_id, data['subject_name'])
         if not subject:
             return jsonify({
-                "message": "Subject not found",
+                "message": "Subject not found among the subjects you teach",
                 "status": "failed"
             }), 400
         data['subject_id'] = subject.id
@@ -133,8 +167,15 @@ def remove_attendance():
             "status":"failed"
         }),403
     
+    teacher_id = int(get_jwt_identity())
+
     attendance_id = request.args.get('id', type=int)
     if attendance_id:
+        if not teacher_can_access_attendance(teacher_id, attendance_id):
+            return jsonify({
+                "message": "You can only delete attendance in subjects you teach",
+                "status": "failed"
+            }), 403
         result = delete_attendance(attendance_id)
         return result
     
@@ -147,17 +188,17 @@ def remove_attendance():
             "status": "error"
         }), 400
 
-    student = Student.query.filter_by(name=student_name).first()
+    student = find_teacher_student(teacher_id, student_name)
     if not student:
         return jsonify({
-            "message": "Student not found",
+            "message": "Student not found among your students",
             "status": "failed"
         }), 400
 
-    subject = Subject.query.filter_by(name=subject_name).first()
+    subject = find_teacher_subject(teacher_id, subject_name)
     if not subject:
         return jsonify({
-            "message": "Subject not found",
+            "message": "Subject not found among the subjects you teach",
             "status": "failed"
         }), 400
 

@@ -1,24 +1,16 @@
 from src.services import submit_assignment,get_submissions_by_assignment,get_submissions_by_student,update_submission,delete_submission,get_submission_file_path
 from flask import Blueprint, request, jsonify, send_file
 from src.schemas import UpdateAssignmentSubmissionSchema
-from src.models import Assignment, AssignmentSubmission
+from src.models import AssignmentSubmission
+from src.services.access import teacher_owns_assignment, get_teacher_assignment_ids, filter_response_by_ids
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt_identity, get_jwt
 import os
 
+# Submissions are checked by teachers. A student sees only their own submissions,
+# a teacher only the submissions to their own assignments. The admin has no access.
+
 assignment_submission_bp = Blueprint("assignment_submission", __name__)
-
-
-def teacher_owns_assignment(teacher_id, assignment_id):
-    """True if the teacher created this assignment or teaches its subject."""
-    assignment = Assignment.query.get(assignment_id)
-    if not assignment:
-        return False
-    if assignment.teacher_id == teacher_id:
-        return True
-    if assignment.subject and assignment.subject.teacher_id == teacher_id:
-        return True
-    return False
 
 @assignment_submission_bp.route("/api/submit/assignment", methods=["POST"])
 @jwt_required()
@@ -54,6 +46,12 @@ def get_submissions_student():
     user_role = token["role"]
     user_id = int(get_jwt_identity())
     
+    if user_role not in ["student", "teacher"]:
+        return jsonify({
+            "message": "Only teachers and students can view submissions",
+            "status": "failed"
+        }), 403
+
     student_id = request.args.get("id", type=int)
     if not student_id:
         if user_role == "student":
@@ -71,6 +69,16 @@ def get_submissions_student():
         }), 403
 
     result = get_submissions_by_student(student_id)
+
+    # A teacher only sees this student's submissions to their own assignments
+    if user_role == "teacher":
+        allowed_ids = []
+        for assignment_id in get_teacher_assignment_ids(user_id):
+            submissions = AssignmentSubmission.query.filter_by(assignment_id=assignment_id, student_id=student_id).all()
+            for submission in submissions:
+                allowed_ids.append(submission.id)
+        result = filter_response_by_ids(result, allowed_ids)
+
     return result
 
 @assignment_submission_bp.route("/api/get/submissions/by/assignment", methods=["GET"])
@@ -80,10 +88,10 @@ def get_submissions_assignment():
     user_role = token["role"]
     user_id = int(get_jwt_identity())
 
-    # Students must not see other students' submissions
-    if user_role == "student":
+    # Only the assignment's teacher can see all its submissions
+    if user_role != "teacher":
         return jsonify({
-            "message": "Only teachers and admins can view all submissions for an assignment",
+            "message": "Only teachers can view all submissions for an assignment",
             "status": "failed"
         }), 403
 
@@ -95,7 +103,7 @@ def get_submissions_assignment():
                 "status": "error"
             }), 400
 
-        if user_role == "teacher" and not teacher_owns_assignment(user_id, assignment_id):
+        if not teacher_owns_assignment(user_id, assignment_id):
             return jsonify({
                 "message": "You can only view submissions for your own assignments",
                 "status": "failed"
@@ -163,12 +171,11 @@ def update_subm():
 @jwt_required()
 def delete_subm():
     token = get_jwt()
-    user_role = token["role"]
 
     # Students can submit, but never delete a submission
-    if user_role not in ["admin", "teacher"]:
+    if token["role"] != "teacher":
         return jsonify({
-            "message": "Only teachers and admins can delete submissions",
+            "message": "Only teachers can delete submissions",
             "status": "failed"
         }), 403
 
@@ -186,13 +193,12 @@ def delete_subm():
             "status": "error"
         }), 404
 
-    if user_role == "teacher":
-        teacher_id = int(get_jwt_identity())
-        if not teacher_owns_assignment(teacher_id, submission.assignment_id):
-            return jsonify({
-                "message": "You can only delete submissions for your own assignments",
-                "status": "failed"
-            }), 403
+    teacher_id = int(get_jwt_identity())
+    if not teacher_owns_assignment(teacher_id, submission.assignment_id):
+        return jsonify({
+            "message": "You can only delete submissions for your own assignments",
+            "status": "failed"
+        }), 403
 
     result = delete_submission(submission_id)
     return result
@@ -201,11 +207,17 @@ def delete_subm():
 @assignment_submission_bp.route("/api/submission/file", methods=["GET"])
 @jwt_required()
 def download_submission_file():
-    """Download a submission's file. Allowed for the student who submitted it,
-    the teacher of the assignment, and the admin."""
+    """Download a submission's file. Allowed for the student who submitted it
+    and the teacher of the assignment."""
     token = get_jwt()
     user_role = token["role"]
     user_id = int(get_jwt_identity())
+
+    if user_role not in ["student", "teacher"]:
+        return jsonify({
+            "message": "Only teachers and students can download submissions",
+            "status": "failed"
+        }), 403
 
     submission_id = request.args.get("id", type=int)
     if not submission_id:

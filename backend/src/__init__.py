@@ -1,6 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 from src.db import db
 from src.extention import bcrypt , jwt
@@ -34,6 +35,10 @@ def create_app():
          supports_credentials=True) 
 
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
+
+    # How long a login lasts. The library default is only 15 minutes.
+    login_hours = int(os.getenv("JWT_EXPIRES_HOURS", "8"))
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=login_hours)
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
         "DATABASE_URI"
     )

@@ -1,6 +1,4 @@
-from src.db import db
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from src.db import db, pakistan_time
 
 
 class Announcement(db.Model):
@@ -11,7 +9,7 @@ class Announcement(db.Model):
     teacher_id = db.Column(db.BigInteger, db.ForeignKey('teachers.id'), nullable=False)
     target_audience = db.Column(db.String(50), default='all')
     section_id = db.Column(db.BigInteger, db.ForeignKey('sections.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.now(ZoneInfo("Asia/Karachi")))
+    created_at = db.Column(db.DateTime, default=pakistan_time)
 
     section = db.relationship("Section", backref="announcements",lazy=True)
     teacher = db.relationship("Teacher", backref="announcements",lazy=True)

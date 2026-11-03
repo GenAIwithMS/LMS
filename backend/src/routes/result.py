@@ -4,6 +4,15 @@ from marshmallow import ValidationError
 from src.schemas import ResultSchema,UpdateResultSchema
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from src.models import Student,Result,Subject 
+from src.services.access import find_teacher_student, find_teacher_subject, get_teacher_subject_ids, filter_response_by_ids
+
+
+def teacher_can_access_result(teacher_id, result_id):
+    """True if the result is in a subject this teacher teaches."""
+    result = Result.query.get(result_id)
+    if not result:
+        return False
+    return result.subject_id in get_teacher_subject_ids(teacher_id)
 
 result_bp = Blueprint("result", __name__)
 
@@ -30,18 +39,19 @@ def create_res():
     obtained_marks = data.get("obtained_marks")
     exam_type = data.get("exam_type")
     remarks = data.get("remarks")
+    teacher_id = int(get_jwt_identity())
 
-    subject = Subject.query.filter_by(name=subject_name).first()
+    subject = find_teacher_subject(teacher_id, subject_name)
     if not subject:
         return jsonify({
-            "message": "Subject not found",
+            "message": "Subject not found among the subjects you teach",
             "status": "failed"
         }), 400
 
-    student = Student.query.filter_by(name=student_name).first()
+    student = find_teacher_student(teacher_id, student_name)
     if not student:
         return jsonify({
-            "message": "Student not found",
+            "message": "Student not found among your students",
             "status": "failed"
         }), 400
     
@@ -69,6 +79,13 @@ def get_res():
                     "message": "You can only view your own results",
                     "status": "failed"
                 }), 403
+        if user_role == "teacher":
+            teacher_id = int(get_jwt_identity())
+            if not teacher_can_access_result(teacher_id, result_id):
+                return jsonify({
+                    "message": "You can only view results in subjects you teach",
+                    "status": "failed"
+                }), 403
         result = get_result_by_id(result_id)
         return result
     
@@ -76,7 +93,17 @@ def get_res():
         user_id = int(get_jwt_identity())
         result = get_results_by_student(user_id)
         return result
-    elif user_role == "teacher" or user_role == "admin":
+    elif user_role == "teacher":
+        # A teacher only sees results in the subjects they teach
+        teacher_id = int(get_jwt_identity())
+        allowed_ids = []
+        for subject_id in get_teacher_subject_ids(teacher_id):
+            results = Result.query.filter_by(subject_id=subject_id).all()
+            for item in results:
+                allowed_ids.append(item.id)
+        result = filter_response_by_ids(get_all_results(), allowed_ids)
+        return result
+    elif user_role == "admin":
         result = get_all_results()
         return result
     else:
@@ -102,6 +129,14 @@ def update_res():
             "message": "Result ID is required",
             "status": "error"
         }), 400
+
+    teacher_id = int(get_jwt_identity())
+    if not teacher_can_access_result(teacher_id, result_id):
+        return jsonify({
+            "message": "You can only update results in subjects you teach",
+            "status": "failed"
+        }), 403
+
     try:
         data = UpdateResultSchema().load(request.get_json())
     except ValidationError as e:
@@ -110,14 +145,14 @@ def update_res():
     kwargs = {}
     for key, value in data.items():
         if key == 'student_name':
-            student = Student.query.filter_by(name=value).first()
+            student = find_teacher_student(teacher_id, value)
             if not student:
-                return jsonify({"message": "Student not found", "status": "failed"}), 400
+                return jsonify({"message": "Student not found among your students", "status": "failed"}), 400
             kwargs['student_id'] = student.id
         elif key == 'subject_name':
-            subject = Subject.query.filter_by(name=value).first()
+            subject = find_teacher_subject(teacher_id, value)
             if not subject:
-                return jsonify({"message": "Subject not found", "status": "failed"}), 400
+                return jsonify({"message": "Subject not found among the subjects you teach", "status": "failed"}), 400
             kwargs['subject_id'] = subject.id
         else:
             kwargs[key] = value
@@ -142,6 +177,13 @@ def delete_res():
             "message": "Result ID is required",
             "status": "error"
         }), 400
+
+    teacher_id = int(get_jwt_identity())
+    if not teacher_can_access_result(teacher_id, result_id):
+        return jsonify({
+            "message": "You can only delete results in subjects you teach",
+            "status": "failed"
+        }), 403
 
     result = delete_result(result_id)
     return result

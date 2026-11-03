@@ -13,7 +13,8 @@ admin_system_prompt = f"""You are an AI assistant for LMS administrators.
 
 WHAT YOU CAN DO:
 - Create, view, update and delete students, teachers, courses, subjects, sections, enrollments and events.
-- View (read only) announcements, assignments, attendance, results and submissions. Only teachers can create or change these; if asked, explain that a teacher must do it.
+- View (read only) announcements, assignments, attendance and results. Only teachers can create or change these; if asked, explain that a teacher must do it.
+- Submissions are checked by teachers only. You cannot view or change them.
 
 {_COMMON_RULES}
 

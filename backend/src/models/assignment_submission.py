@@ -1,6 +1,4 @@
-from src.db import db
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from src.db import db, pakistan_time
 
 class AssignmentSubmission(db.Model):
     __tablename__ = 'assignment_submission'
@@ -9,7 +7,7 @@ class AssignmentSubmission(db.Model):
     assignment_id = db.Column(db.BigInteger, db.ForeignKey('assignments.id'), nullable=False)
     submission_text = db.Column(db.Text, nullable=True)
     submission_file = db.Column(db.String(500), nullable=True)
-    submitted_at = db.Column(db.DateTime, default=datetime.now(ZoneInfo("Asia/Karachi")))
+    submitted_at = db.Column(db.DateTime, default=pakistan_time)
     marks = db.Column(db.Numeric(5, 2), nullable=True)
     feedback = db.Column(db.Text, nullable=True)
 
