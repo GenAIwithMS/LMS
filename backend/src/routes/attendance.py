@@ -2,7 +2,7 @@ from src.schemas import AttendanceSchema, UpdateAttendanceSchema
 from src.services import mark_attend, get_attendance_by_student,get_attendance_by_subject,get_all_attendance,update_attendance,delete_attendance
 from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
-from flask_jwt_extended import jwt_required,get_jwt
+from flask_jwt_extended import jwt_required,get_jwt,get_jwt_identity
 from src.models import Student,Attendance,Subject
 
 attendance_bp = Blueprint('attendance', __name__)
@@ -47,6 +47,13 @@ def create_attendance():
 @attendance_bp.route("/api/get/attendance", methods=["GET"])
 @jwt_required()
 def fetch_attendance():
+    # Students only ever get their own records, whatever filters they send.
+    if get_jwt().get("role") == "student":
+        own_records = Attendance.query.filter_by(student_id=int(get_jwt_identity())).all()
+        if not own_records:
+            return jsonify([]), 200
+        return get_attendance_by_student(int(get_jwt_identity()))
+
     student_name = request.args.get('student_name')
     subject_name = request.args.get('subject_name')
 

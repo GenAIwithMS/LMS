@@ -5,8 +5,8 @@ class Admin(db.Model):
     __tablename__ = 'admin'
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     name = db.Column(db.String(255), nullable=False)
-    username = db.Column(db.String(255), nullable=False)
-    email = db.Column(db.String(255), nullable=False)
+    username = db.Column(db.String(255), nullable=False, unique=True)
+    email = db.Column(db.String(255), nullable=False, unique=True)
     password = db.Column(db.String(255), nullable=False)
 
     def set_password(self, password):

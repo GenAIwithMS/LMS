@@ -1,18 +1,17 @@
 from src.models import Student,Enrollment
+from src.services.users import is_email_taken, is_username_taken
 from flask import jsonify
 from src.db import db
 
 
 
 def add_students(name, username, section, password, email):
-    existing_email = Student.query.filter_by(email=email).first()
-    if existing_email:
+    if is_email_taken(email):
         return jsonify({
             "message":"Email already exists",
             "status":"failed"
         }), 400
-    existing_username = Student.query.filter_by(username=username).first()
-    if existing_username:
+    if is_username_taken(username):
         return jsonify({
             "message":"Username already exists",
             "status":"failed"
@@ -85,6 +84,17 @@ def update_student(student_id, **kwargs):
             "status":"failed"
         }), 400
     
+    if "email" in kwargs and is_email_taken(kwargs["email"], current_user=student):
+        return jsonify({
+            "message":"Email already exists",
+            "status":"failed"
+        }), 400
+    if "username" in kwargs and is_username_taken(kwargs["username"], current_user=student):
+        return jsonify({
+            "message":"Username already exists",
+            "status":"failed"
+        }), 400
+
     for key, value in kwargs.items():
         if value is not None and hasattr(student, key):
             setattr(student, key, value)
