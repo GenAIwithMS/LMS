@@ -1,10 +1,11 @@
 from flask import Flask, jsonify
 from sqlalchemy.exc import IntegrityError
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
-from src.db import db
+from src.db import db, pakistan_time_naive
 from src.services.pagination import paginate_list_response
 from src.extention import bcrypt , jwt, limiter, migrate
 from src.models import Student, Teacher, Admin, Assignment, Attendance,Result,Subject,Course,Announcement,AssignmentSubmission,Enrollment,Event,Message,Section,RevokedToken
@@ -42,6 +43,26 @@ def create_app():
     # static_folder=None: Flask serves no public files. Older versions saved uploaded
     # submissions in src/static, where anyone could download them without logging in.
     app = Flask(__name__, static_folder=None)
+
+    # Behind a reverse proxy (nginx etc.), every request seems to come from the
+    # proxy. Set TRUSTED_PROXY_COUNT=1 (one proxy) so the real visitor address is
+    # used for rate limits. Leave it at 0 when the app is reached directly,
+    # otherwise visitors could fake their address.
+    proxy_count = int(os.getenv("TRUSTED_PROXY_COUNT", "0"))
+    if proxy_count > 0:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=proxy_count, x_host=proxy_count)
+
+    # Safe headers on every API answer
+    @app.after_request
+    def add_security_headers(response):
+        # Don't let the browser guess a file's type (an uploaded file can't run as a web page)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        # The API never needs to be shown inside another site's frame
+        response.headers["X-Frame-Options"] = "DENY"
+        # The API only sends data and files, never pages with scripts
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return response
 
     # Largest upload allowed (10 MB). Bigger files get a 413 error.
     app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
@@ -109,7 +130,9 @@ def create_app():
     # A token that was logged out can't be used again, even before it expires
     @jwt.token_in_blocklist_loader
     def is_token_revoked(jwt_header, jwt_payload):
-        revoked = RevokedToken.query.filter_by(jti=jwt_payload["jti"]).first()
+        now = pakistan_time_naive()
+        revoked = RevokedToken.query.filter(RevokedToken.jti == jwt_payload["jti"],
+                                            RevokedToken.revoked_at <= now).first()
         return revoked is not None
 
     @jwt.revoked_token_loader

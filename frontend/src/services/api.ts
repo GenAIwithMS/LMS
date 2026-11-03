@@ -81,6 +81,21 @@ export const logoutOnServer = async (token?: string) => {
   await api.post('/logout', {}, { headers });
 };
 
+// Tell the server this tab is being closed or left. Its login is then blocked
+// a few seconds later, unless the page comes back (a refresh) and calls
+// keepLoginAfterRefresh. sendBeacon still gets through while the page closes;
+// it can't send headers, so the token goes in the body.
+export const sendTabClosingSignal = (token: string) => {
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(API_BASE_URL + '/logout/closing', new Blob([token], { type: 'text/plain' }));
+  }
+};
+
+// The page was refreshed: cancel the block that the closing signal scheduled
+export const keepLoginAfterRefresh = async () => {
+  await api.post('/logout/stay');
+};
+
 // My Account (any logged-in user)
 export const getMyAccount = async () => {
   const response = await api.get('/account');
@@ -444,7 +459,7 @@ export const clearChatHistory = async () => {
   return response.data;
 };
 
-// The user clicked Confirm (approve = true) or Cancel on a delete the assistant asked for
+// The user clicked Confirm (approve = true) or Cancel on a delete or edit the assistant asked for
 export const answerChatAction = async (action_id: number, approve: boolean) => {
   const response = await api.post('/chat/confirm', { action_id, approve });
   return response.data;

@@ -12,3 +12,12 @@ def pakistan_time():
     server starts, and gives every row the same time.
     """
     return datetime.now(ZoneInfo("Asia/Karachi"))
+
+
+def pakistan_time_naive():
+    """pakistan_time() without the time zone part.
+
+    The database saves times without a time zone, so use this when comparing
+    with saved times in a query.
+    """
+    return pakistan_time().replace(tzinfo=None)

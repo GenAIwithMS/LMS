@@ -8,7 +8,7 @@ interface ChatPendingActionsProps {
   onAnswer: (actionId: number, approve: boolean) => void;
 }
 
-// Deletes the assistant asked for. Nothing is deleted until the user clicks Confirm.
+// Deletes and edits the assistant asked for. Nothing changes until the user clicks Confirm.
 export const ChatPendingActions: React.FC<ChatPendingActionsProps> = ({ actions, disabled, onAnswer }) => {
   if (actions.length === 0) {
     return null;

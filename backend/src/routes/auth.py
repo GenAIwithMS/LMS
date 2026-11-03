@@ -1,21 +1,37 @@
 from flask import Blueprint,request,jsonify
 from src.models import Admin,Teacher,Student
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, decode_token
 from marshmallow import ValidationError
 from src.schemas import loginSchema, UpdateMyUsernameSchema, ChangeMyPasswordSchema
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from src.db import db
+from datetime import timedelta
+from src.db import db, pakistan_time_naive
 from src.services.users import is_username_taken
 from src.extention import limiter
 from src.models import RevokedToken
 
 
+# How long after a tab closes its token is blocked. A refresh reloads the page
+# well within this time and cancels the block.
+CLOSING_DELAY_SECONDS = 15
+
+
+def revoke_token(jti, delay_seconds=0):
+    """Block a token: now, or after a delay (used when a tab is closed)."""
+    block_time = pakistan_time_naive() + timedelta(seconds=delay_seconds)
+    existing = RevokedToken.query.filter_by(jti=jti).first()
+    if existing:
+        # Never move an existing block later, only sooner
+        if block_time < existing.revoked_at:
+            existing.revoked_at = block_time
+    else:
+        db.session.add(RevokedToken(jti=jti, revoked_at=block_time))
+    db.session.commit()
+
+
 def revoke_current_token():
-    """Block the token used for this request, so it can't be used again."""
-    jti = get_jwt()["jti"]
-    if not RevokedToken.query.filter_by(jti=jti).first():
-        db.session.add(RevokedToken(jti=jti))
-        db.session.commit()
+    """Block the token used for this request straight away, so it can't be used again."""
+    revoke_token(get_jwt()["jti"])
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -108,6 +124,39 @@ def logout():
         "message": "Logged out",
         "status": "success"
     })
+
+
+@auth_bp.route("/api/logout/closing", methods=["POST"])
+@limiter.limit("30 per minute")
+def logout_tab_closing():
+    """Sent by the browser when an LMS tab is closed or left (navigator.sendBeacon).
+
+    A beacon can't send an Authorization header, so the token comes as the
+    request body. The token is blocked a few seconds later, unless the page
+    comes back (a refresh) and calls /api/logout/stay in time.
+    """
+    token = request.get_data(as_text=True).strip()
+    try:
+        payload = decode_token(token)
+    except Exception:
+        # Expired or invalid token: nothing to block
+        return jsonify({"status": "ignored"}), 200
+
+    revoke_token(payload["jti"], delay_seconds=CLOSING_DELAY_SECONDS)
+    return jsonify({"status": "success"}), 200
+
+
+@auth_bp.route("/api/logout/stay", methods=["POST"])
+@jwt_required()
+def logout_cancel_closing():
+    """The page came back after a refresh: cancel the block scheduled by /api/logout/closing."""
+    jti = get_jwt()["jti"]
+    pending = RevokedToken.query.filter(RevokedToken.jti == jti,
+                                        RevokedToken.revoked_at > pakistan_time_naive()).first()
+    if pending:
+        db.session.delete(pending)
+        db.session.commit()
+    return jsonify({"status": "success"})
 
 
 @auth_bp.route("/api/protected", methods=["GET"])

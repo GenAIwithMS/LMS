@@ -175,7 +175,7 @@ def clear_chat_history():
 @chatbot_bp.route("/api/chat/confirm", methods=["POST"])
 @jwt_required()
 def confirm_action():
-    """The user clicked Confirm or Cancel on a delete the assistant asked for.
+    """The user clicked Confirm or Cancel on a delete or edit the assistant asked for.
 
     Body: {"action_id": 5, "approve": true}
     """
@@ -198,7 +198,7 @@ def confirm_action():
     if not approve:
         action.status = "cancelled"
         db.session.commit()
-        reply = f"Cancelled. Nothing was deleted ({action.description})."
+        reply = f"Cancelled. Nothing was changed ({action.description})."
         save_chat_message(user_role, user_id, "assistant", reply)
         return jsonify({"message": reply, "status": "success", "pending_actions": get_waiting_actions(user_role, user_id)})
 
@@ -219,7 +219,7 @@ def confirm_action():
     except Exception:
         db.session.rollback()
         logger.exception("Confirmed chat action %s failed", action.id)
-        result = {"message": "The delete failed. Please try again.", "status": "failed"}
+        result = {"message": "It failed. Please try again.", "status": "failed"}
     g.confirmed_action = False
 
     action.status = "done"
@@ -233,7 +233,7 @@ def confirm_action():
         result_status = "success"
 
     if result_status in ["failed", "error"]:
-        reply = f"Could not delete: {result_message}"
+        reply = f"Could not do it: {result_message}"
     else:
         reply = f"Confirmed and done: {action.description}."
 

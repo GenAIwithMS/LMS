@@ -49,6 +49,11 @@ A token is valid for 30 minutes (`JWT_EXPIRES_MINUTES`).
 
 Blocks the token on the server, so it can't be used again even before it expires. Any later request with it gets `401`.
 
+### Tab Closing / Refresh
+**Endpoints:** `POST /api/logout/closing`, `POST /api/logout/stay`
+
+When an LMS tab is closed or left, the frontend sends the token as the plain-text body of `POST /api/logout/closing` (with `navigator.sendBeacon`, which can't send headers). The token is blocked 15 seconds later. If the page was only refreshed, it calls `POST /api/logout/stay` (authenticated) as it starts, which cancels the block.
+
 ### Paging Lists
 
 Every endpoint that returns a list can be split into pages:
