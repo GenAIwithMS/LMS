@@ -3,9 +3,8 @@ from flask import Response
 from langchain.tools import tool
 from src.models import Subject,Student,Teacher,Course,Section,Attendance,Announcement,Result,AssignmentSubmission
 from src.agent.scope import (
-    current_user, failed, in_scope, keep_ids,
-    allowed_student_ids, allowed_subject_ids, allowed_assignment_ids, student_announcement_ids,
-    resolve_student, resolve_subject, resolve_section,
+    get_teacher_subject_ids, get_teacher_student_ids, get_teacher_assignment_ids,
+    get_student_announcement_ids, filter_by_ids, find_student, find_subject, find_section,
 )
 from flask_jwt_extended import get_jwt_identity, get_jwt,jwt_required
 
@@ -20,18 +19,30 @@ def to_tool_result(result):
     model can't tell whether the call worked.
     """
     status_code = None
-    if isinstance(result, tuple):
-        result, status_code = result[0], (result[1] if len(result) > 1 else None)
 
+    # (response, status_code) -> keep both parts
+    if isinstance(result, tuple):
+        status_code = result[1]
+        result = result[0]
+
+    # Flask response -> the JSON inside it
     if isinstance(result, Response):
-        status_code = status_code or result.status_code
+        if status_code is None:
+            status_code = result.status_code
         result = result.get_json(silent=True)
 
+    # A plain list -> add a status and a count
     if isinstance(result, list):
-        return {"status": "success", "count": len(result), "data": result}
+        return {
+            "status": "success",
+            "count": len(result),
+            "data": result
+        }
 
-    if isinstance(result, dict) and status_code and status_code >= 400:
-        result.setdefault("status", "failed")
+    # An error response with no status field -> mark it as failed
+    if isinstance(result, dict) and status_code is not None and status_code >= 400:
+        if "status" not in result:
+            result["status"] = "failed"
 
     return result
 
@@ -57,13 +68,15 @@ def create_announcement(title, content, section_name, target_audience = 'all', c
         target_audience: Target audience, defaults to 'all'
         created_at: Creation timestamp, optional
     """
-    role, teacher_id = current_user()
-    if role != "teacher":
-        return failed("Only teachers can create announcements")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can create announcements", "status": "failed"}
 
-    section, error = resolve_section(section_name)
+    section, error = find_section(section_name)
     if error:
         return error
+
+    teacher_id = int(get_jwt_identity())
     return add_announcement(title, content, teacher_id, section.id, target_audience, created_at)
 
 @tool
@@ -71,13 +84,17 @@ def create_announcement(title, content, section_name, target_audience = 'all', c
 @jwt_required()
 def get_announcements():
     """Retrieve announcements. Students only see announcements for their own section and school-wide ones. Use this tool whenever users ask about announcements."""
-    role, user_id = current_user()
-    if role not in ["admin", "teacher", "student"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher", "student"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
     result = to_tool_result(get_all_announcements())
-    if role == "student":
-        result = keep_ids(result, student_announcement_ids(user_id))
+
+    if token.get("role") == "student":
+        student_id = int(get_jwt_identity())
+        allowed_ids = get_student_announcement_ids(student_id)
+        result = filter_by_ids(result, allowed_ids)
+
     return result
 
 
@@ -85,19 +102,21 @@ def get_announcements():
 @readable_result
 @jwt_required()
 def get_announcement(announcement_title):
-    """Retrieve a specific announcement by its title.
+    """Retrieve a specific announcement by its title. Use this tool to get details of a specific announcement.
 
     Args:
         announcement_title: The title of the announcement to retrieve
     """
-    role, user_id = current_user()
-    if role not in ["admin", "teacher", "student"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher", "student"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
-    if role == "student":
+    if token.get("role") == "student":
+        student_id = int(get_jwt_identity())
         announcement = Announcement.query.filter_by(title=announcement_title).first()
-        if not announcement or announcement.id not in student_announcement_ids(user_id):
-            return failed("Announcement not found")
+        if not announcement or announcement.id not in get_student_announcement_ids(student_id):
+            return {"message": "Announcement not found", "status": "failed"}
+
     return get_announcement_by_title(announcement_title)
 
 
@@ -114,13 +133,14 @@ def update_announcement(announcement_title, title=None, content=None, target_aud
         target_audience: New target audience (optional)
         section_name: New section name (optional)
     """
-    role, teacher_id = current_user()
-    if role != "teacher":
-        return failed("Only teachers can update announcements")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can update announcements", "status": "failed"}
 
+    teacher_id = int(get_jwt_identity())
     announcement = Announcement.query.filter_by(title=announcement_title).first()
     if not announcement or announcement.teacher_id != teacher_id:
-        return failed("You have no announcement with that title")
+        return {"message": "You have no announcement with that title", "status": "failed"}
 
     kwargs = {}
     if title is not None:
@@ -130,7 +150,7 @@ def update_announcement(announcement_title, title=None, content=None, target_aud
     if target_audience is not None:
         kwargs['target_audience'] = target_audience
     if section_name is not None:
-        section, error = resolve_section(section_name)
+        section, error = find_section(section_name)
         if error:
             return error
         kwargs['section_id'] = section.id
@@ -146,13 +166,15 @@ def remove_announcement(announcement_title):
     Args:
         announcement_title: The title of the announcement to delete
     """
-    role, teacher_id = current_user()
-    if role != "teacher":
-        return failed("Only teachers can delete announcements")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can delete announcements", "status": "failed"}
 
+    teacher_id = int(get_jwt_identity())
     announcement = Announcement.query.filter_by(title=announcement_title).first()
     if not announcement or announcement.teacher_id != teacher_id:
-        return failed("You have no announcement with that title")
+        return {"message": "You have no announcement with that title", "status": "failed"}
+
     return delete_announcement(announcement_title)
 @tool
 @readable_result
@@ -362,11 +384,18 @@ def create_student(name, username, section_name, password, email):
 @jwt_required()
 def get_students():
     """Retrieve students. Teachers only see the students they teach. Use this when users ask about students."""
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Only admins and teachers can view students")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Only admins and teachers can view students", "status": "failed"}
 
-    return keep_ids(to_tool_result(get_all_students()), allowed_student_ids())
+    result = to_tool_result(get_all_students())
+
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        allowed_ids = get_teacher_student_ids(teacher_id)
+        result = filter_by_ids(result, allowed_ids)
+
+    return result
 
 
 @tool
@@ -378,12 +407,15 @@ def get_student(student_id):
     Args:
         student_id: The ID of the student to retrieve
     """
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Only admins and teachers can view students")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Only admins and teachers can view students", "status": "failed"}
 
-    if not in_scope(int(student_id), allowed_student_ids()):
-        return failed(f"No student with ID {student_id} among the students you can access")
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        if int(student_id) not in get_teacher_student_ids(teacher_id):
+            return {"message": f"No student with ID {student_id} among the students you can access", "status": "failed"}
+
     return get_student_by_id(student_id)
 
 
@@ -550,7 +582,7 @@ def enroll_student_tool(course_name, enrollment_date, student_name=None, status=
     if token.get("role") != "admin":
         return {"message": "Only admins can enroll students", "status": "failed"}
     
-    student, error = resolve_student(student_name, student_id)
+    student, error = find_student(student_name, student_id)
     if error:
         return error
     course = Course.query.filter_by(name=course_name).first()
@@ -585,7 +617,7 @@ def get_enrollments_by_student_tool(student_name=None, student_id=None):
     if token.get("role") != "admin":
         return {"message": "Only admins can view enrollments", "status": "failed"}
     
-    student, error = resolve_student(student_name, student_id)
+    student, error = find_student(student_name, student_id)
     if error:
         return error
     return get_enrollments_by_student(student.id)
@@ -666,22 +698,33 @@ def add_result_tool(total_marks, obtained_marks, exam_type, student_name=None, s
         student_id: The student's ID, only needed when several students share the name
         subject_id: The subject's ID, only needed when several subjects share the name
     """
-    role, _ = current_user()
-    if role != "teacher":
-        return failed("Only teachers can add results")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can add results", "status": "failed"}
 
-    subject, error = resolve_subject(subject_name, subject_id)
+    subject, error = find_subject(subject_name, subject_id)
     if error:
         return error
-    student, error = resolve_student(student_name, student_id)
+
+    student, error = find_student(student_name, student_id)
     if error:
         return error
+
     return add_result(subject.id, student.id, total_marks, obtained_marks, exam_type, remarks)
 
 
-def _result_in_scope(result_id):
+def can_access_result(result_id):
+    """Admins can access every result. Teachers only results in subjects they teach."""
+    token = get_jwt()
     result = Result.query.get(int(result_id))
-    return result is not None and in_scope(result.subject_id, allowed_subject_ids())
+    if not result:
+        return False
+
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        return result.subject_id in get_teacher_subject_ids(teacher_id)
+
+    return True
 
 
 @tool
@@ -693,12 +736,13 @@ def get_result(result_id):
     Args:
         result_id: The ID of the result to retrieve
     """
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
-    if not _result_in_scope(result_id):
-        return failed(f"No result with ID {result_id} in the subjects you can access")
+    if not can_access_result(result_id):
+        return {"message": f"No result with ID {result_id} in the subjects you can access", "status": "failed"}
+
     return get_result_by_id(result_id)
 
 
@@ -707,15 +751,21 @@ def get_result(result_id):
 @jwt_required()
 def get_results():
     """Retrieve results. Teachers only see results in subjects they teach. Use this when users ask about results."""
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
     result = to_tool_result(get_all_results())
-    subject_ids = allowed_subject_ids()
-    if subject_ids is not None:
-        allowed = {r.id for r in Result.query.filter(Result.subject_id.in_(subject_ids)).all()}
-        result = keep_ids(result, allowed)
+
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        allowed_ids = []
+        for subject_id in get_teacher_subject_ids(teacher_id):
+            results = Result.query.filter_by(subject_id=subject_id).all()
+            for item in results:
+                allowed_ids.append(item.id)
+        result = filter_by_ids(result, allowed_ids)
+
     return result
 
 
@@ -730,12 +780,12 @@ def update_result(result_id, obtained_marks=None, remarks=None):
         obtained_marks: New obtained marks (optional)
         remarks: New remarks (optional)
     """
-    role, _ = current_user()
-    if role != "teacher":
-        return failed("Only teachers can update results")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can update results", "status": "failed"}
 
-    if not _result_in_scope(result_id):
-        return failed(f"No result with ID {result_id} in the subjects you teach")
+    if not can_access_result(result_id):
+        return {"message": f"No result with ID {result_id} in the subjects you teach", "status": "failed"}
 
     kwargs = {}
     if obtained_marks is not None:
@@ -754,12 +804,13 @@ def remove_result(result_id):
     Args:
         result_id: The ID of the result to delete
     """
-    role, _ = current_user()
-    if role != "teacher":
-        return failed("Only teachers can delete results")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can delete results", "status": "failed"}
 
-    if not _result_in_scope(result_id):
-        return failed(f"No result with ID {result_id} in the subjects you teach")
+    if not can_access_result(result_id):
+        return {"message": f"No result with ID {result_id} in the subjects you teach", "status": "failed"}
+
     return delete_result(result_id)
 
 
@@ -958,14 +1009,25 @@ def create_assignment(title, description, due_date, total_marks, subject_name=No
         subject_name: Name of the subject
         subject_id: The subject's ID, only needed when several subjects share the name
     """
-    role, teacher_id = current_user()
-    if role != "teacher":
-        return failed("Only teachers can create assignments")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can create assignments", "status": "failed"}
 
-    subject, error = resolve_subject(subject_name, subject_id)
+    subject, error = find_subject(subject_name, subject_id)
     if error:
         return error
+
+    teacher_id = int(get_jwt_identity())
     return add_assignment(title, description, teacher_id, due_date, subject.id, total_marks)
+
+
+def can_access_assignment(assignment_id):
+    """Admins can access every assignment. Teachers only their own, or ones in their subjects."""
+    token = get_jwt()
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        return int(assignment_id) in get_teacher_assignment_ids(teacher_id)
+    return True
 
 
 @tool
@@ -977,12 +1039,13 @@ def get_assignment(assignment_id):
     Args:
         assignment_id: The ID of the assignment to retrieve
     """
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
-    if not in_scope(int(assignment_id), allowed_assignment_ids()):
-        return failed(f"No assignment with ID {assignment_id} among your assignments")
+    if not can_access_assignment(assignment_id):
+        return {"message": f"No assignment with ID {assignment_id} among your assignments", "status": "failed"}
+
     return get_assignment_by_id(assignment_id)
 
 
@@ -991,11 +1054,18 @@ def get_assignment(assignment_id):
 @jwt_required()
 def get_assignments():
     """Retrieve assignments. Teachers only see their own assignments. Use this when users ask about assignments."""
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
-    return keep_ids(to_tool_result(get_all_assignments()), allowed_assignment_ids())
+    result = to_tool_result(get_all_assignments())
+
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        allowed_ids = get_teacher_assignment_ids(teacher_id)
+        result = filter_by_ids(result, allowed_ids)
+
+    return result
 
 
 @tool
@@ -1011,12 +1081,12 @@ def update_assignment(assignment_id, title=None, description=None, due_date=None
         due_date: New due date (optional)
         total_marks: New total marks (optional)
     """
-    role, _ = current_user()
-    if role != "teacher":
-        return failed("Only teachers can update assignments")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can update assignments", "status": "failed"}
 
-    if not in_scope(int(assignment_id), allowed_assignment_ids()):
-        return failed(f"No assignment with ID {assignment_id} among your assignments")
+    if not can_access_assignment(assignment_id):
+        return {"message": f"No assignment with ID {assignment_id} among your assignments", "status": "failed"}
 
     kwargs = {}
     if title is not None:
@@ -1039,23 +1109,14 @@ def remove_assignment(assignment_id):
     Args:
         assignment_id: The ID of the assignment to delete
     """
-    role, _ = current_user()
-    if role != "teacher":
-        return failed("Only teachers can delete assignments")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can delete assignments", "status": "failed"}
 
-    if not in_scope(int(assignment_id), allowed_assignment_ids()):
-        return failed(f"No assignment with ID {assignment_id} among your assignments")
+    if not can_access_assignment(assignment_id):
+        return {"message": f"No assignment with ID {assignment_id} among your assignments", "status": "failed"}
+
     return delete_assignment(assignment_id)
-
-
-def _submissions_in_scope(result):
-    """Teachers only see submissions to their own assignments."""
-    assignment_ids = allowed_assignment_ids()
-    if assignment_ids is None:
-        return result
-    allowed = {s.id for s in AssignmentSubmission.query.filter(
-        AssignmentSubmission.assignment_id.in_(assignment_ids)).all()} if assignment_ids else set()
-    return keep_ids(result, allowed)
 
 
 @tool
@@ -1068,14 +1129,26 @@ def get_submissions_by_student_tool(student_name=None, student_id=None):
         student_name: The name of the student
         student_id: The student's ID, only needed when several students share the name
     """
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
-    student, error = resolve_student(student_name, student_id)
+    student, error = find_student(student_name, student_id)
     if error:
         return error
-    return _submissions_in_scope(to_tool_result(get_submissions_by_student(student.id)))
+
+    result = to_tool_result(get_submissions_by_student(student.id))
+
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        allowed_ids = []
+        for assignment_id in get_teacher_assignment_ids(teacher_id):
+            submissions = AssignmentSubmission.query.filter_by(assignment_id=assignment_id).all()
+            for submission in submissions:
+                allowed_ids.append(submission.id)
+        result = filter_by_ids(result, allowed_ids)
+
+    return result
 
 
 @tool
@@ -1087,12 +1160,13 @@ def get_submissions_by_assignment_tool(assignment_id):
     Args:
         assignment_id: The ID of the assignment
     """
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
-    if not in_scope(int(assignment_id), allowed_assignment_ids()):
-        return failed(f"No assignment with ID {assignment_id} among your assignments")
+    if not can_access_assignment(assignment_id):
+        return {"message": f"No assignment with ID {assignment_id} among your assignments", "status": "failed"}
+
     return get_submissions_by_assignment(assignment_id)
 
 
@@ -1108,13 +1182,13 @@ def update_submission_tool(submission_id, feedback=None, marks=None, marks_obtai
         marks: Marks awarded for the submission (optional)
         marks_obtained: Alternative name for marks (optional, for backward compatibility)
     """
-    role, _ = current_user()
-    if role != "teacher":
-        return failed("Only teachers can update submissions")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can update submissions", "status": "failed"}
 
     submission = AssignmentSubmission.query.get(int(submission_id))
-    if not submission or not in_scope(submission.assignment_id, allowed_assignment_ids()):
-        return failed(f"No submission with ID {submission_id} for your assignments")
+    if not submission or not can_access_assignment(submission.assignment_id):
+        return {"message": f"No submission with ID {submission_id} for your assignments", "status": "failed"}
 
     kwargs = {}
     if feedback is not None:
@@ -1126,17 +1200,24 @@ def update_submission_tool(submission_id, feedback=None, marks=None, marks_obtai
     return update_submission(submission_id, **kwargs)
 
 
-def _attendance_for_student(student_id, limit_to_my_subjects=True):
-    """A student's attendance. For teachers, limited to the subjects they teach."""
+def get_student_attendance(student_id):
+    """A student's attendance as tool data. Teachers only get records in subjects they teach."""
     result = to_tool_result(get_attendance_by_student(student_id))
-    # The service answers "Student not found" when there are simply no records.
+
+    # The service answers "Student not found" when there are simply no records yet
     if isinstance(result, dict) and result.get("message") == "Student not found":
         return {"status": "success", "count": 0, "data": []}
-    subject_ids = allowed_subject_ids() if limit_to_my_subjects else None
-    if subject_ids is not None:
-        allowed = {a.id for a in Attendance.query.filter(Attendance.student_id == student_id,
-                                                         Attendance.subject_id.in_(subject_ids)).all()}
-        result = keep_ids(result, allowed)
+
+    token = get_jwt()
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        allowed_ids = []
+        for subject_id in get_teacher_subject_ids(teacher_id):
+            records = Attendance.query.filter_by(student_id=student_id, subject_id=subject_id).all()
+            for record in records:
+                allowed_ids.append(record.id)
+        result = filter_by_ids(result, allowed_ids)
+
     return result
 
 
@@ -1154,16 +1235,18 @@ def mark_attendance(status, student_name=None, subject_name=None, student_id=Non
         student_id: The student's ID, only needed when several students share the name
         subject_id: The subject's ID, only needed when several subjects share the name
     """
-    role, _ = current_user()
-    if role != "teacher":
-        return failed("Only teachers can mark attendance")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can mark attendance", "status": "failed"}
 
-    subject, error = resolve_subject(subject_name, subject_id)
+    subject, error = find_subject(subject_name, subject_id)
     if error:
         return error
-    student, error = resolve_student(student_name, student_id)
+
+    student, error = find_student(student_name, student_id)
     if error:
         return error
+
     return mark_attend(student.id, subject.id, status)
 
 
@@ -1177,14 +1260,15 @@ def get_attendance_by_student_tool(student_name=None, student_id=None):
         student_name: The name of the student
         student_id: The student's ID, only needed when several students share the name
     """
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
-    student, error = resolve_student(student_name, student_id)
+    student, error = find_student(student_name, student_id)
     if error:
         return error
-    return _attendance_for_student(student.id)
+
+    return get_student_attendance(student.id)
 
 
 @tool
@@ -1197,13 +1281,14 @@ def get_attendance_by_subject_tool(subject_name=None, subject_id=None):
         subject_name: The name of the subject
         subject_id: The subject's ID, only needed when several subjects share the name
     """
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
-    subject, error = resolve_subject(subject_name, subject_id)
+    subject, error = find_subject(subject_name, subject_id)
     if error:
         return error
+
     return get_attendance_by_subject(subject.id)
 
 
@@ -1212,29 +1297,38 @@ def get_attendance_by_subject_tool(subject_name=None, subject_id=None):
 @jwt_required()
 def get_all_attendance_tool():
     """Retrieve attendance records. Teachers only see records in subjects they teach."""
-    role, _ = current_user()
-    if role not in ["admin", "teacher"]:
-        return failed("Unauthorized access")
+    token = get_jwt()
+    if token.get("role") not in ["admin", "teacher"]:
+        return {"message": "Unauthorized access", "status": "failed"}
 
     result = to_tool_result(get_all_attendance())
-    subject_ids = allowed_subject_ids()
-    if subject_ids is not None:
-        allowed = {a.id for a in Attendance.query.filter(Attendance.subject_id.in_(subject_ids)).all()}
-        result = keep_ids(result, allowed)
+
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        allowed_ids = []
+        for subject_id in get_teacher_subject_ids(teacher_id):
+            records = Attendance.query.filter_by(subject_id=subject_id).all()
+            for record in records:
+                allowed_ids.append(record.id)
+        result = filter_by_ids(result, allowed_ids)
+
     return result
 
 
-def _latest_attendance(student_name, subject_name, student_id, subject_id):
-    subject, error = resolve_subject(subject_name, subject_id)
+def find_latest_attendance(student_name, subject_name, student_id, subject_id):
+    """Find the newest attendance record for a student in a subject. Returns (record, None) or (None, error)."""
+    subject, error = find_subject(subject_name, subject_id)
     if error:
         return None, error
-    student, error = resolve_student(student_name, student_id)
+
+    student, error = find_student(student_name, student_id)
     if error:
         return None, error
-    record = (Attendance.query.filter_by(student_id=student.id, subject_id=subject.id)
-              .order_by(Attendance.mark_at.desc()).first())
+
+    record = Attendance.query.filter_by(student_id=student.id, subject_id=subject.id).order_by(Attendance.mark_at.desc()).first()
     if not record:
-        return None, failed("Attendance record not found for this student and subject")
+        return None, {"message": "Attendance record not found for this student and subject", "status": "failed"}
+
     return record, None
 
 
@@ -1251,13 +1345,14 @@ def update_attendance_tool(status, student_name=None, subject_name=None, student
         student_id: The student's ID, only needed when several students share the name
         subject_id: The subject's ID, only needed when several subjects share the name
     """
-    role, _ = current_user()
-    if role != "teacher":
-        return failed("Only teachers can update attendance")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can update attendance", "status": "failed"}
 
-    record, error = _latest_attendance(student_name, subject_name, student_id, subject_id)
+    record, error = find_latest_attendance(student_name, subject_name, student_id, subject_id)
     if error:
         return error
+
     return update_attendance(record.id, status=status)
 
 
@@ -1273,13 +1368,14 @@ def remove_attendance(student_name=None, subject_name=None, student_id=None, sub
         student_id: The student's ID, only needed when several students share the name
         subject_id: The subject's ID, only needed when several subjects share the name
     """
-    role, _ = current_user()
-    if role != "teacher":
-        return failed("Only teachers can delete attendance records")
+    token = get_jwt()
+    if token.get("role") != "teacher":
+        return {"message": "Only teachers can delete attendance records", "status": "failed"}
 
-    record, error = _latest_attendance(student_name, subject_name, student_id, subject_id)
+    record, error = find_latest_attendance(student_name, subject_name, student_id, subject_id)
     if error:
         return error
+
     return delete_attendance(record.id)
 
 
@@ -1293,11 +1389,12 @@ def remove_attendance(student_name=None, subject_name=None, student_id=None, sub
 @jwt_required()
 def get_my_attendance():
     """Get the logged-in student's own attendance records. Use this when a student asks about their attendance."""
-    role, student_id = current_user()
-    if role != "student":
-        return failed("Only students can use this tool")
-    # The student ID comes from the JWT, so no further filtering is needed.
-    return _attendance_for_student(student_id, limit_to_my_subjects=False)
+    token = get_jwt()
+    if token.get("role") != "student":
+        return {"message": "Only students can use this tool", "status": "failed"}
+
+    student_id = int(get_jwt_identity())
+    return get_student_attendance(student_id)
 
 
 @tool
@@ -1308,7 +1405,9 @@ def get_my_results():
     token = get_jwt()
     if token.get("role") != "student":
         return {"message": "Only students can use this tool", "status": "failed"}
-    return get_results_by_student(int(get_jwt_identity()))
+
+    student_id = int(get_jwt_identity())
+    return get_results_by_student(student_id)
 
 
 @tool
@@ -1319,4 +1418,6 @@ def get_my_submissions():
     token = get_jwt()
     if token.get("role") != "student":
         return {"message": "Only students can use this tool", "status": "failed"}
-    return get_submissions_by_student(int(get_jwt_identity()))
+
+    student_id = int(get_jwt_identity())
+    return get_submissions_by_student(student_id)

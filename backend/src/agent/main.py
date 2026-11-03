@@ -19,17 +19,13 @@ load_dotenv(dotenv_path=str(backend_dir / ".env"))
 # reasoning_format="hidden" stops reasoning models such as Qwen3 from putting their
 # <think>...</think> text into the reply. Set CHAT_REASONING_FORMAT to an empty
 # value when using a non-reasoning model.
-_model_kwargs = {
-    "model": os.getenv("CHAT_MODEL", "qwen/qwen3-32b"),
-    "temperature": 0,
-    "max_retries": 2,
-    "timeout": 60,
-}
-_reasoning_format = os.getenv("CHAT_REASONING_FORMAT", "hidden")
-if _reasoning_format:
-    _model_kwargs["reasoning_format"] = _reasoning_format
+chat_model_name = os.getenv("CHAT_MODEL", "qwen/qwen3-32b")
+reasoning_format = os.getenv("CHAT_REASONING_FORMAT", "hidden")
 
-model = ChatGroq(**_model_kwargs)
+if reasoning_format:
+    model = ChatGroq(model=chat_model_name, temperature=0, max_retries=2, timeout=60, reasoning_format=reasoning_format)
+else:
+    model = ChatGroq(model=chat_model_name, temperature=0, max_retries=2, timeout=60)
 
 ROLE_TOOLS = {
     "admin": admin_tools,
@@ -93,13 +89,13 @@ def _build_graph(user_role: str):
 
 
 # Each role's graph is built once and reused, instead of on every request.
-_GRAPHS = {}
+compiled_graphs = {}
 
 
 def create_chatbot_graph(user_role: str):
     """Return the compiled agent graph for a role, building it on first use."""
     if user_role not in ROLE_TOOLS:
         raise ValueError(f"Unknown role: {user_role}")
-    if user_role not in _GRAPHS:
-        _GRAPHS[user_role] = _build_graph(user_role)
-    return _GRAPHS[user_role]
+    if user_role not in compiled_graphs:
+        compiled_graphs[user_role] = _build_graph(user_role)
+    return compiled_graphs[user_role]
