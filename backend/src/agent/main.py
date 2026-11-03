@@ -2,7 +2,7 @@ from typing import TypedDict, Annotated, Sequence
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, SystemMessage
 from langgraph.prebuilt import ToolNode
 import operator
 from pathlib import Path
@@ -54,14 +54,14 @@ def get_system_prompt_for_role(user_role: str):
 
 def agent_node(state: AgentState, model_with_tools, system_prompt):
     """Agent node that calls the model."""
-    messages = state["messages"]
     user_role = state.get("user_role")
-    
+
     context_prompt = f"{system_prompt}\n\nNote: You are logged in as {user_role}. Your identity is automatically used in relevant operations."
-    
-    if len(messages) == 1 and isinstance(messages[0], HumanMessage):
-        messages = [AIMessage(content=context_prompt)] + messages
-    
+
+    # Send the system prompt on every model call (first turn, follow-up turns,
+    # and after tool calls). It is not stored in state, so it never piles up.
+    messages = [SystemMessage(content=context_prompt)] + list(state["messages"])
+
     response = model_with_tools.invoke(messages)
     return {"messages": [response]}
 
