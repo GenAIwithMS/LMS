@@ -75,12 +75,24 @@ export const login = async (credentials: LoginCredentials): Promise<AuthResponse
   return response.data;
 };
 
-// Admin
-export const addAdmin = async (data: { name: string; username: string; email: string; password: string }) => {
-  const response = await api.post('/add/admin', data);
+// My Account (any logged-in user)
+export const getMyAccount = async () => {
+  const response = await api.get('/account');
   return response.data;
 };
 
+export const updateMyUsername = async (username: string) => {
+  const response = await api.put('/account/username', { username });
+  return response.data;
+};
+
+export const changeMyPassword = async (current_password: string, new_password: string) => {
+  const response = await api.put('/account/password', { current_password, new_password });
+  return response.data;
+};
+
+// Admin
+// The admin account is created once with "python create_admin.py", not from the app.
 export const getAdmins = async (id?: number) => {
   const response = await api.get('/get/admin', { params: id ? { id } : {} });
   return response.data;

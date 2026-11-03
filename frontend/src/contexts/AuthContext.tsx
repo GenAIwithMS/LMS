@@ -8,6 +8,7 @@ interface AuthContextType {
   token: string | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
+  replaceToken: (newToken: string) => void;
   isAuthenticated: boolean;
   userRole: UserRole | null;
 }
@@ -68,6 +69,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Used after the user changes their username: the server sends a new token
+  // with the new username in it, and we read the user details from it again.
+  const replaceToken = (newToken: string) => {
+    setToken(newToken);
+    localStorage.setItem('token', newToken);
+
+    const decoded = decodeJWT(newToken);
+    const role = getRoleFromToken(newToken);
+
+    if (decoded) {
+      const userData: User = {
+        id: decoded.sub || decoded.id || decoded.user_id || 0,
+        email: decoded.email || '',
+        name: decoded.name || decoded.username || '',
+        username: decoded.username || decoded.email || '',
+        role: role || undefined,
+      };
+
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+    }
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -87,6 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         token,
         login,
         logout,
+        replaceToken,
         isAuthenticated: !!token,
         userRole,
       }}

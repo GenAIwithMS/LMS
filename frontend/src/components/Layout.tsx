@@ -298,6 +298,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             )}
           </div>
+          <Link
+            to="/account"
+            className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-semibold shadow-sm hover:shadow-md ${
+              isActive('/account') ? 'bg-primary-100 text-primary-700' : 'text-gray-700 bg-white hover:bg-gray-100'
+            } ${sidebarCollapsed ? 'justify-center' : ''}`}
+            title={sidebarCollapsed ? 'My Account' : ''}
+          >
+            <Settings size={18} />
+            {!sidebarCollapsed && <span className="text-sm">My Account</span>}
+          </Link>
           <button
             onClick={handleLogout}
             className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-all font-semibold shadow-sm hover:shadow-md ${sidebarCollapsed ? 'justify-center' : ''}`}

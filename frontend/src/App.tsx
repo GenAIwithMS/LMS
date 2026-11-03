@@ -32,6 +32,7 @@ import StudentAnnouncements from './pages/student/Announcements';
 
 // Chatbot
 import Chatbot from './pages/Chatbot';
+import Account from './pages/Account';
 
 function App() {
   return (
@@ -211,6 +212,18 @@ function App() {
             <ProtectedRoute allowedRoles={['student']}>
               <Layout>
                 <StudentAnnouncements />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* My Account (every role) */}
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Account />
               </Layout>
             </ProtectedRoute>
           }
