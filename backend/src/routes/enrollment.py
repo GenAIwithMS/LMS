@@ -31,7 +31,17 @@ def enroll_stu():
     status = data.get("status", "active")
     grade = data.get("grade")
 
-    student = Student.query.filter_by(name=student_name).first()
+    # Prefer the ID: two students can have the same name
+    if data.get("student_id"):
+        student = Student.query.get(data["student_id"])
+    elif student_name:
+        student = Student.query.filter_by(name=student_name).first()
+    else:
+        return jsonify({
+            "message": "student_id or student_name is required",
+            "status": "failed"
+        }), 400
+
     if not student:
         return jsonify({
             "message": "Student not found",
@@ -117,7 +127,13 @@ def update_enroll():
         }), 400
 
     kwargs = {}
-    if 'student_name' in data:
+    # Prefer the ID: two students can have the same name
+    if 'student_id' in data:
+        student = Student.query.get(data['student_id'])
+        if not student:
+            return jsonify({"message": "Student not found", "status": "failed"}), 400
+        kwargs['student_id'] = student.id
+    elif 'student_name' in data:
         student = Student.query.filter_by(name=data['student_name']).first()
         if not student:
             return jsonify({"message": "Student not found", "status": "failed"}), 400

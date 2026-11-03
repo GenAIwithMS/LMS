@@ -93,6 +93,27 @@ def get_teacher_assignment_ids(teacher_id):
     return assignment_ids
 
 
+def get_student_assignment_ids(student_id):
+    """IDs of the assignments a student can see and submit: ones set by a teacher who teaches them."""
+    assignment_ids = []
+    students_of_teacher = {}   # teacher id -> that teacher's student ids, so each teacher is worked out once
+
+    assignments = Assignment.query.all()
+    for assignment in assignments:
+        teacher_ids = [assignment.teacher_id]
+        if assignment.subject and assignment.subject.teacher_id not in teacher_ids:
+            teacher_ids.append(assignment.subject.teacher_id)
+
+        for teacher_id in teacher_ids:
+            if teacher_id not in students_of_teacher:
+                students_of_teacher[teacher_id] = get_teacher_student_ids(teacher_id)
+            if student_id in students_of_teacher[teacher_id]:
+                assignment_ids.append(assignment.id)
+                break
+
+    return assignment_ids
+
+
 def teacher_owns_assignment(teacher_id, assignment_id):
     """True if the teacher created this assignment or teaches its subject."""
     return int(assignment_id) in get_teacher_assignment_ids(teacher_id)
@@ -121,6 +142,13 @@ def find_teacher_student(teacher_id, student_name):
         if student.id in allowed_ids:
             return student
     return None
+
+
+def find_teacher_student_by_id(teacher_id, student_id):
+    """Find a student by ID among this teacher's students. Returns None if not found."""
+    if int(student_id) not in get_teacher_student_ids(teacher_id):
+        return None
+    return Student.query.get(int(student_id))
 
 
 def find_teacher_subject(teacher_id, subject_name):

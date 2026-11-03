@@ -31,5 +31,19 @@ def get_admin():
                 })
         return jsonify(result)
 
+    admin = Admin.query.get(admin_id)
+    if not admin:
+        return jsonify({
+            "message": "Admin not found",
+            "status": "failed"
+        }), 404
+
+    return jsonify({
+        "id": admin.id,
+        "name": admin.name,
+        "username": admin.username,
+        "email": admin.email
+    })
+
 
     

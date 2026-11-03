@@ -23,6 +23,7 @@ const TeacherResults: React.FC = () => {
   const optionsRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
+    student_id: '',
     student_name: '',
     subject_name: '',
     total_marks: 100,
@@ -82,6 +83,7 @@ const TeacherResults: React.FC = () => {
       resultsData = resultsData.map((result: any) => ({
         id: result.id || 0,
         student: result.student || result.student_name || '',
+        student_id: result.student_id,
         subject: result.subject || result.subject_name || '',
         total_marks: result.total_marks || result.totalMarks || 100,
         obtained_marks: result.obtained_marks || result.obtainedMarks || 0,
@@ -185,13 +187,15 @@ const TeacherResults: React.FC = () => {
     e.preventDefault();
     
     // Validate form data
-    if (!formData.student_name || !formData.subject_name || !formData.exam_type) {
+    if (!formData.student_id || !formData.subject_name || !formData.exam_type) {
       showError({ message: 'Please fill in all required fields' }, 'Validation failed');
       return;
     }
     
     // Ensure numeric fields are numbers
     const submitData = {
+      // Send the student's ID: names are not unique, IDs are
+      student_id: Number(formData.student_id),
       student_name: formData.student_name.trim(),
       subject_name: formData.subject_name.trim(),
       total_marks: Number(formData.total_marks),
@@ -221,9 +225,21 @@ const TeacherResults: React.FC = () => {
     }
   };
 
+  // Keep the chosen student's ID and name together
+  const handleStudentChange = (studentId: string) => {
+    let studentName = '';
+    for (const student of students) {
+      if (String(student.id) === studentId) {
+        studentName = student.name;
+      }
+    }
+    setFormData({ ...formData, student_id: studentId, student_name: studentName });
+  };
+
   const handleEdit = (result: Result) => {
     setEditingResult(result);
     setFormData({
+      student_id: result.student_id ? String(result.student_id) : '',
       student_name: result.student || '',
       subject_name: result.subject || '',
       total_marks: result.total_marks || 100,
@@ -257,7 +273,7 @@ const TeacherResults: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ student_name: '', subject_name: '', total_marks: 100, obtained_marks: 0, exam_type: '', remarks: '' });
+    setFormData({ student_id: '', student_name: '', subject_name: '', total_marks: 100, obtained_marks: 0, exam_type: '', remarks: '' });
     setEditingResult(null);
   };
 
@@ -454,13 +470,13 @@ const TeacherResults: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Student</label>
-            <select required value={formData.student_name} onChange={(e) => setFormData({ ...formData, student_name: e.target.value })} className="input" disabled={!!editingResult}>
+            <select required value={formData.student_id} onChange={(e) => handleStudentChange(e.target.value)} className="input" disabled={!!editingResult}>
               <option value="">Select a student</option>
               {students.length === 0 ? (
                 <option value="" disabled>No students available</option>
               ) : (
                 students.map((student) => (
-                  <option key={student.id} value={student.name}>{student.name}</option>
+                  <option key={student.id} value={student.id}>{student.name} ({student.username})</option>
                 ))
               )}
             </select>

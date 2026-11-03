@@ -204,7 +204,7 @@ export const deleteSubject = async (id: number) => {
 };
 
 // Enrollment
-export const enrollStudent = async (data: { student_name: string; course_name: string; enrollment_date: string; status: string; grade: string }) => {
+export const enrollStudent = async (data: { student_id?: number; student_name?: string; course_name: string; enrollment_date: string; status: string; grade: string }) => {
   const response = await api.post('/enroll/student', data);
   return response.data;
 };
@@ -318,7 +318,7 @@ export const deleteSubmission = async (id: number) => {
 };
 
 // Attendance
-export const markAttendance = async (data: { student_name: string; subject_name: string; status: 'present' | 'absent' | 'late' }) => {
+export const markAttendance = async (data: { student_id?: number; student_name?: string; subject_name: string; status: 'present' | 'absent' | 'late' }) => {
   const response = await api.post('/attendance', data);
   return response.data;
 };
@@ -328,7 +328,7 @@ export const getAttendance = async (student_name?: string, subject_name?: string
   return response.data;
 };
 
-export const updateAttendance = async (id: number, data: { status?: 'present' | 'absent' | 'late'; student_name?: string; subject_name?: string }) => {
+export const updateAttendance = async (id: number, data: { status?: 'present' | 'absent' | 'late'; student_id?: number; student_name?: string; subject_name?: string }) => {
   const response = await api.put('/update/attendance', data, { params: { id } });
   return response.data;
 };
@@ -339,7 +339,7 @@ export const deleteAttendance = async (id: number, student_name?: string, subjec
 };
 
 // Result
-export const createResult = async (data: { student_name: string; subject_name: string; total_marks: number; obtained_marks: number; exam_type: string; remarks: string }) => {
+export const createResult = async (data: { student_id?: number; student_name?: string; subject_name: string; total_marks: number; obtained_marks: number; exam_type: string; remarks: string }) => {
   console.log('Creating result with data:', data);
   console.log('API endpoint: POST', `${API_BASE_URL}/create/result`);
   try {

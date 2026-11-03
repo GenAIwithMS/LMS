@@ -2,7 +2,7 @@ from src.services import submit_assignment,get_submissions_by_assignment,get_sub
 from flask import Blueprint, request, jsonify, send_file
 from src.schemas import UpdateAssignmentSubmissionSchema
 from src.models import AssignmentSubmission
-from src.services.access import teacher_owns_assignment, get_teacher_assignment_ids, filter_response_by_ids
+from src.services.access import teacher_owns_assignment, get_teacher_assignment_ids, get_student_assignment_ids, filter_response_by_ids
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt_identity, get_jwt
 import os
@@ -35,6 +35,10 @@ def submit_assign():
         return jsonify({"message": "Either submission text or a file is required", "status": "error"}), 400
     
     student_id = int(get_jwt_identity())
+
+    # A student can only submit to assignments from teachers who teach them
+    if assignment_id not in get_student_assignment_ids(student_id):
+        return jsonify({"message": "Assignment not found", "status": "failed"}), 404
     
     result = submit_assignment(student_id, assignment_id, submission_text, submission_file)
     return result

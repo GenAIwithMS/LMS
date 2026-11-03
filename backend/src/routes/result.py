@@ -4,7 +4,7 @@ from marshmallow import ValidationError
 from src.schemas import ResultSchema,UpdateResultSchema
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from src.models import Student,Result,Subject 
-from src.services.access import find_teacher_student, find_teacher_subject, get_teacher_subject_ids, filter_response_by_ids
+from src.services.access import find_teacher_student, find_teacher_student_by_id, find_teacher_subject, get_teacher_subject_ids, filter_response_by_ids
 
 
 def teacher_can_access_result(teacher_id, result_id):
@@ -48,7 +48,17 @@ def create_res():
             "status": "failed"
         }), 400
 
-    student = find_teacher_student(teacher_id, student_name)
+    # Prefer the ID: two students can have the same name
+    if data.get("student_id"):
+        student = find_teacher_student_by_id(teacher_id, data["student_id"])
+    elif student_name:
+        student = find_teacher_student(teacher_id, student_name)
+    else:
+        return jsonify({
+            "message": "student_id or student_name is required",
+            "status": "failed"
+        }), 400
+
     if not student:
         return jsonify({
             "message": "Student not found among your students",
@@ -144,7 +154,15 @@ def update_res():
 
     kwargs = {}
     for key, value in data.items():
-        if key == 'student_name':
+        if key == 'student_id':
+            student = find_teacher_student_by_id(teacher_id, value)
+            if not student:
+                return jsonify({"message": "Student not found among your students", "status": "failed"}), 400
+            kwargs['student_id'] = student.id
+        elif key == 'student_name':
+            # The ID wins when both are sent
+            if 'student_id' in data:
+                continue
             student = find_teacher_student(teacher_id, value)
             if not student:
                 return jsonify({"message": "Student not found among your students", "status": "failed"}), 400

@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt,get_jwt_identity
 from src.models import Student,Attendance,Subject
-from src.services.access import find_teacher_student, find_teacher_subject, get_teacher_subject_ids, filter_response_by_ids
+from src.services.access import find_teacher_student, find_teacher_student_by_id, find_teacher_subject, get_teacher_subject_ids, filter_response_by_ids
 
 
 def teacher_can_access_attendance(teacher_id, attendance_id):
@@ -42,12 +42,22 @@ def create_attendance():
     except ValidationError as err:
         return jsonify(err.messages), 400
     
-    student_name = data['student_name']
+    student_name = data.get('student_name')
     subject_name = data['subject_name']
     status = data['status']
     teacher_id = int(get_jwt_identity())
 
-    student = find_teacher_student(teacher_id, student_name)
+    # Prefer the ID: two students can have the same name
+    if data.get('student_id'):
+        student = find_teacher_student_by_id(teacher_id, data['student_id'])
+    elif student_name:
+        student = find_teacher_student(teacher_id, student_name)
+    else:
+        return jsonify({
+            "message": "student_id or student_name is required",
+            "status": "failed"
+        }), 400
+
     if not student:
         return jsonify({
             "message": "Student not found among your students",
@@ -133,7 +143,15 @@ def modify_attendance():
     except ValidationError as err:
         return jsonify(err.messages), 400
 
-    if 'student_name' in data:
+    if 'student_id' in data:
+        student = find_teacher_student_by_id(teacher_id, data['student_id'])
+        if not student:
+            return jsonify({
+                "message": "Student not found among your students",
+                "status": "failed"
+            }), 400
+        data.pop('student_name', None)
+    elif 'student_name' in data:
         student = find_teacher_student(teacher_id, data['student_name'])
         if not student:
             return jsonify({

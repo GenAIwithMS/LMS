@@ -1,6 +1,7 @@
 from src.models import Student,Enrollment
 from src.services.users import is_email_taken, is_username_taken
 from flask import jsonify
+from sqlalchemy.exc import IntegrityError
 from src.db import db
 
 
@@ -124,7 +125,15 @@ def delete_student(student_id):
         db.session.delete(enrollment)
 
     db.session.delete(student)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Other records still point to this one, so the database refuses
+        db.session.rollback()
+        return jsonify({
+            "message": "Cannot delete this student because attendance, results or submissions still belong to them. Delete those first.",
+            "status": "failed"
+        }), 409
 
     return jsonify({
         "message":"student deleted sucessfully",

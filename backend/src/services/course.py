@@ -1,5 +1,6 @@
 from src.models import Course,Enrollment,Subject,Assignment,AssignmentSubmission,Result,Attendance,Teacher
 from flask import jsonify
+from sqlalchemy.exc import IntegrityError
 from src.db import db
 
 
@@ -81,5 +82,13 @@ def delete_course(course_id):
     Enrollment.query.filter_by(course_id=course_id).delete()
     
     db.session.delete(course)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Other records still point to this one, so the database refuses
+        db.session.rollback()
+        return jsonify({
+            "message": "Cannot delete this course because other records still use it.",
+            "status": "failed"
+        }), 409
     return jsonify({"message": "Course deleted successfully"})

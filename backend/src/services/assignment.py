@@ -1,5 +1,6 @@
 from src.models import Assignment
 from flask import jsonify
+from sqlalchemy.exc import IntegrityError
 from src.db import db
 
 def add_assignment(title, description, teacher_id, due_date, subject_id, total_marks):
@@ -87,7 +88,15 @@ def delete_assignment(assignment_id):
         }),404
 
     db.session.delete(assignment)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Other records still point to this one, so the database refuses
+        db.session.rollback()
+        return jsonify({
+            "message": "Cannot delete this assignment because students have already submitted work for it. Delete those submissions first.",
+            "status": "failed"
+        }), 409
 
     return jsonify({
         "message": "Assignment deleted successfully",

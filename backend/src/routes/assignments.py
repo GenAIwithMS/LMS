@@ -4,7 +4,7 @@ from src.schemas import assignmentSchema,UpdateAssignmentSchema
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from src.models import Subject
-from src.services.access import find_teacher_subject, teacher_owns_assignment, get_teacher_assignment_ids, filter_response_by_ids
+from src.services.access import find_teacher_subject, teacher_owns_assignment, get_teacher_assignment_ids, get_student_assignment_ids, filter_response_by_ids
 
 assignment_bp = Blueprint("assignment", __name__)
 
@@ -55,12 +55,20 @@ def get_assignments():
                 "message": "You can only view your own assignments",
                 "status": "failed"
             }), 403
+        if user_role == "student" and assignment_id not in get_student_assignment_ids(user_id):
+            return jsonify({
+                "message": "Assignment not found",
+                "status": "failed"
+            }), 404
         result = get_assignment_by_id(assignment_id)
     else:
         result = get_all_assignments()
         # A teacher only sees their own assignments
         if user_role == "teacher":
             result = filter_response_by_ids(result, get_teacher_assignment_ids(user_id))
+        # A student only sees assignments from teachers who teach them
+        if user_role == "student":
+            result = filter_response_by_ids(result, get_student_assignment_ids(user_id))
     return result
 
 @assignment_bp.route("/api/update/assignments/", methods=["PUT"])

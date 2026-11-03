@@ -1,4 +1,5 @@
 from flask import Flask, jsonify
+from sqlalchemy.exc import IntegrityError
 from flask_cors import CORS
 import os
 from datetime import timedelta
@@ -26,6 +27,16 @@ def create_app():
             "status": "failed"
         }), 413
     
+    @app.errorhandler(IntegrityError)
+    def database_refused(error):
+        # The database refused a change (for example a duplicate username, or a
+        # delete that other records still need). Undo it so the next query works.
+        db.session.rollback()
+        return jsonify({
+            "message": "This change conflicts with existing data, so it was not saved.",
+            "status": "failed"
+        }), 409
+
     CORS(app, 
          resources={r"/api/*": {
              "origins": "*",

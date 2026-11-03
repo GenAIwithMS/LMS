@@ -24,6 +24,7 @@ const TeacherAttendance: React.FC = () => {
   const optionsRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
+    student_id: '',
     student_name: '',
     subject_name: '',
     status: 'present' as 'present' | 'absent' | 'late',
@@ -80,6 +81,7 @@ const TeacherAttendance: React.FC = () => {
       attendanceData = attendanceData.map((record: any) => ({
         id: record.id || 0,
         student: record.student || record.student_name || '',
+        student_id: record.student_id,
         subject: record.subject || record.subject_name || '',
         status: (record.status || 'present') as 'present' | 'absent' | 'late',
         mark_at: record.mark_at || record.markAt || record.date || new Date().toISOString(),
@@ -147,11 +149,18 @@ const TeacherAttendance: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Send the student's ID: names are not unique, IDs are
+      const submitData = {
+        student_id: Number(formData.student_id),
+        student_name: formData.student_name,
+        subject_name: formData.subject_name,
+        status: formData.status,
+      };
       if (editingAttendance) {
-        await updateAttendance(editingAttendance.id, formData);
+        await updateAttendance(editingAttendance.id, submitData);
         showSuccess('Attendance updated successfully');
       } else {
-        await markAttendance(formData);
+        await markAttendance(submitData);
         showSuccess('Attendance marked successfully');
       }
       setIsModalOpen(false);
@@ -162,9 +171,21 @@ const TeacherAttendance: React.FC = () => {
     }
   };
 
+  // Keep the chosen student's ID and name together
+  const handleStudentChange = (studentId: string) => {
+    let studentName = '';
+    for (const student of students) {
+      if (String(student.id) === studentId) {
+        studentName = student.name;
+      }
+    }
+    setFormData({ ...formData, student_id: studentId, student_name: studentName });
+  };
+
   const handleEdit = (attendance: Attendance) => {
     setEditingAttendance(attendance);
     setFormData({
+      student_id: attendance.student_id ? String(attendance.student_id) : '',
       student_name: attendance.student || '',
       subject_name: attendance.subject || '',
       status: attendance.status || 'present',
@@ -195,7 +216,7 @@ const TeacherAttendance: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ student_name: '', subject_name: '', status: 'present' });
+    setFormData({ student_id: '', student_name: '', subject_name: '', status: 'present' });
     setEditingAttendance(null);
   };
 
@@ -412,10 +433,10 @@ const TeacherAttendance: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Student</label>
-            <select required value={formData.student_name} onChange={(e) => setFormData({ ...formData, student_name: e.target.value })} className="input">
+            <select required value={formData.student_id} onChange={(e) => handleStudentChange(e.target.value)} className="input">
               <option value="">Select a student</option>
               {students.map((student) => (
-                <option key={student.id} value={student.name}>{student.name}</option>
+                <option key={student.id} value={student.id}>{student.name} ({student.username})</option>
               ))}
             </select>
           </div>
