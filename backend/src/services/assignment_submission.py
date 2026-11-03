@@ -1,21 +1,90 @@
 from src.models import AssignmentSubmission,Assignment,Student
 from src.db import db
 from flask import jsonify
+from werkzeug.utils import secure_filename
 import os
+import uuid
+
+# Uploaded files are kept outside the "static" folder, so nobody can download them
+# without logging in. They are only served through /api/submission/file.
+BACKEND_FOLDER = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+UPLOAD_FOLDER = os.path.join(BACKEND_FOLDER, "uploads", "submissions")
+
+# Where older versions of the LMS saved files (publicly served). Only used to find old files.
+OLD_UPLOAD_FOLDER = os.path.join(BACKEND_FOLDER, "src", "static", "submissions")
+
+ALLOWED_EXTENSIONS = ["pdf", "doc", "docx", "txt", "ppt", "pptx", "xls", "xlsx", "zip", "png", "jpg", "jpeg"]
+
+
+def is_allowed_file(filename):
+    """Check the file extension is one we accept."""
+    if "." not in filename:
+        return False
+    extension = filename.rsplit(".", 1)[1].lower()
+    return extension in ALLOWED_EXTENSIONS
+
+
+def save_submission_file(file):
+    """Save an uploaded file safely. Returns (saved_name, None) or (None, error message).
+
+    secure_filename removes things like "../" so a file can't be written outside the
+    upload folder. The random prefix stops two files with the same name overwriting each other.
+    """
+    original_name = secure_filename(file.filename or "")
+    if not original_name or not is_allowed_file(original_name):
+        allowed = ", ".join(ALLOWED_EXTENSIONS)
+        return None, f"File type not allowed. Allowed types: {allowed}"
+
+    saved_name = f"{uuid.uuid4().hex}_{original_name}"
+
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+
+    file.save(os.path.join(UPLOAD_FOLDER, saved_name))
+    return saved_name, None
+
+
+def get_submission_file_path(submission):
+    """Return the full path of a submission's file on disk, or None if there is no file."""
+    if not submission.submission_file:
+        return None
+
+    filename = os.path.basename(submission.submission_file)
+
+    new_path = os.path.join(UPLOAD_FOLDER, filename)
+    if os.path.exists(new_path):
+        return new_path
+
+    old_path = os.path.join(OLD_UPLOAD_FOLDER, filename)
+    if os.path.exists(old_path):
+        return old_path
+
+    return None
+
 
 def submit_assignment(student_id, assignment_id, submission_text=None, submission_file=None,submitted_at=None,feedback=None):
 
-    file = submission_file
-    if file:
-        filepath = f"src/static/submissions/{file.filename}"
-        if not os.path.exists("src/static/submissions/"):
-            os.makedirs("src/static/submissions/")
-        file.save(filepath)
+    assignment = Assignment.query.get(assignment_id)
+    if not assignment:
+        return jsonify({
+            "message": "Assignment not found",
+            "status": "failed"
+        }), 404
+
+    saved_name = None
+    if submission_file:
+        saved_name, error = save_submission_file(submission_file)
+        if error:
+            return jsonify({
+                "message": error,
+                "status": "failed"
+            }), 400
+
     new_submission = AssignmentSubmission(
         student_id=student_id,
         assignment_id=assignment_id,
         submission_text=submission_text,
-        submission_file=filepath if file else None,
+        submission_file=saved_name,
         feedback=feedback,
     )
     if submitted_at:

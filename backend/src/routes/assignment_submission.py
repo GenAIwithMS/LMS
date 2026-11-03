@@ -1,10 +1,24 @@
-from src.services import submit_assignment,get_submissions_by_assignment,get_submissions_by_student,update_submission,delete_submission
-from flask import Blueprint, request, jsonify
+from src.services import submit_assignment,get_submissions_by_assignment,get_submissions_by_student,update_submission,delete_submission,get_submission_file_path
+from flask import Blueprint, request, jsonify, send_file
 from src.schemas import UpdateAssignmentSubmissionSchema
+from src.models import Assignment, AssignmentSubmission
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt_identity, get_jwt
+import os
 
 assignment_submission_bp = Blueprint("assignment_submission", __name__)
+
+
+def teacher_owns_assignment(teacher_id, assignment_id):
+    """True if the teacher created this assignment or teaches its subject."""
+    assignment = Assignment.query.get(assignment_id)
+    if not assignment:
+        return False
+    if assignment.teacher_id == teacher_id:
+        return True
+    if assignment.subject and assignment.subject.teacher_id == teacher_id:
+        return True
+    return False
 
 @assignment_submission_bp.route("/api/submit/assignment", methods=["POST"])
 @jwt_required()
@@ -62,6 +76,17 @@ def get_submissions_student():
 @assignment_submission_bp.route("/api/get/submissions/by/assignment", methods=["GET"])
 @jwt_required()
 def get_submissions_assignment():
+    token = get_jwt()
+    user_role = token["role"]
+    user_id = int(get_jwt_identity())
+
+    # Students must not see other students' submissions
+    if user_role == "student":
+        return jsonify({
+            "message": "Only teachers and admins can view all submissions for an assignment",
+            "status": "failed"
+        }), 403
+
     try:
         assignment_id = request.args.get("id", type=int)
         if not assignment_id:
@@ -69,6 +94,12 @@ def get_submissions_assignment():
                 "message": "Assignment ID is required",
                 "status": "error"
             }), 400
+
+        if user_role == "teacher" and not teacher_owns_assignment(user_id, assignment_id):
+            return jsonify({
+                "message": "You can only view submissions for your own assignments",
+                "status": "failed"
+            }), 403
 
         result = get_submissions_by_assignment(assignment_id)
         return result
@@ -85,24 +116,62 @@ def get_submissions_assignment():
 @assignment_submission_bp.route("/api/update/submission", methods=["PUT"])
 @jwt_required()
 def update_subm():
+    token = get_jwt()
+    if token["role"] != "teacher":
+        return jsonify({
+            "message": "Only teachers can grade submissions",
+            "status": "failed"
+        }), 403
+
     submission_id = request.args.get("id", type=int)
     if not submission_id:
         return jsonify({
             "message": "Submission ID is required",
             "status": "error"
         }), 400
-    
+
+    submission = AssignmentSubmission.query.get(submission_id)
+    if not submission:
+        return jsonify({
+            "message": "Submission not found",
+            "status": "error"
+        }), 404
+
+    teacher_id = int(get_jwt_identity())
+    if not teacher_owns_assignment(teacher_id, submission.assignment_id):
+        return jsonify({
+            "message": "You can only grade submissions for your own assignments",
+            "status": "failed"
+        }), 403
+
     try:
         data = UpdateAssignmentSubmissionSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
 
-    result = update_submission(submission_id, **data)
+    # A teacher only grades: marks and feedback. The student's work stays as submitted.
+    grading = {}
+    if "marks" in data:
+        grading["marks"] = data["marks"]
+    if "feedback" in data:
+        grading["feedback"] = data["feedback"]
+
+    result = update_submission(submission_id, **grading)
     return result
 
 @assignment_submission_bp.route("/api/delete/submission", methods=["DELETE"])
 @jwt_required()
 def delete_subm():
+    token = get_jwt()
+    user_role = token["role"]
+
+    # Students can submit, but never delete a submission
+    if user_role not in ["admin", "teacher"]:
+        return jsonify({
+            "message": "Only teachers and admins can delete submissions",
+            "status": "failed"
+        }), 403
+
     submission_id = request.args.get("id", type=int)
     if not submission_id:
         return jsonify({
@@ -110,5 +179,71 @@ def delete_subm():
             "status": "error"
         }), 400
 
+    submission = AssignmentSubmission.query.get(submission_id)
+    if not submission:
+        return jsonify({
+            "message": "Submission not found",
+            "status": "error"
+        }), 404
+
+    if user_role == "teacher":
+        teacher_id = int(get_jwt_identity())
+        if not teacher_owns_assignment(teacher_id, submission.assignment_id):
+            return jsonify({
+                "message": "You can only delete submissions for your own assignments",
+                "status": "failed"
+            }), 403
+
     result = delete_submission(submission_id)
     return result
+
+
+@assignment_submission_bp.route("/api/submission/file", methods=["GET"])
+@jwt_required()
+def download_submission_file():
+    """Download a submission's file. Allowed for the student who submitted it,
+    the teacher of the assignment, and the admin."""
+    token = get_jwt()
+    user_role = token["role"]
+    user_id = int(get_jwt_identity())
+
+    submission_id = request.args.get("id", type=int)
+    if not submission_id:
+        return jsonify({
+            "message": "Submission ID is required",
+            "status": "error"
+        }), 400
+
+    submission = AssignmentSubmission.query.get(submission_id)
+    if not submission:
+        return jsonify({
+            "message": "Submission not found",
+            "status": "error"
+        }), 404
+
+    if user_role == "student" and submission.student_id != user_id:
+        return jsonify({
+            "message": "You can only download your own submissions",
+            "status": "failed"
+        }), 403
+
+    if user_role == "teacher" and not teacher_owns_assignment(user_id, submission.assignment_id):
+        return jsonify({
+            "message": "You can only download submissions for your own assignments",
+            "status": "failed"
+        }), 403
+
+    file_path = get_submission_file_path(submission)
+    if not file_path:
+        return jsonify({
+            "message": "This submission has no file",
+            "status": "failed"
+        }), 404
+
+    # Saved files are named "<random id>_<original name>"; download with the original name
+    download_name = os.path.basename(file_path)
+    name_parts = download_name.split("_", 1)
+    if len(name_parts) == 2 and len(name_parts[0]) == 32:
+        download_name = name_parts[1]
+
+    return send_file(file_path, as_attachment=True, download_name=download_name)

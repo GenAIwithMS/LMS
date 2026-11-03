@@ -68,30 +68,63 @@ The API supports three user roles:
 
 ---
 
-### Admin Management
+### My Account
+Any logged-in user (admin, teacher or student) can view and change their own account.
 
-#### Add Admin
-**Endpoint:** `POST /api/add/admin`
+#### Get My Account
+**Endpoint:** `GET /api/account`
 
-**Authentication:** Not required (for initial setup)
-
-**Request Body:**
-```json
-{
-  "name": "John Doe",
-  "username": "johndoe",
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
+**Authentication:** Required
 
 **Response:**
 ```json
 {
-  "message": "Admin added successfully",
-  "status": "success"
+  "status": "success",
+  "account": { "name": "Ali Khan", "email": "ali@example.com", "username": "ali.khan", "role": "student" }
 }
 ```
+
+#### Change My Username
+**Endpoint:** `PUT /api/account/username`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{ "username": "ali.k" }
+```
+
+**Response:** includes a new `token`, because the old token still holds the old username. Replace the stored token with it.
+```json
+{ "message": "Username updated successfully", "status": "success", "token": "<new JWT>" }
+```
+Returns 400 `"Username already exists"` if another user has it.
+
+#### Change My Password
+**Endpoint:** `PUT /api/account/password`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{ "current_password": "old-secret", "new_password": "new-secret" }
+```
+
+Returns 400 if the current password is wrong or the new one is the same. Passwords are stored as bcrypt hashes.
+
+---
+
+### Admin Management
+
+#### Creating the Admin
+There is no API endpoint for creating an admin. The LMS has a single admin, created once during setup:
+
+```bash
+cd backend
+python create_admin.py
+```
+
+The script asks for name, email, username and password, and refuses to run if an admin already exists.
 
 #### Get Admin(s)
 **Endpoint:** `GET /api/get/admin`
@@ -760,9 +793,9 @@ The API supports three user roles:
 **Form Fields:**
 - `assignment_id` (required): Assignment ID
 - `submission_text` (optional): Text submission
-- `submission_file` (optional): File upload
-- `submitted_at` (optional): Submission date
-- `feedback` (optional): Feedback from teacher
+- `submission_file` (optional): File upload. Allowed types: pdf, doc, docx, txt, ppt, pptx, xls, xlsx, zip, png, jpg, jpeg. Maximum 10 MB.
+
+**Access Control:** Students only. Files are stored privately and can only be downloaded through `GET /api/submission/file`.
 
 **Response:**
 ```json
@@ -806,6 +839,8 @@ The API supports three user roles:
 **Query Parameters:**
 - `id` (required): Assignment ID
 
+**Access Control:** Admins, and the teacher of the assignment. Students get 403.
+
 **Response:**
 ```json
 [
@@ -820,18 +855,17 @@ The API supports three user roles:
 ]
 ```
 
-#### Update Submission
+#### Grade Submission
 **Endpoint:** `PUT /api/update/submission`
 
-**Authentication:** Required
+**Authentication:** Required (teacher of the assignment only)
 
 **Query Parameters:**
 - `id` (required): Submission ID
 
-**Request Body:**
+**Request Body:** only marks and feedback are saved; the student's work is never changed.
 ```json
 {
-  "submission_text": "Updated submission",
   "marks_obtained": 90,
   "feedback": "Excellent work"
 }
@@ -848,7 +882,7 @@ The API supports three user roles:
 #### Delete Submission
 **Endpoint:** `DELETE /api/delete/submission`
 
-**Authentication:** Required
+**Authentication:** Required (admin, or the teacher of the assignment). Students cannot delete submissions.
 
 **Query Parameters:**
 - `id` (required): Submission ID
@@ -860,6 +894,16 @@ The API supports three user roles:
   "status": "success"
 }
 ```
+
+#### Download Submission File
+**Endpoint:** `GET /api/submission/file`
+
+**Authentication:** Required (the student who submitted it, the teacher of the assignment, or the admin)
+
+**Query Parameters:**
+- `id` (required): Submission ID
+
+**Response:** the file as a download.
 
 ---
 
