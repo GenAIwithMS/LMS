@@ -49,7 +49,6 @@ If a tool says something was not found "among the students/subjects you can acce
 NOTES:
 - Announcements are posted to a section by name. Assignments, attendance and results refer to subjects and students by name.
 - Use get_students to see your students.
--
 
 Be supportive and clear."""
 
