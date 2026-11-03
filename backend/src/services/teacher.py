@@ -1,16 +1,15 @@
 from src.models import Teacher
+from src.services.users import is_email_taken, is_username_taken
 from src.db import db
 from flask import jsonify
 
 def add_teacher(name, username, email, password_hash):
-    existing_email = Teacher.query.filter_by(email=email).first()
-    if existing_email:
+    if is_email_taken(email):
         return jsonify({
             "message":"Email already exists",
             "status":"failed"
         }), 400
-    existing_username = Teacher.query.filter_by(username=username).first()
-    if existing_username:
+    if is_username_taken(username):
         return jsonify({
             "message":"Username already exists",
             "status":"failed"
@@ -71,6 +70,17 @@ def update_teacher(teacher_id, **kwargs):
             "status":"failed"
         }), 404
     
+    if "email" in kwargs and is_email_taken(kwargs["email"], current_user=teacher):
+        return jsonify({
+            "message":"Email already exists",
+            "status":"failed"
+        }), 400
+    if "username" in kwargs and is_username_taken(kwargs["username"], current_user=teacher):
+        return jsonify({
+            "message":"Username already exists",
+            "status":"failed"
+        }), 400
+
     for key, value in kwargs.items():
         if key == 'password':
             teacher.set_password(value)

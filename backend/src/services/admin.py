@@ -1,16 +1,15 @@
 from src.models import Admin
+from src.services.users import is_email_taken, is_username_taken
 from flask import jsonify
 from src.db import db
 
 def add_admin(name, email, username, password):
-    existing_email = Admin.query.filter_by(email=email).first()
-    if existing_email:
+    if is_email_taken(email):
         return jsonify({
             "message":"Email already exists",
             "status":"failed"
         }), 400
-    existing_username = Admin.query.filter_by(username=username).first()
-    if existing_username:
+    if is_username_taken(username):
         return jsonify({
             "message":"Username already exists",
             "status":"failed"
