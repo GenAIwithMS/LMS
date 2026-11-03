@@ -40,7 +40,7 @@ with app.app_context():
     ali = make(Student, "Ali", "ali", "ali@x.com", section_id=sec.id)
     bilal = make(Student, "Bilal", "bilal", "bilal@x.com", section_id=sec.id)
     db.session.add_all([maths, ali, bilal]); db.session.commit()
-    hw = Assignment(title="HW", subject_id=maths.id, teacher_id=sara.id, due_date=datetime.date(2026, 12, 1), description="d")
+    hw = Assignment(title="HW", subject_id=maths.id, teacher_id=sara.id, due_date=(datetime.date.today() + datetime.timedelta(days=30)), description="d")
     db.session.add(hw); db.session.commit()
     HW = hw.id; ALI = ali.id
 

@@ -77,6 +77,16 @@ def edit_announcement(announcement_title, **kwargs):
             "status": "error"
         }), 404
 
+    # Announcements are found by title, so two must never share one
+    new_title = kwargs.get('title')
+    if new_title and new_title != announcement.title:
+        other = Announcement.query.filter_by(title=new_title).first()
+        if other:
+            return jsonify({
+                "message": "Announcement title already exists try another",
+                "status": "failed"
+            }), 400
+
     for key, value in kwargs.items():
         if hasattr(announcement, key):
             setattr(announcement, key, value)

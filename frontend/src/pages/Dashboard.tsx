@@ -16,6 +16,30 @@ import {
 import { getStudents, getTeachers, getCourses, getAssignments, getAnnouncements, getEvents } from '../services/api';
 import toast from 'react-hot-toast';
 
+// Count the rows in an API answer: a plain list, or a list inside "data" / "assignments"
+const countRows = (data: any): number => {
+  if (Array.isArray(data)) {
+    return data.length;
+  }
+  if (data && Array.isArray(data.data)) {
+    return data.data.length;
+  }
+  if (data && Array.isArray(data.assignments)) {
+    return data.assignments.length;
+  }
+  return 0;
+};
+
+// Run one request and count its rows; a failed request counts as 0
+const countFrom = async (request: () => Promise<any>): Promise<number> => {
+  try {
+    const data = await request();
+    return countRows(data);
+  } catch (error) {
+    return 0;
+  }
+};
+
 const Dashboard: React.FC = () => {
   const { userRole, user } = useAuth();
   const navigate = useNavigate();
@@ -33,23 +57,23 @@ const Dashboard: React.FC = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const [studentsRes, teachersRes, coursesRes, assignmentsRes, announcementsRes, eventsRes] = await Promise.allSettled([
-          getStudents(),
-          getTeachers(),
-          getCourses(),
-          getAssignments(),
-          getAnnouncements(),
-          getEvents(),
-        ]);
+        // Only ask for what this role is allowed to see. The server already limits
+        // teachers and students to their own records, so the counts are theirs.
+        const newStats = { students: 0, teachers: 0, courses: 0, assignments: 0, announcements: 0, events: 0 };
 
-        setStats({
-          students: studentsRes.status === 'fulfilled' ? (Array.isArray(studentsRes.value) ? studentsRes.value.length : 1) : 0,
-          teachers: teachersRes.status === 'fulfilled' ? (Array.isArray(teachersRes.value) ? teachersRes.value.length : 1) : 0,
-          courses: coursesRes.status === 'fulfilled' ? (Array.isArray(coursesRes.value) ? coursesRes.value.length : 1) : 0,
-          assignments: assignmentsRes.status === 'fulfilled' ? (Array.isArray(assignmentsRes.value) ? assignmentsRes.value.length : 1) : 0,
-          announcements: announcementsRes.status === 'fulfilled' ? (Array.isArray(announcementsRes.value) ? announcementsRes.value.length : 1) : 0,
-          events: eventsRes.status === 'fulfilled' ? (Array.isArray(eventsRes.value) ? eventsRes.value.length : 1) : 0,
-        });
+        if (userRole === 'admin') {
+          newStats.students = await countFrom(getStudents);
+          newStats.teachers = await countFrom(getTeachers);
+          newStats.courses = await countFrom(getCourses);
+        }
+        if (userRole === 'teacher') {
+          newStats.students = await countFrom(getStudents);
+        }
+        newStats.assignments = await countFrom(getAssignments);
+        newStats.announcements = await countFrom(getAnnouncements);
+        newStats.events = await countFrom(getEvents);
+
+        setStats(newStats);
       } catch (error) {
         toast.error('Failed to load dashboard data');
       } finally {
@@ -58,11 +82,12 @@ const Dashboard: React.FC = () => {
     };
 
     fetchStats();
-  }, []);
+  }, [userRole]);
 
-  const statCards = [
+  const allStatCards = [
     {
-      title: 'Total Students',
+      roles: ['admin', 'teacher'],
+      title: userRole === 'teacher' ? 'My Students' : 'Total Students',
       value: stats.students,
       icon: Users,
       color: 'text-blue-600',
@@ -70,6 +95,7 @@ const Dashboard: React.FC = () => {
       path: userRole === 'admin' ? '/admin/students' : undefined,
     },
     {
+      roles: ['admin'],
       title: 'Total Teachers',
       value: stats.teachers,
       icon: GraduationCap,
@@ -78,6 +104,7 @@ const Dashboard: React.FC = () => {
       path: userRole === 'admin' ? '/admin/teachers' : undefined,
     },
     {
+      roles: ['admin'],
       title: 'Active Courses',
       value: stats.courses,
       icon: BookOpen,
@@ -86,7 +113,8 @@ const Dashboard: React.FC = () => {
       path: userRole === 'admin' ? '/admin/courses' : undefined,
     },
     {
-      title: 'Assignments',
+      roles: ['admin', 'teacher', 'student'],
+      title: userRole === 'admin' ? 'Assignments' : 'My Assignments',
       value: stats.assignments,
       icon: FileText,
       color: 'text-amber-600',
@@ -94,6 +122,9 @@ const Dashboard: React.FC = () => {
       path: userRole === 'teacher' ? '/teacher/assignments' : userRole === 'student' ? '/student/assignments' : undefined,
     },
   ];
+
+  // Each role only sees the cards that make sense for it
+  const statCards = allStatCards.filter((card) => userRole !== null && card.roles.includes(userRole));
 
   if (loading) {
     return (

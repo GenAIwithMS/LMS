@@ -88,7 +88,7 @@ const StudentSubmissions: React.FC = () => {
       
       let errorMessage = 'Failed to fetch submissions';
       if (error.message?.includes('Network Error') || error.code === 'ECONNREFUSED') {
-        errorMessage = 'Cannot connect to server. Please make sure the backend is running on http://localhost:5000';
+        errorMessage = 'Cannot connect to the server. Please make sure the backend is running.';
       } else if (error.response) {
         errorMessage = error.response.data?.message || `Error: ${error.response.status} ${error.response.statusText}`;
       } else if (error.message) {

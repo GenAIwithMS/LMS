@@ -1,5 +1,5 @@
 from src.models import AssignmentSubmission,Assignment,Student
-from src.db import db
+from src.db import db, pakistan_time
 from flask import jsonify
 from werkzeug.utils import secure_filename
 import os
@@ -71,6 +71,23 @@ def submit_assignment(student_id, assignment_id, submission_text=None, submissio
             "status": "failed"
         }), 404
 
+    # No submissions after the due date (the due date itself is still allowed)
+    today = pakistan_time().date()
+    if assignment.due_date and today > assignment.due_date:
+        return jsonify({
+            "message": f"The due date ({assignment.due_date}) has passed, so this assignment can no longer be submitted",
+            "status": "failed"
+        }), 400
+
+    # One submission per student and assignment. Submitting again before the
+    # due date replaces the earlier one, unless the teacher has already graded it.
+    earlier = AssignmentSubmission.query.filter_by(student_id=student_id, assignment_id=assignment_id).first()
+    if earlier and (earlier.marks is not None or earlier.feedback):
+        return jsonify({
+            "message": "Your submission has already been graded, so it can't be replaced",
+            "status": "failed"
+        }), 409
+
     saved_name = None
     if submission_file:
         saved_name, error = save_submission_file(submission_file)
@@ -79,6 +96,20 @@ def submit_assignment(student_id, assignment_id, submission_text=None, submissio
                 "message": error,
                 "status": "failed"
             }), 400
+
+    if earlier:
+        # Replace the earlier submission, and remove its old file from disk
+        old_file_path = get_submission_file_path(earlier)
+        earlier.submission_text = submission_text
+        earlier.submission_file = saved_name
+        earlier.submitted_at = pakistan_time()
+        db.session.commit()
+        if old_file_path and os.path.exists(old_file_path):
+            os.remove(old_file_path)
+        return jsonify({
+            "message": "Your earlier submission was replaced with this one",
+            "status": "success"
+        }), 200
 
     new_submission = AssignmentSubmission(
         student_id=student_id,

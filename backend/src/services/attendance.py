@@ -1,9 +1,19 @@
 from src.models import Attendance,Student,Subject
-from src.db import db
+from src.db import db, pakistan_time
 from flask import jsonify
 
 
 def mark_attend(student_id, subject_id, status):
+    # Only one record per student, subject and day
+    today = pakistan_time().date()
+    records = Attendance.query.filter_by(student_id=student_id, subject_id=subject_id).all()
+    for record in records:
+        if record.mark_at and record.mark_at.date() == today:
+            return jsonify({
+                "message": "Attendance is already marked for this student in this subject today. Edit that record instead.",
+                "status": "failed"
+            }), 409
+
     attendance_record = Attendance(
         student_id=student_id,
         subject_id=subject_id,
