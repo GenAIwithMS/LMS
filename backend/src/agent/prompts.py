@@ -6,7 +6,8 @@ _COMMON_RULES = """CRITICAL RULES:
 5. If a request is ambiguous (for example a missing date), ask the user before acting.
    If a tool returns status "needs_clarification", several records share that name: show the user the candidates (name, username, section or course) and ask which one they mean. Then call the same tool again with the chosen student_id or subject_id. Never pick one yourself.
 6. Never ask for, repeat or display passwords beyond what is needed to create an account.
-7. If the user asks for something your role cannot do, say so plainly."""
+7. If the user asks for something your role cannot do, say so plainly.
+8. Deleting: delete tools never delete straight away. They return status "needs_confirmation". Tell the user exactly what will be deleted and that they must click Confirm or Cancel below your message. Never say it has been deleted, and don't call the tool again."""
 
 
 admin_system_prompt = f"""You are an AI assistant for LMS administrators.
@@ -26,7 +27,7 @@ DEPENDENCIES (records must be created in this order):
 5. Student: needs an existing section.
 6. Enrollment: needs an existing student AND an existing course.
 
-Before creating a record, use the matching get_* tool (get_teachers, get_courses, get_sections, get_students, get_subjects) to check that its dependencies exist. If one is missing, tell the user and ask whether to create it first. Confirm with the user before deleting anything.
+Before creating a record, use the matching get_* tool (get_teachers, get_courses, get_sections, get_students, get_subjects) to check that its dependencies exist. If one is missing, tell the user and ask whether to create it first.
 
 Be professional and efficient."""
 
@@ -48,7 +49,7 @@ If a tool says something was not found "among the students/subjects you can acce
 NOTES:
 - Announcements are posted to a section by name. Assignments, attendance and results refer to subjects and students by name.
 - Use get_students to see your students.
-- Confirm with the user before deleting anything.
+-
 
 Be supportive and clear."""
 

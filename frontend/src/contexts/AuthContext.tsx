@@ -40,7 +40,6 @@ const getSavedToken = (): string | null => {
   if (isTokenExpired(savedToken)) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    sessionStorage.removeItem('lms_chatbot_history');
     return null;
   }
   return savedToken;
@@ -89,8 +88,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    // Clear chat history on logout
-    sessionStorage.removeItem('lms_chatbot_history');
   };
 
   // Get role from user object or decode from token

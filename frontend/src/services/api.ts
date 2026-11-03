@@ -53,8 +53,6 @@ api.interceptors.response.use(
     if (status === 401 || isBadToken) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Don't let the next person on this computer see the old chat
-      sessionStorage.removeItem('lms_chatbot_history');
 
       // Only redirect if not already on login page. "expired=1" tells the login page to explain why.
       if (window.location.pathname !== '/login') {
@@ -416,10 +414,27 @@ export const deleteEvent = async (id: number) => {
 };
 
 // Chatbot - Extended timeout for AI processing
-export const chatWithBot = async (message: string, conversationHistory?: Array<{role: string; content: string}>) => {
-  const response = await api.post('/chat', { message, history: conversationHistory }, {
+// The conversation is saved on the server, so only the new message is sent
+export const chatWithBot = async (message: string) => {
+  const response = await api.post('/chat', { message }, {
     timeout: 120000, // 120 seconds (2 minutes) for chatbot responses
   });
+  return response.data;
+};
+
+export const getChatHistory = async () => {
+  const response = await api.get('/chat/history');
+  return response.data;
+};
+
+export const clearChatHistory = async () => {
+  const response = await api.delete('/chat/history');
+  return response.data;
+};
+
+// The user clicked Confirm (approve = true) or Cancel on a delete the assistant asked for
+export const answerChatAction = async (action_id: number, approve: boolean) => {
+  const response = await api.post('/chat/confirm', { action_id, approve });
   return response.data;
 };
 

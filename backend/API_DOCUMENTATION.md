@@ -1299,11 +1299,33 @@ The script asks for name, email, username and password, and refuses to run if an
 {
   "message": "You have 3 assignments due this week...",
   "status": "success",
-  "role": "student"
+  "role": "student",
+  "pending_actions": []
 }
 ```
 
-**Note:** The chatbot provides role-specific assistance based on the authenticated user's role.
+**Note:** The chatbot provides role-specific assistance based on the authenticated user's role. The conversation is saved on the server (only the new message is sent), and the assistant sees the last 20 messages. Any `history` field sent by the browser is ignored.
+
+#### Get / Clear Chat History
+**Endpoints:** `GET /api/chat/history`, `DELETE /api/chat/history`
+
+**Authentication:** Required
+
+`GET` returns `{"messages": [{"role": "user" | "assistant", "content": "..."}], "pending_actions": [...]}` for the logged-in user. `DELETE` starts a new conversation and cancels any waiting deletes.
+
+#### Confirm or Cancel a Delete
+**Endpoint:** `POST /api/chat/confirm`
+
+**Authentication:** Required (only the user the action belongs to)
+
+The assistant never deletes straight away. A delete it wants to do appears in `pending_actions` as `{"id": 5, "description": "Delete the student Ali Khan (ali.khan)"}`, and the page shows Confirm / Cancel buttons.
+
+**Request Body:**
+```json
+{ "action_id": 5, "approve": true }
+```
+
+`approve: true` runs the delete (permissions are checked again); `false` cancels it. Each action can be answered once.
 
 ---
 

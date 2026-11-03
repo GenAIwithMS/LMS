@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, User, Trash2, Minimize2 } from 'lucide-react';
-import { chatWithBot } from '../services/api';
-import toast from 'react-hot-toast';
+import { useChat } from '../hooks/useChat';
+import { ChatPendingActions } from './ChatPendingActions';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -22,32 +22,15 @@ const ManusIcon = ({ size = 20, className = "" }) => (
   </svg>
 );
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
 interface ChatbotWidgetProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
-  const CHAT_HISTORY_KEY = 'lms_chatbot_history';
-  
-  const loadChatHistory = (): Message[] => {
-    try {
-      const savedHistory = sessionStorage.getItem(CHAT_HISTORY_KEY);
-      if (savedHistory) return JSON.parse(savedHistory);
-    } catch (error) {
-      console.error('Failed to load chat history:', error);
-    }
-    return [{ role: 'assistant', content: 'Hello! I\'m your LMS AI assistant. How can I help you today?' }];
-  };
-
-  const [messages, setMessages] = useState<Message[]>(loadChatHistory());
+  // The conversation is saved on the server. It is loaded the first time the widget opens.
+  const { messages, pendingActions, loading, sendMessage, answerAction, clearChat } = useChat(isOpen);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Adjustability states
@@ -59,9 +42,8 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
   const resizeStartRef = useRef<{ x: number; width: number } | null>(null);
 
   useEffect(() => {
-    sessionStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, pendingActions]);
 
   useEffect(() => {
     localStorage.setItem('chatbotWidth', width.toString());
@@ -108,33 +90,9 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
-    const userMessage = input.trim();
+    const userMessage = input;
     setInput('');
-    const newMessages = [...messages, { role: 'user', content: userMessage } as Message];
-    setMessages(newMessages);
-    setLoading(true);
-
-    try {
-      const response = await chatWithBot(userMessage, messages);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: response.message || 'I apologize, but I couldn\'t process that request.' },
-      ]);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to get response');
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const clearChatHistory = () => {
-    setMessages([{ role: 'assistant', content: 'Hello! I\'m your LMS AI assistant. How can I help you today?' }]);
-    sessionStorage.removeItem(CHAT_HISTORY_KEY);
-    toast.success('Chat history cleared');
+    await sendMessage(userMessage);
   };
 
   return (
@@ -165,7 +123,7 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={clearChatHistory} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Clear Chat">
+          <button onClick={clearChat} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Clear Chat">
             <Trash2 size={18} />
           </button>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
@@ -196,6 +154,7 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
         ))}
+        <ChatPendingActions actions={pendingActions} disabled={loading} onAnswer={answerAction} />
         {loading && (
           <div className="flex justify-start">
             <div className="flex gap-3">

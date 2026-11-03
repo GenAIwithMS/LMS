@@ -1,24 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User } from 'lucide-react';
-import { chatWithBot } from '../services/api';
-import toast from 'react-hot-toast';
+import { Send, Bot, User, Trash2 } from 'lucide-react';
+import { useChat } from '../hooks/useChat';
+import { ChatPendingActions } from '../components/ChatPendingActions';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
 const Chatbot: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'Hello! I\'m your LMS assistant. How can I help you today?',
-    },
-  ]);
+  // Same conversation as the chat widget: it is saved on the server
+  const { messages, pendingActions, loading, sendMessage, answerAction, clearChat } = useChat();
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,39 +17,28 @@ const Chatbot: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, pendingActions]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
-    const userMessage = input.trim();
+    const userMessage = input;
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
-    setLoading(true);
-
-    try {
-      const response = await chatWithBot(userMessage);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: response.message || 'I apologize, but I couldn\'t process that request.' },
-      ]);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to get response');
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+    await sendMessage(userMessage);
   };
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">LMS Assistant</h1>
-        <p className="text-gray-600 mt-2">Ask me anything about your learning management system</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">LMS Assistant</h1>
+          <p className="text-gray-600 mt-2">Ask me anything about your learning management system</p>
+        </div>
+        <button onClick={clearChat} className="btn btn-secondary flex items-center gap-2 text-sm" title="Start a new conversation">
+          <Trash2 size={16} />
+          <span>Clear chat</span>
+        </button>
       </div>
 
       <div className="card h-[600px] flex flex-col">
@@ -96,6 +75,7 @@ const Chatbot: React.FC = () => {
               </div>
             </div>
           ))}
+          <ChatPendingActions actions={pendingActions} disabled={loading} onAnswer={answerAction} />
           {loading && (
             <div className="flex items-start space-x-3">
               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center">
