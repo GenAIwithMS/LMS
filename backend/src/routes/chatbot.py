@@ -235,7 +235,7 @@ def confirm_action():
     if result_status in ["failed", "error"]:
         reply = f"Could not delete: {result_message}"
     else:
-        reply = f"Done: {action.description}. {result_message}"
+        reply = f"Confirmed and done: {action.description}."
 
     save_chat_message(user_role, user_id, "assistant", reply)
 

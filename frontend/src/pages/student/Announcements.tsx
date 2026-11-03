@@ -17,7 +17,19 @@ const StudentAnnouncements: React.FC = () => {
     try {
       setLoading(true);
       const data = await getAnnouncements();
-      setAnnouncements(Array.isArray(data) ? data : data.announcement ? [data.announcement] : []);
+      let list: any[] = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (data.announcement) {
+        list = [data.announcement];
+      }
+      // The API sends section_name and teacher_name; the page shows section and teacher
+      const announcementsData = list.map((announcement: any) => ({
+        ...announcement,
+        section: announcement.section || announcement.section_name || '',
+        teacher: announcement.teacher || announcement.teacher_name || '',
+      }));
+      setAnnouncements(announcementsData);
     } catch (error) {
       toast.error('Failed to fetch announcements');
     } finally {

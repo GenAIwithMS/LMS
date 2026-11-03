@@ -31,8 +31,8 @@ def add_students(name, username, section, password, email):
     db.session.commit()
     
     return jsonify({
-        "message":"student added sucessfully",
-        "status":"sucess"
+        "message":"student added successfully",
+        "status":"success"
     }), 201
 
 def get_all_students():
@@ -107,8 +107,8 @@ def update_student(student_id, **kwargs):
     db.session.commit()
     
     return jsonify({
-        "message":"student updated sucessfully",
-        "status":"sucess"
+        "message":"student updated successfully",
+        "status":"success"
     })
 
 def delete_student(student_id):
@@ -136,6 +136,6 @@ def delete_student(student_id):
         }), 409
 
     return jsonify({
-        "message":"student deleted sucessfully",
-        "status":"sucess"
+        "message":"student deleted successfully",
+        "status":"success"
     })
