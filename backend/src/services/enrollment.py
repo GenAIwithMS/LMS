@@ -32,6 +32,7 @@ def get_all_enrollments():
             "id": enrollment.id,
             "student_name": enrollment.student.name,
             "student_id": enrollment.student_id,
+            "course_id": enrollment.course_id,
             "course_name": enrollment.course.name,
             "enrollment_date": enrollment.enrollment_date,
             "status": enrollment.status,
@@ -46,6 +47,7 @@ def get_enrollments_by_student(student_id):
     for enrollment in enrollments:
         enrollment_data = {
             "id": enrollment.id,
+            "course_id": enrollment.course_id,
             "course_name": enrollment.course.name,
             "enrollment_date": enrollment.enrollment_date,
             "status": enrollment.status,

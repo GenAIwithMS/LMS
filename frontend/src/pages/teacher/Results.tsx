@@ -25,6 +25,7 @@ const TeacherResults: React.FC = () => {
   const [formData, setFormData] = useState({
     student_id: '',
     student_name: '',
+    subject_id: '',
     subject_name: '',
     total_marks: 100,
     obtained_marks: 0,
@@ -83,6 +84,7 @@ const TeacherResults: React.FC = () => {
         student: result.student || result.student_name || '',
         student_id: result.student_id,
         subject: result.subject || result.subject_name || '',
+        subject_id: result.subject_id,
         total_marks: result.total_marks || result.totalMarks || 100,
         obtained_marks: result.obtained_marks || result.obtainedMarks || 0,
         exam_type: result.exam_type || result.examType || '',
@@ -174,6 +176,17 @@ const TeacherResults: React.FC = () => {
     }
   };
 
+  // Keep the chosen subject's ID and name together
+  const handleSubjectChange = (subjectId: string) => {
+    let subjectName = '';
+    for (const subject of subjects) {
+      if (String(subject.id) === subjectId) {
+        subjectName = subject.name;
+      }
+    }
+    setFormData({ ...formData, subject_id: subjectId, subject_name: subjectName });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -189,6 +202,7 @@ const TeacherResults: React.FC = () => {
       student_id: Number(formData.student_id),
       student_name: formData.student_name.trim(),
       subject_name: formData.subject_name.trim(),
+      subject_id: formData.subject_id ? Number(formData.subject_id) : undefined,
       total_marks: Number(formData.total_marks),
       obtained_marks: Number(formData.obtained_marks),
       exam_type: formData.exam_type.trim(),
@@ -228,6 +242,7 @@ const TeacherResults: React.FC = () => {
     setFormData({
       student_id: result.student_id ? String(result.student_id) : '',
       student_name: result.student || '',
+      subject_id: result.subject_id ? String(result.subject_id) : '',
       subject_name: result.subject || '',
       total_marks: result.total_marks || 100,
       obtained_marks: result.obtained_marks || 0,
@@ -260,7 +275,7 @@ const TeacherResults: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ student_id: '', student_name: '', subject_name: '', total_marks: 100, obtained_marks: 0, exam_type: '', remarks: '' });
+    setFormData({ student_id: '', student_name: '', subject_id: '', subject_name: '', total_marks: 100, obtained_marks: 0, exam_type: '', remarks: '' });
     setEditingResult(null);
   };
 
@@ -473,13 +488,13 @@ const TeacherResults: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-            <select required value={formData.subject_name} onChange={(e) => setFormData({ ...formData, subject_name: e.target.value })} className="input" disabled={!!editingResult}>
+            <select required value={formData.subject_id} onChange={(e) => handleSubjectChange(e.target.value)} className="input" disabled={!!editingResult}>
               <option value="">Select a subject</option>
               {subjects.length === 0 ? (
                 <option value="" disabled>No subjects available</option>
               ) : (
                 subjects.map((subject) => (
-                  <option key={subject.id} value={subject.name}>{subject.name}</option>
+                  <option key={subject.id} value={subject.id}>{subject.name} ({subject.course})</option>
                 ))
               )}
             </select>

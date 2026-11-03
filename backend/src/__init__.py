@@ -1,4 +1,5 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from werkzeug.exceptions import HTTPException
 from sqlalchemy.exc import IntegrityError
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -83,6 +84,24 @@ def create_app():
             "message": "This change conflicts with existing data, so it was not saved.",
             "status": "failed"
         }), 409
+
+    # Any error not handled above. Known HTTP errors (404, 405, ...) keep their
+    # code; an unexpected crash becomes a plain 500 message. Either way the
+    # browser gets JSON it can show, never an HTML error page or Python details.
+    @app.errorhandler(Exception)
+    def unexpected_error(error):
+        if isinstance(error, HTTPException):
+            return jsonify({
+                "message": error.description,
+                "status": "failed"
+            }), error.code
+
+        db.session.rollback()
+        app.logger.exception("Unexpected error on %s %s", request.method, request.path)
+        return jsonify({
+            "message": "Something went wrong on the server. Please try again.",
+            "status": "failed"
+        }), 500
 
     @app.errorhandler(429)
     def too_many_requests(error):

@@ -45,6 +45,7 @@ def get_all_students():
             "id": student.id,
             "name": student.name,
             "username": student.username,
+            "section_id": student.section_id,
             "section_name": student.section.name,
             "email": student.email,
         }
@@ -63,6 +64,7 @@ def get_student_by_id(student_id):
         "id": student.id,
         "name": student.name,
         "username": student.username,
+        "section_id": student.section_id,
         "section_name": student.section.name,
         "email": student.email,
     }

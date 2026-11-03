@@ -151,17 +151,42 @@ def find_teacher_student_by_id(teacher_id, student_id):
     return Student.query.get(int(student_id))
 
 
-def find_teacher_subject(teacher_id, subject_name):
-    """Find a subject by name among the subjects this teacher teaches. Returns None if not found."""
+def find_record(model, record_id, record_name):
+    """Find a record by its ID, or by name when no ID was sent. Returns None if not found.
+
+    Forms should send the ID: names can repeat (two teachers called "Ali"), IDs can't.
+    The name is still accepted for older requests and the chatbot.
+    """
+    if record_id:
+        return model.query.get(int(record_id))
+    if record_name:
+        return model.query.filter_by(name=record_name).first()
+    return None
+
+
+def find_teacher_subject(teacher_id, subject_name, subject_id=None):
+    """Find a subject (by ID, or by name) among the subjects this teacher teaches. Returns None if not found."""
+    if subject_id:
+        subject = Subject.query.get(int(subject_id))
+        if subject and subject.teacher_id == teacher_id:
+            return subject
+        return None
+
     subjects = Subject.query.filter_by(name=subject_name, teacher_id=teacher_id).all()
     if subjects:
         return subjects[0]
     return None
 
 
-def find_teacher_section(teacher_id, section_name):
-    """Find a section by name among this teacher's sections. Returns None if not found."""
+def find_teacher_section(teacher_id, section_name, section_id=None):
+    """Find a section (by ID, or by name) among this teacher's sections. Returns None if not found."""
     allowed_ids = get_teacher_section_ids(teacher_id)
+
+    if section_id:
+        if int(section_id) in allowed_ids:
+            return Section.query.get(int(section_id))
+        return None
+
     sections = Section.query.filter_by(name=section_name).all()
     for section in sections:
         if section.id in allowed_ids:

@@ -22,11 +22,13 @@ class UpdateTeacherSchema(Schema):
 class RegisterStudentSchema(Schema):
     name = fields.String(required=True, validate=validate.Length(min=3, max=100))
     username = fields.String(required=True, validate=validate.Length(min=3, max=100))
-    section_name = fields.String(required=True)
+    section_id = fields.Integer(required=False)   # preferred: names can repeat
+    section_name = fields.String(required=False)
     email = fields.Email(required=True)
     password = fields.String(required=True, validate=validate.Length(min=6))
 
 class UpdateStudentSchema(Schema):
+    section_id = fields.Integer(required=False)
     name = fields.String(required=False, validate=validate.Length(min=3, max=100))
     username = fields.String(required=False, validate=validate.Length(min=3, max=100))
     teacher_id = fields.Integer(required=False)

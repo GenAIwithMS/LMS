@@ -21,7 +21,7 @@ const AdminSections: React.FC = () => {
   const [deletingSection, setDeletingSection] = useState<Section | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
-  const [formData, setFormData] = useState({ name: '', teacher_name: '' });
+  const [formData, setFormData] = useState({ name: '', teacher_id: '', teacher_name: '' });
 
   useEffect(() => {
     fetchSections();
@@ -71,6 +71,7 @@ const AdminSections: React.FC = () => {
         id: section.id || 0,
         name: section.name || '',
         teacher: section.teacher || section.teacher_name || '',
+        teacher_id: section.teacher_id,
       }));
       
       setSections(sectionsData);
@@ -92,14 +93,27 @@ const AdminSections: React.FC = () => {
     }
   };
 
+  // Keep the chosen teacher's ID and name together
+  const handleTeacherChange = (teacherId: string) => {
+    let teacherName = '';
+    for (const teacher of teachers) {
+      if (String(teacher.id) === teacherId) {
+        teacherName = teacher.name;
+      }
+    }
+    setFormData({ ...formData, teacher_id: teacherId, teacher_name: teacherName });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Send the ID: names can repeat, IDs can't
+    const submitData = { ...formData, teacher_id: formData.teacher_id ? Number(formData.teacher_id) : undefined };
     try {
       if (editingSection) {
-        await updateSection(editingSection.id, formData);
+        await updateSection(editingSection.id, submitData);
         showSuccess('Section updated successfully');
       } else {
-        await addSection(formData);
+        await addSection(submitData);
         showSuccess('Section added successfully');
       }
       setIsModalOpen(false);
@@ -112,7 +126,7 @@ const AdminSections: React.FC = () => {
 
   const handleEdit = (section: Section) => {
     setEditingSection(section);
-    setFormData({ name: section.name, teacher_name: section.teacher });
+    setFormData({ name: section.name, teacher_id: section.teacher_id ? String(section.teacher_id) : '', teacher_name: section.teacher });
     setIsModalOpen(true);
   };
 
@@ -139,7 +153,7 @@ const AdminSections: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', teacher_name: '' });
+    setFormData({ name: '', teacher_id: '', teacher_name: '' });
     setEditingSection(null);
   };
 
@@ -312,10 +326,10 @@ const AdminSections: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Teacher</label>
-            <select required value={formData.teacher_name} onChange={(e) => setFormData({ ...formData, teacher_name: e.target.value })} className="input">
+            <select required value={formData.teacher_id} onChange={(e) => handleTeacherChange(e.target.value)} className="input">
               <option value="">Select a teacher</option>
               {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.name}>{teacher.name}</option>
+                <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
               ))}
             </select>
           </div>

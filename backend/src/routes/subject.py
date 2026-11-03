@@ -5,6 +5,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from src.services.access import get_teacher_subject_ids, filter_response_by_ids
 from src.models import Teacher,Course
+from src.services.access import find_record
 
 subject_bp = Blueprint("subject", __name__)
 
@@ -24,16 +25,14 @@ def create_subj():
     except ValidationError as e:
         return jsonify(e.messages), 400
     
-    teacher_name = data.get("teacher_name")
-    teacher = Teacher.query.filter_by(name=teacher_name).first()
+    teacher = find_record(Teacher, data.get("teacher_id"), data.get("teacher_name"))
     if not teacher:
         return jsonify({
             "message": "Teacher not found",
             "status": "failed"
         }), 400
     
-    course_name = data.get("course_name")
-    course = Course.query.filter_by(name=course_name).first()
+    course = find_record(Course, data.get("course_id"), data.get("course_name"))
     if not course:
         return jsonify({
             "message": "Course not found",
@@ -108,16 +107,16 @@ def update_subj():
     kwargs = {}
     if 'name' in data:
         kwargs['name'] = data['name']
-    if 'teacher_name' in data:
-        teacher = Teacher.query.filter_by(name=data['teacher_name']).first()
+    if 'teacher_id' in data or 'teacher_name' in data:
+        teacher = find_record(Teacher, data.get('teacher_id'), data.get('teacher_name'))
         if not teacher:
             return jsonify({
                 "message": "Teacher not found",
                 "status": "failed"
             }), 400
         kwargs['teacher_id'] = teacher.id
-    if 'course_name' in data:
-        course = Course.query.filter_by(name=data['course_name']).first()
+    if 'course_id' in data or 'course_name' in data:
+        course = find_record(Course, data.get('course_id'), data.get('course_name'))
         if not course:
             return jsonify({
                 "message": "Course not found",

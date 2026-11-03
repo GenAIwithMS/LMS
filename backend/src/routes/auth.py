@@ -7,7 +7,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from datetime import timedelta
 from src.db import db, pakistan_time_naive
 from src.services.users import is_username_taken
-from src.extention import limiter
+from src.extention import limiter, logged_in_user_key
 from src.models import RevokedToken
 
 
@@ -230,6 +230,7 @@ def update_my_username():
 
 @auth_bp.route("/api/account/password", methods=["PUT"])
 @jwt_required()
+@limiter.limit("5 per minute", key_func=logged_in_user_key)   # slows down guessing the current password
 def change_my_password():
     """Let the logged-in user change their own password. They must give their current password."""
     try:

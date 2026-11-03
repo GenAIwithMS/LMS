@@ -23,7 +23,7 @@ const AdminSubjects: React.FC = () => {
   const [deletingSubject, setDeletingSubject] = useState<Subject | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const optionsRef = useRef<HTMLDivElement>(null);
-  const [formData, setFormData] = useState({ name: '', teacher_name: '', course_name: '' });
+  const [formData, setFormData] = useState({ name: '', teacher_id: '', teacher_name: '', course_id: '', course_name: '' });
 
   useEffect(() => {
     fetchSubjects();
@@ -75,7 +75,9 @@ const AdminSubjects: React.FC = () => {
         id: subject.id || 0,
         name: subject.name || '',
         teacher: subject.teacher || subject.teacher_name || '',
+        teacher_id: subject.teacher_id,
         course: subject.course || subject.course_name || '',
+        course_id: subject.course_id,
       }));
       
       setSubjects(subjectsData);
@@ -106,14 +108,38 @@ const AdminSubjects: React.FC = () => {
     }
   };
 
+  // Keep the chosen teacher's ID and name together
+  const handleTeacherChange = (teacherId: string) => {
+    let teacherName = '';
+    for (const teacher of teachers) {
+      if (String(teacher.id) === teacherId) {
+        teacherName = teacher.name;
+      }
+    }
+    setFormData({ ...formData, teacher_id: teacherId, teacher_name: teacherName });
+  };
+
+  // Keep the chosen course's ID and name together
+  const handleCourseChange = (courseId: string) => {
+    let courseName = '';
+    for (const course of courses) {
+      if (String(course.id) === courseId) {
+        courseName = course.name;
+      }
+    }
+    setFormData({ ...formData, course_id: courseId, course_name: courseName });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Send the ID: names can repeat, IDs can't
+    const submitData = { ...formData, teacher_id: formData.teacher_id ? Number(formData.teacher_id) : undefined, course_id: formData.course_id ? Number(formData.course_id) : undefined };
     try {
       if (editingSubject) {
-        await updateSubject(editingSubject.id, formData);
+        await updateSubject(editingSubject.id, submitData);
         showSuccess('Subject updated successfully');
       } else {
-        await createSubject(formData);
+        await createSubject(submitData);
         showSuccess('Subject created successfully');
       }
       setIsModalOpen(false);
@@ -126,7 +152,7 @@ const AdminSubjects: React.FC = () => {
 
   const handleEdit = (subject: Subject) => {
     setEditingSubject(subject);
-    setFormData({ name: subject.name, teacher_name: subject.teacher, course_name: subject.course });
+    setFormData({ name: subject.name, teacher_id: subject.teacher_id ? String(subject.teacher_id) : '', teacher_name: subject.teacher, course_id: subject.course_id ? String(subject.course_id) : '', course_name: subject.course });
     setIsModalOpen(true);
   };
 
@@ -153,7 +179,7 @@ const AdminSubjects: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', teacher_name: '', course_name: '' });
+    setFormData({ name: '', teacher_id: '', teacher_name: '', course_id: '', course_name: '' });
     setEditingSubject(null);
   };
 
@@ -350,19 +376,19 @@ const AdminSubjects: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Teacher</label>
-            <select required value={formData.teacher_name} onChange={(e) => setFormData({ ...formData, teacher_name: e.target.value })} className="input">
+            <select required value={formData.teacher_id} onChange={(e) => handleTeacherChange(e.target.value)} className="input">
               <option value="">Select a teacher</option>
               {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.name}>{teacher.name}</option>
+                <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
               ))}
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Course</label>
-            <select required value={formData.course_name} onChange={(e) => setFormData({ ...formData, course_name: e.target.value })} className="input">
+            <select required value={formData.course_id} onChange={(e) => handleCourseChange(e.target.value)} className="input">
               <option value="">Select a course</option>
               {courses.map((course) => (
-                <option key={course.id} value={course.name}>{course.name}</option>
+                <option key={course.id} value={course.id}>{course.name} ({course.course_code})</option>
               ))}
             </select>
           </div>

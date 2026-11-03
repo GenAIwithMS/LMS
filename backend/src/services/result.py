@@ -88,6 +88,7 @@ def get_result_by_id(result_id):
 
     return jsonify({
         "id": result.id,
+        "subject_id": result.subject_id,
         "subject_name": result.subject.name,
         "student_name": result.student.name,
         "student_id": result.student_id,
@@ -104,6 +105,7 @@ def get_all_results():
     for result in results:
         results_list.append({
             "id": result.id,
+            "subject_id": result.subject_id,
             "subject_name": result.subject.name,
             "student_name": result.student.name,
             "student_id": result.student_id,
@@ -121,6 +123,7 @@ def get_results_by_student(student_id):
     for result in results:
         results_list.append({
             "id": result.id,
+            "subject_id": result.subject_id,
             "subject_name": result.subject.name,
             "student_name": result.student.name,
             "student_id": result.student_id,

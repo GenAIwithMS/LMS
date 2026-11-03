@@ -4,13 +4,15 @@ class assignmentSchema(Schema):
     
     id = fields.Integer(dump_only=True)
     title = fields.String(required=True, validate=validate.Length(min=1, max=255))
-    subject_name = fields.String(required=True)
+    subject_id = fields.Integer(required=False)   # preferred: names can repeat
+    subject_name = fields.String(required=False)
     teacher_name = fields.String(dump_only=True)
     due_date = fields.Date(required=True)
     description = fields.String(required=True)
     total_marks = fields.Decimal(as_string=True)
 
 class UpdateAssignmentSchema(Schema):
+    subject_id = fields.Integer(required=False)
     title = fields.String(required=False, validate=validate.Length(min=1, max=255))
     subject_name = fields.String(required=False)
     teacher_name = fields.String(dump_only=True)

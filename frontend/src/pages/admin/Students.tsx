@@ -32,6 +32,7 @@ const AdminStudents: React.FC = () => {
     username: '',
     email: '',
     password: '',
+    section_id: '',
     section_name: '',
   });
 
@@ -86,6 +87,7 @@ const AdminStudents: React.FC = () => {
         username: student.username || '',
         email: student.email || '',
         section: student.section || student.section_name || '',
+        section_id: student.section_id,
       }));
       
       setStudents(studentsData);
@@ -107,14 +109,27 @@ const AdminStudents: React.FC = () => {
     }
   };
 
+  // Keep the chosen section's ID and name together
+  const handleSectionChange = (sectionId: string) => {
+    let sectionName = '';
+    for (const section of sections) {
+      if (String(section.id) === sectionId) {
+        sectionName = section.name;
+      }
+    }
+    setFormData({ ...formData, section_id: sectionId, section_name: sectionName });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Send the ID: names can repeat, IDs can't
+    const submitData = { ...formData, section_id: formData.section_id ? Number(formData.section_id) : undefined };
     try {
       if (editingStudent) {
-        await updateStudent(editingStudent.id, formData);
+        await updateStudent(editingStudent.id, submitData);
         showSuccess('Student updated successfully');
       } else {
-        await addStudent(formData);
+        await addStudent(submitData);
         showSuccess('Student added successfully');
       }
       setIsModalOpen(false);
@@ -132,6 +147,7 @@ const AdminStudents: React.FC = () => {
       username: student.username || '',
       email: student.email || '',
       password: '',
+      section_id: student.section_id ? String(student.section_id) : '',
       section_name: student.section || '',
     });
     setIsModalOpen(true);
@@ -160,7 +176,7 @@ const AdminStudents: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', username: '', email: '', password: '', section_name: '' });
+    setFormData({ name: '', username: '', email: '', password: '', section_id: '', section_name: '' });
     setEditingStudent(null);
   };
 
@@ -408,14 +424,14 @@ const AdminStudents: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
             <select
               required
-              value={formData.section_name}
-              onChange={(e) => setFormData({ ...formData, section_name: e.target.value })}
+              value={formData.section_id}
+              onChange={(e) => handleSectionChange(e.target.value)}
               className="input"
             >
               <option value="">Select a section</option>
               {sections.map((section) => (
-                <option key={section.id} value={section.name}>
-                  {section.name}
+                <option key={section.id} value={section.id}>
+                  {section.name} ({section.teacher_name})
                 </option>
               ))}
             </select>

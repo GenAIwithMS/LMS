@@ -26,6 +26,7 @@ const TeacherAssignments: React.FC = () => {
     title: '',
     description: '',
     due_date: '',
+    subject_id: '',
     subject_name: '',
     total_marks: 100,
   });
@@ -82,6 +83,7 @@ const TeacherAssignments: React.FC = () => {
         description: assignment.description || '',
         due_date: assignment.due_date || assignment.dueDate || '',
         subject: assignment.subject || assignment.subject_name || '',
+        subject_id: assignment.subject_id,
         teacher: assignment.teacher || assignment.teacher_name || '',
         total_marks: assignment.total_marks || assignment.totalMarks || 100,
       }));
@@ -133,14 +135,27 @@ const TeacherAssignments: React.FC = () => {
     }
   };
 
+  // Keep the chosen subject's ID and name together
+  const handleSubjectChange = (subjectId: string) => {
+    let subjectName = '';
+    for (const subject of subjects) {
+      if (String(subject.id) === subjectId) {
+        subjectName = subject.name;
+      }
+    }
+    setFormData({ ...formData, subject_id: subjectId, subject_name: subjectName });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Send the ID: names can repeat, IDs can't
+    const submitData = { ...formData, subject_id: formData.subject_id ? Number(formData.subject_id) : undefined };
     try {
       if (editingAssignment) {
-        await updateAssignment(editingAssignment.id, formData);
+        await updateAssignment(editingAssignment.id, submitData);
         showSuccess('Assignment updated successfully');
       } else {
-        await createAssignment(formData);
+        await createAssignment(submitData);
         showSuccess('Assignment created successfully');
       }
       setIsModalOpen(false);
@@ -157,6 +172,7 @@ const TeacherAssignments: React.FC = () => {
       title: assignment.title,
       description: assignment.description,
       due_date: assignment.due_date,
+      subject_id: assignment.subject_id ? String(assignment.subject_id) : '',
       subject_name: assignment.subject,
       total_marks: assignment.total_marks,
     });
@@ -186,7 +202,7 @@ const TeacherAssignments: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ title: '', description: '', due_date: '', subject_name: '', total_marks: 100 });
+    setFormData({ title: '', description: '', due_date: '', subject_id: '', subject_name: '', total_marks: 100 });
     setEditingAssignment(null);
   };
 
@@ -369,13 +385,13 @@ const TeacherAssignments: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-            <select required value={formData.subject_name} onChange={(e) => setFormData({ ...formData, subject_name: e.target.value })} className="input">
+            <select required value={formData.subject_id} onChange={(e) => handleSubjectChange(e.target.value)} className="input">
               <option value="">Select a subject</option>
               {subjects.length === 0 ? (
                 <option value="" disabled>No subjects available</option>
               ) : (
                 subjects.map((subject) => (
-                  <option key={subject.id} value={subject.name}>{subject.name}</option>
+                  <option key={subject.id} value={subject.id}>{subject.name} ({subject.course})</option>
                 ))
               )}
             </select>
