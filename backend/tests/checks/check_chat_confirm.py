@@ -84,13 +84,13 @@ check("a cancelled action can't be confirmed later", r.status_code == 400)
 r = client.post("/api/chat", json={"message": "delete ali"}, headers=H("root"))
 action_id = r.get_json()["pending_actions"][0]["id"]
 r = client.post("/api/chat/confirm", json={"action_id": action_id, "approve": True}, headers=H("root"))
-check("confirm deletes", r.status_code == 200 and r.get_json()["message"].startswith("Done"), r.get_json())
+check("confirm deletes", r.status_code == 200 and r.get_json()["message"].startswith("Confirmed and done"), r.get_json())
 with app.app_context():
     check("student is gone", Student.query.get(ALI) is None)
 r = client.post("/api/chat/confirm", json={"action_id": action_id, "approve": True}, headers=H("root"))
 check("can't confirm twice", r.status_code == 400)
 r = client.get("/api/chat/history", headers=H("root"))
-check("result of the confirm is saved in the chat", r.get_json()["messages"][-1]["content"].startswith("Done"), r.get_json()["messages"][-1])
+check("result of the confirm is saved in the chat", r.get_json()["messages"][-1]["content"].startswith("Confirmed and done"), r.get_json()["messages"][-1])
 
 print("--- Confirm re-checks permissions, and roles can't borrow other roles' tools")
 with app.app_context():

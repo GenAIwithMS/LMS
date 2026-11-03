@@ -42,7 +42,8 @@ def get_all_announcements():
             "target_audience": announcement.target_audience,
             "section_name": section.name if section else None,
             "created_at": announcement.created_at,
-            "teacher_id": announcement.teacher_id
+            "teacher_id": announcement.teacher_id,
+            "teacher_name": announcement.teacher.name if announcement.teacher else None
         }
         announcement_list.append(announcement_data)
     return jsonify(announcement_list)
@@ -63,7 +64,8 @@ def get_announcement_by_title(announcement_title):
         "target_audience": announcement.target_audience,
         "section_name": section.name if section else None,
         "created_at": announcement.created_at,
-        "teacher_id": announcement.teacher_id
+        "teacher_id": announcement.teacher_id,
+        "teacher_name": announcement.teacher.name if announcement.teacher else None
     }
     return jsonify(announcement_data)
 
