@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, X, Trash2, Sparkles, Minimize2 } from 'lucide-react';
+import { Send, User, Trash2, Minimize2 } from 'lucide-react';
 import { chatWithBot } from '../services/api';
 import toast from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';

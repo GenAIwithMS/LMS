@@ -5,7 +5,6 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getEnrollments, enrollStudent, updateEnrollment, deleteEnrollment, getStudents, getCourses } from '../../services/api';
 import type { Enrollment, Student, Course } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import toast from 'react-hot-toast';
 
 // Utility function to format date from database
 const formatDate = (dateString: string | undefined | null): string => {

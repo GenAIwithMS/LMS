@@ -5,7 +5,6 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, getSections } from '../../services/api';
 import type { Announcement, Section } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import toast from 'react-hot-toast';
 
 const TeacherAnnouncements: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -77,7 +76,7 @@ const TeacherAnnouncements: React.FC = () => {
     e.preventDefault();
     try {
       if (editingAnnouncement) {
-        await updateAnnouncement(editingAnnouncement.id, formData);
+        await updateAnnouncement(editingAnnouncement.title, formData);
         showSuccess('Announcement updated successfully');
       } else {
         await createAnnouncement(formData);
@@ -112,7 +111,7 @@ const TeacherAnnouncements: React.FC = () => {
     
     setIsDeleting(true);
     try {
-      await deleteAnnouncement(deletingAnnouncement.id);
+      await deleteAnnouncement(deletingAnnouncement.title);
       showSuccess('Announcement deleted successfully');
       setShowDeleteConfirm(false);
       setDeletingAnnouncement(null);
@@ -289,7 +288,7 @@ const TeacherAnnouncements: React.FC = () => {
                   <button onClick={() => handleEdit(announcement)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
                     <Edit size={18} />
                   </button>
-                  <button onClick={() => handleDelete(announcement.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                  <button onClick={() => handleDeleteClick(announcement)} className="p-2 text-red-600 hover:bg-red-50 rounded">
                     <Trash2 size={18} />
                   </button>
                 </div>

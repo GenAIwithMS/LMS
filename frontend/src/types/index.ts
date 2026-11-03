@@ -20,7 +20,7 @@ export interface AuthResponse {
   token: string;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse {
   status: string;
   message?: string;
   [key: string]: any;
@@ -87,6 +87,7 @@ export interface Submission {
   assignment: string;
   student?: string;
   submission_text?: string;
+  submission_file?: string;
   submitted_at?: string;
   marks_obtained?: number;
   feedback?: string;

@@ -30,7 +30,9 @@ def create_app():
          resources={r"/api/*": {
              "origins": "*",
              "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-             "allow_headers": ["Content-Type", "Authorization"]
+             "allow_headers": ["Content-Type", "Authorization"],
+             # Lets the browser read the file name of downloaded submissions
+             "expose_headers": ["Content-Disposition"]
          }}, 
          supports_credentials=True) 
 

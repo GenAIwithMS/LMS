@@ -5,7 +5,6 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getSubjects, createSubject, updateSubject, deleteSubject, getTeachers, getCourses } from '../../services/api';
 import type { Subject, Teacher, Course } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import toast from 'react-hot-toast';
 
 const AdminSubjects: React.FC = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);

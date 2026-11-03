@@ -33,3 +33,13 @@ export const getRoleFromToken = (token: string): 'admin' | 'teacher' | 'student'
   return null;
 };
 
+
+// True if the token's expiry time ("exp", in seconds) has passed
+export const isTokenExpired = (token: string): boolean => {
+  const decoded = decodeJWT(token);
+  if (!decoded || !decoded.exp) {
+    return true;
+  }
+  const expiresAt = decoded.exp * 1000;
+  return Date.now() >= expiresAt;
+};

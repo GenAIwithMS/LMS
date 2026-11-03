@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { login as apiLogin } from '../services/api';
-import { decodeJWT, getRoleFromToken } from '../utils/jwt';
+import { decodeJWT, getRoleFromToken, isTokenExpired } from '../utils/jwt';
 import type { User, LoginCredentials, UserRole } from '../types';
 
 interface AuthContextType {
@@ -15,34 +15,48 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+// Read the user's details out of a login token
+const getUserFromToken = (token: string): User | null => {
+  const decoded = decodeJWT(token);
+  if (!decoded) {
+    return null;
+  }
+  const role = getRoleFromToken(token);
+  return {
+    id: decoded.sub || decoded.id || decoded.user_id || 0,
+    email: decoded.email || '',
+    name: decoded.name || decoded.username || '',
+    username: decoded.username || decoded.email || '',
+    role: role || undefined,
+  };
+};
 
-  useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    
-    if (storedToken) {
-      setToken(storedToken);
-      
-      // Always decode fresh user data from token to ensure we have latest info
-      const decoded = decodeJWT(storedToken);
-      const role = getRoleFromToken(storedToken);
-      
-      if (decoded) {
-        const userData: User = {
-          id: decoded.sub || decoded.id || decoded.user_id || 0,
-          email: decoded.email || '',
-          name: decoded.name || decoded.username || '',
-          username: decoded.username || decoded.email || '',
-          role: role || undefined,
-        };
-        
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-      }
+// The saved login, if there is one and it has not expired yet
+const getSavedToken = (): string | null => {
+  const savedToken = localStorage.getItem('token');
+  if (!savedToken) {
+    return null;
+  }
+  if (isTokenExpired(savedToken)) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('lms_chatbot_history');
+    return null;
+  }
+  return savedToken;
+};
+
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // Read the saved login straight away, before the first render. Reading it later
+  // (in useEffect) meant the first render thought nobody was logged in, so every
+  // page refresh sent the user to the login page and then to the dashboard.
+  const [token, setToken] = useState<string | null>(getSavedToken);
+  const [user, setUser] = useState<User | null>(() => {
+    if (token) {
+      return getUserFromToken(token);
     }
-  }, []);
+    return null;
+  });
 
   const login = async (credentials: LoginCredentials) => {
     try {
@@ -50,18 +64,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setToken(response.token);
       localStorage.setItem('token', response.token);
       
-      // Decode JWT token to get user info
-      const decoded = decodeJWT(response.token);
-      const role = getRoleFromToken(response.token);
-      
-      const userData: User = {
-        id: decoded.sub || decoded.id || decoded.user_id || 0,
-        email: decoded.email || credentials.email,
-        name: decoded.name || decoded.username || '',
-        username: decoded.username || decoded.email || '',
-        role: role || undefined,
-      };
-      
+      // Read the user's details out of the token
+      const userData = getUserFromToken(response.token);
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
     } catch (error: any) {
@@ -75,21 +79,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setToken(newToken);
     localStorage.setItem('token', newToken);
 
-    const decoded = decodeJWT(newToken);
-    const role = getRoleFromToken(newToken);
-
-    if (decoded) {
-      const userData: User = {
-        id: decoded.sub || decoded.id || decoded.user_id || 0,
-        email: decoded.email || '',
-        name: decoded.name || decoded.username || '',
-        username: decoded.username || decoded.email || '',
-        role: role || undefined,
-      };
-
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-    }
+    const userData = getUserFromToken(newToken);
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const logout = () => {

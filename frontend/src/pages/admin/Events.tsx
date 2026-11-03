@@ -5,7 +5,6 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getEvents, createEvent, updateEvent, deleteEvent } from '../../services/api';
 import type { Event } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import toast from 'react-hot-toast';
 
 const AdminEvents: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getRoleFromToken } from '../utils/jwt';
 import { LogIn, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -11,6 +10,14 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Sent here because the login expired
+  useEffect(() => {
+    if (searchParams.get('expired') === '1') {
+      toast.error('Your session has expired. Please log in again.', { id: 'session-expired' });
+    }
+  }, [searchParams]);
 
   // Redirect if already authenticated
   useEffect(() => {

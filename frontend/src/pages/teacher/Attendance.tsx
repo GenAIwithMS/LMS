@@ -5,7 +5,6 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getAttendance, markAttendance, updateAttendance, deleteAttendance, getStudents, getSubjects } from '../../services/api';
 import type { Attendance, Student, Subject } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import toast from 'react-hot-toast';
 
 const TeacherAttendance: React.FC = () => {
   const [attendance, setAttendance] = useState<Attendance[]>([]);

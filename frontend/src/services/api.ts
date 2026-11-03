@@ -2,18 +2,6 @@ import axios from 'axios';
 import type {
   LoginCredentials,
   AuthResponse,
-  Student,
-  Teacher,
-  Section,
-  Course,
-  Subject,
-  Enrollment,
-  Assignment,
-  Submission,
-  Attendance,
-  Result,
-  Announcement,
-  Event,
 } from '../types';
 
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -56,13 +44,21 @@ api.interceptors.response.use(
       throw error;
     }
     
-    // Handle JWT signature verification failed (422) or unauthorized (401)
-    if (error.response?.status === 401 || error.response?.status === 422) {
+    // The login is no longer valid: 401 (expired or missing token), or 422 with a
+    // "msg" field (Flask-JWT's answer for a broken token). Other 422 errors are
+    // ordinary form validation errors and must not log the user out.
+    const status = error.response?.status;
+    const isBadToken = status === 422 && error.response?.data && typeof error.response.data.msg === 'string';
+
+    if (status === 401 || isBadToken) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Only redirect if not already on login page
+      // Don't let the next person on this computer see the old chat
+      sessionStorage.removeItem('lms_chatbot_history');
+
+      // Only redirect if not already on login page. "expired=1" tells the login page to explain why.
       if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+        window.location.href = '/login?expired=1';
       }
     }
     return Promise.reject(error);
@@ -291,6 +287,31 @@ export const updateSubmission = async (id: number, data: { submission_text?: str
   return response.data;
 };
 
+// Download a submission's file. Files are private, so this goes through the
+// logged-in API (with the token) and then saves the file in the browser.
+export const downloadSubmissionFile = async (id: number) => {
+  const response = await api.get('/submission/file', { params: { id }, responseType: 'blob' });
+
+  // Read the original file name from the server's "Content-Disposition" header
+  let fileName = 'submission';
+  const disposition = response.headers['content-disposition'];
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match) {
+      fileName = match[1];
+    }
+  }
+
+  const fileUrl = window.URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = fileUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(fileUrl);
+};
+
 export const deleteSubmission = async (id: number) => {
   const response = await api.delete('/delete/submission', { params: { id } });
   return response.data;
@@ -362,13 +383,14 @@ export const getAnnouncements = async (id?: number) => {
   return response.data;
 };
 
-export const updateAnnouncement = async (id: number, data: { title?: string; content?: string; section_name?: string }) => {
-  const response = await api.put('/update/announcement', data, { params: { id } });
+// The backend finds announcements by their title, not by id
+export const updateAnnouncement = async (title: string, data: { title?: string; content?: string; section_name?: string }) => {
+  const response = await api.put('/update/announcement', data, { params: { title } });
   return response.data;
 };
 
-export const deleteAnnouncement = async (id: number) => {
-  const response = await api.delete('/delete/announcement', { params: { id } });
+export const deleteAnnouncement = async (title: string) => {
+  const response = await api.delete('/delete/announcement', { params: { title } });
   return response.data;
 };
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, FileText, Upload } from 'lucide-react';
+import { Plus, Search, Upload } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { getSubmissionsByStudent, submitAssignment, getAssignments } from '../../services/api';
 import type { Submission, Assignment } from '../../types';
@@ -13,7 +13,7 @@ const StudentSubmissions: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({
     submission_text: '',
     submission_file: null as File | null,
@@ -133,6 +133,7 @@ const StudentSubmissions: React.FC = () => {
         description: assignment.description || '',
         due_date: assignment.due_date || assignment.dueDate || '',
         subject: assignment.subject || assignment.subject_name || '',
+        teacher: assignment.teacher || assignment.teacher_name || '',
         total_marks: assignment.total_marks || assignment.totalMarks || 100,
       }));
       

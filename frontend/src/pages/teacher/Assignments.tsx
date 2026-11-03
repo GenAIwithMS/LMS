@@ -5,7 +5,6 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getAssignments, createAssignment, updateAssignment, deleteAssignment, getSubjects } from '../../services/api';
 import type { Assignment, Subject } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 const TeacherAssignments: React.FC = () => {

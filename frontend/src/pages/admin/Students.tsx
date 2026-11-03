@@ -11,7 +11,6 @@ import {
 } from '../../services/api';
 import type { Student, Section } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import toast from 'react-hot-toast';
 
 const AdminStudents: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);

@@ -18,7 +18,6 @@ export const DeleteConfirmation: React.FC<DeleteConfirmationProps> = ({
   onConfirm,
   title,
   itemName,
-  itemType,
   effects = [],
   loading = false,
 }) => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Edit, Download, Settings } from 'lucide-react';
 import { Modal } from '../../components/Modal';
-import { getSubmissionsByAssignment, updateSubmission, getAssignments } from '../../services/api';
+import { getSubmissionsByAssignment, updateSubmission, getAssignments, downloadSubmissionFile } from '../../services/api';
 import type { Submission, Assignment } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import toast from 'react-hot-toast';
@@ -151,6 +151,7 @@ const TeacherSubmissions: React.FC = () => {
           student: submission.student || submission.student_name || submission.studentName || submission.username || `Student ${submission.student_id || ''}`,
           assignment: submission.assignment || submission.assignment_id || submission.assignmentId || selectedAssignment,
           submission_text: submission.submission_text || submission.submissionText || submission.submission || submission.text || '',
+          submission_file: submission.submission_file || '',
           submitted_at: submission.submitted_at || submission.submittedAt || submission.date || submission.created_at || submission.createdAt || new Date().toISOString(),
           marks_obtained: submission.marks_obtained !== undefined && submission.marks_obtained !== null ? submission.marks_obtained : (submission.marks !== undefined && submission.marks !== null ? submission.marks : (submission.marksObtained !== undefined && submission.marksObtained !== null ? submission.marksObtained : null)),
           feedback: submission.feedback || '',
@@ -223,6 +224,7 @@ const TeacherSubmissions: React.FC = () => {
         description: assignment.description || '',
         due_date: assignment.due_date || assignment.dueDate || '',
         subject: assignment.subject || assignment.subject_name || '',
+        teacher: assignment.teacher || assignment.teacher_name || '',
         total_marks: assignment.total_marks || assignment.totalMarks || 100,
       }));
       
@@ -262,6 +264,14 @@ const TeacherSubmissions: React.FC = () => {
       feedback: submission.feedback || '',
     });
     setIsModalOpen(true);
+  };
+
+  const handleDownload = async (submission: Submission) => {
+    try {
+      await downloadSubmissionFile(submission.id);
+    } catch (error: any) {
+      toast.error('Could not download the file. It may have been removed.');
+    }
   };
 
   const resetForm = () => {
@@ -408,12 +418,24 @@ const TeacherSubmissions: React.FC = () => {
                     <td>{submission.marks_obtained !== null && submission.marks_obtained !== undefined ? submission.marks_obtained : 'Not graded'}</td>
                     <td className="max-w-xs truncate">{submission.feedback || 'N/A'}</td>
                     <td>
-                      <button
-                        onClick={() => handleEdit(submission)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                      >
-                        <Edit size={18} />
-                      </button>
+                      <div className="flex items-center space-x-1">
+                        {submission.submission_file && (
+                          <button
+                            onClick={() => handleDownload(submission)}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded"
+                            title="Download file"
+                          >
+                            <Download size={18} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleEdit(submission)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                          title="Check and grade"
+                        >
+                          <Edit size={18} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -429,9 +451,28 @@ const TeacherSubmissions: React.FC = () => {
           setIsModalOpen(false);
           resetForm();
         }}
-        title="Grade Submission"
+        title="Check & Grade Submission"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* The student's work, so the teacher can read it before grading */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Submitted by {editingSubmission?.student || 'student'}
+            </label>
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg max-h-60 overflow-y-auto whitespace-pre-wrap text-sm text-gray-800">
+              {editingSubmission?.submission_text || 'No text was submitted.'}
+            </div>
+            {editingSubmission?.submission_file && (
+              <button
+                type="button"
+                onClick={() => handleDownload(editingSubmission)}
+                className="mt-2 btn btn-secondary flex items-center space-x-2 text-sm"
+              >
+                <Download size={16} />
+                <span>Download attached file</span>
+              </button>
+            )}
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Marks Obtained</label>
             <input
