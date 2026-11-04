@@ -354,7 +354,7 @@ const TeacherAnnouncements: React.FC = () => {
             <select required value={formData.section_id} onChange={(e) => handleSectionChange(e.target.value)} className="input">
               <option value="">Select a section</option>
               {sections.map((section) => (
-                <option key={section.id} value={section.id}>{section.name}</option>
+                <option key={section.id} value={section.id}>{section.full_name || section.name}</option>
               ))}
             </select>
           </div>

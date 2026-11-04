@@ -34,6 +34,11 @@ const AdminStudents: React.FC = () => {
     password: '',
     section_id: '',
     section_name: '',
+    roll_number: '',
+    admission_number: '',
+    guardian_name: '',
+    guardian_phone: '',
+    date_of_birth: '',
   });
 
   useEffect(() => {
@@ -86,8 +91,13 @@ const AdminStudents: React.FC = () => {
         name: student.name || '',
         username: student.username || '',
         email: student.email || '',
-        section: student.section || student.section_name || '',
+        section: student.section_full_name || student.section || student.section_name || '',
         section_id: student.section_id,
+        roll_number: student.roll_number,
+        admission_number: student.admission_number,
+        guardian_name: student.guardian_name,
+        guardian_phone: student.guardian_phone,
+        date_of_birth: student.date_of_birth,
       }));
       
       setStudents(studentsData);
@@ -123,7 +133,13 @@ const AdminStudents: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Send the ID: names can repeat, IDs can't
-    const submitData = { ...formData, section_id: formData.section_id ? Number(formData.section_id) : undefined };
+    const submitData: any = { ...formData, section_id: formData.section_id ? Number(formData.section_id) : undefined };
+    // Leave out empty optional fields (an empty date or admission number is not a value)
+    for (const key of ['roll_number', 'admission_number', 'guardian_name', 'guardian_phone', 'date_of_birth', 'password']) {
+      if (!submitData[key]) {
+        delete submitData[key];
+      }
+    }
     try {
       if (editingStudent) {
         await updateStudent(editingStudent.id, submitData);
@@ -149,6 +165,11 @@ const AdminStudents: React.FC = () => {
       password: '',
       section_id: student.section_id ? String(student.section_id) : '',
       section_name: student.section || '',
+      roll_number: student.roll_number || '',
+      admission_number: student.admission_number || '',
+      guardian_name: student.guardian_name || '',
+      guardian_phone: student.guardian_phone || '',
+      date_of_birth: student.date_of_birth || '',
     });
     setIsModalOpen(true);
   };
@@ -176,7 +197,7 @@ const AdminStudents: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', username: '', email: '', password: '', section_id: '', section_name: '' });
+    setFormData({ name: '', username: '', email: '', password: '', section_id: '', section_name: '', roll_number: '', admission_number: '', guardian_name: '', guardian_phone: '', date_of_birth: '' });
     setEditingStudent(null);
   };
 
@@ -296,8 +317,8 @@ const AdminStudents: React.FC = () => {
                     >
                       <option value="all">All Sections</option>
                       {sections.map((section) => (
-                        <option key={section.id} value={section.name}>
-                          {section.name}
+                        <option key={section.id} value={section.full_name || section.name}>
+                          {section.full_name || section.name}
                         </option>
                       ))}
                     </select>
@@ -325,6 +346,7 @@ const AdminStudents: React.FC = () => {
           <thead>
             <tr>
               <th>ID</th>
+              <th>Roll No.</th>
               <th>Name</th>
               <th>Username</th>
               <th>Email</th>
@@ -335,7 +357,7 @@ const AdminStudents: React.FC = () => {
           <tbody>
             {filteredStudents.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-500">
+                <td colSpan={7} className="text-center py-8 text-gray-500">
                   No students found
                 </td>
               </tr>
@@ -343,6 +365,7 @@ const AdminStudents: React.FC = () => {
               filteredStudents.map((student) => (
                 <tr key={student.id}>
                   <td>{student.id}</td>
+                  <td>{student.roll_number || '-'}</td>
                   <td>{student.name}</td>
                   <td>{student.username}</td>
                   <td>{student.email}</td>
@@ -431,10 +454,33 @@ const AdminStudents: React.FC = () => {
               <option value="">Select a section</option>
               {sections.map((section) => (
                 <option key={section.id} value={section.id}>
-                  {section.name} ({section.teacher_name})
+                  {section.full_name || section.name}{section.teacher_name ? ` (incharge: ${section.teacher_name})` : ''}
                 </option>
               ))}
             </select>
+          </div>
+          {/* School record (optional) */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Roll No.</label>
+              <input type="text" value={formData.roll_number} onChange={(e) => setFormData({ ...formData, roll_number: e.target.value })} className="input" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Admission No.</label>
+              <input type="text" value={formData.admission_number} onChange={(e) => setFormData({ ...formData, admission_number: e.target.value })} className="input" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Name</label>
+              <input type="text" value={formData.guardian_name} onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })} className="input" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Phone</label>
+              <input type="tel" value={formData.guardian_phone} onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })} className="input" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+              <input type="date" value={formData.date_of_birth} onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })} className="input" />
+            </div>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <button

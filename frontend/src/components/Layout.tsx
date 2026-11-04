@@ -157,21 +157,31 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate('/login');
   };
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    if (location.pathname === path) {
+      return true;
+    }
+    // The class and section pages belong to "Classes" / "My Classes"
+    if (path === '/admin/classes' && location.pathname.startsWith('/admin/')) {
+      return location.pathname.startsWith('/admin/classes/') || location.pathname.startsWith('/admin/sections/');
+    }
+    if (path === '/teacher/classes') {
+      return location.pathname.startsWith('/teacher/sections/');
+    }
+    return false;
+  };
 
   const adminMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/classes', label: 'Classes', icon: BookOpen },
     { path: '/admin/students', label: 'Students', icon: Users },
     { path: '/admin/teachers', label: 'Teachers', icon: GraduationCap },
-    { path: '/admin/sections', label: 'Sections', icon: BookOpen },
-    { path: '/admin/courses', label: 'Courses', icon: BookOpen },
-    { path: '/admin/subjects', label: 'Subjects', icon: FileText },
-    { path: '/admin/enrollments', label: 'Enrollments', icon: ClipboardList },
     { path: '/admin/events', label: 'Events', icon: Calendar },
   ];
 
   const teacherMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/teacher/classes', label: 'My Classes', icon: BookOpen },
     { path: '/teacher/assignments', label: 'Assignments', icon: FileText },
     { path: '/teacher/attendance', label: 'Attendance', icon: Clock },
     { path: '/teacher/results', label: 'Results', icon: Award },
@@ -181,6 +191,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const studentMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/student/class', label: 'My Class', icon: BookOpen },
     { path: '/student/assignments', label: 'Assignments', icon: FileText },
     { path: '/student/results', label: 'Results', icon: Award },
     { path: '/student/attendance', label: 'Attendance', icon: Clock },

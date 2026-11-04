@@ -27,6 +27,8 @@ def get_all_subjects():
             "teacher_id": subject.teacher_id,
             "teacher_name": subject.teacher.name if subject.teacher else None,
             "course_id": subject.course_id,
+            "class_id": subject.class_id,
+            "class_name": subject.school_class.name if subject.school_class else None,
             "course_name": subject.course.name if subject.course else None
         }
         subject_list.append(subject_data)
@@ -52,6 +54,8 @@ def get_subject_by_id(subject_id):
         "teacher_id": subject.teacher_id,
         "teacher_name": subject.teacher.name if subject.teacher else None,
         "course_id": subject.course_id,
+        "class_id": subject.class_id,
+        "class_name": subject.school_class.name if subject.school_class else None,
         "course_name": subject.course.name if subject.course else None
     }
     

@@ -132,7 +132,7 @@ const TeacherAttendance: React.FC = () => {
         id: subject.id || 0,
         name: subject.name || '',
         teacher: subject.teacher || subject.teacher_name || '',
-        course: subject.course || subject.course_name || '',
+        course: subject.class_name || subject.course || subject.course_name || '',
       }));
       
       setSubjects(subjectsData);

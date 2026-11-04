@@ -452,3 +452,103 @@ export const answerChatAction = async (action_id: number, approve: boolean) => {
   return response.data;
 };
 
+
+// ---------------- School structure (Classes 1-10)
+
+export const getSchoolClasses = async () => {
+  const response = await api.get('/school/classes');
+  return response.data;
+};
+
+export const getSchoolClass = async (classId: number) => {
+  const response = await api.get(`/school/classes/${classId}`);
+  return response.data;
+};
+
+export const addClassSection = async (classId: number, data: { name: string; incharge_id?: number | null }) => {
+  const response = await api.post(`/school/classes/${classId}/sections`, data);
+  return response.data;
+};
+
+export const getClassSection = async (sectionId: number) => {
+  const response = await api.get(`/school/sections/${sectionId}`);
+  return response.data;
+};
+
+export const updateClassSection = async (sectionId: number, data: { name?: string; incharge_id?: number | null }) => {
+  const response = await api.put(`/school/sections/${sectionId}`, data);
+  return response.data;
+};
+
+export const deleteClassSection = async (sectionId: number) => {
+  const response = await api.delete(`/school/sections/${sectionId}`);
+  return response.data;
+};
+
+// Choose who teaches a subject in a section (teacherId null removes the teacher)
+export const setSubjectTeacher = async (sectionId: number, subjectId: number, teacherId: number | null) => {
+  const response = await api.put(`/school/sections/${sectionId}/teachers`, { subject_id: subjectId, teacher_id: teacherId });
+  return response.data;
+};
+
+export const addClassSubject = async (classId: number, name: string) => {
+  const response = await api.post(`/school/classes/${classId}/subjects`, { name });
+  return response.data;
+};
+
+export const renameClassSubject = async (subjectId: number, name: string) => {
+  const response = await api.put(`/school/subjects/${subjectId}`, { name });
+  return response.data;
+};
+
+export const deleteClassSubject = async (subjectId: number) => {
+  const response = await api.delete(`/school/subjects/${subjectId}`);
+  return response.data;
+};
+
+export const getSubjectChapters = async (subjectId: number) => {
+  const response = await api.get(`/school/subjects/${subjectId}/chapters`);
+  return response.data;
+};
+
+export const addSubjectChapter = async (subjectId: number, data: { title: string; description?: string }) => {
+  const response = await api.post(`/school/subjects/${subjectId}/chapters`, data);
+  return response.data;
+};
+
+export const updateSubjectChapter = async (chapterId: number, data: { title?: string; number?: number; description?: string }) => {
+  const response = await api.put(`/school/chapters/${chapterId}`, data);
+  return response.data;
+};
+
+export const deleteSubjectChapter = async (chapterId: number) => {
+  const response = await api.delete(`/school/chapters/${chapterId}`);
+  return response.data;
+};
+
+export const getAcademicSessions = async () => {
+  const response = await api.get('/school/sessions');
+  return response.data;
+};
+
+export const addAcademicSession = async (data: { name: string; start_date: string; end_date: string; is_current?: boolean }) => {
+  const response = await api.post('/school/sessions', data);
+  return response.data;
+};
+
+export const makeSessionCurrent = async (sessionId: number) => {
+  const response = await api.put(`/school/sessions/${sessionId}/current`);
+  return response.data;
+};
+
+// A teacher's own sections and subjects
+export const getMyClasses = async () => {
+  const response = await api.get('/school/my-classes');
+  return response.data;
+};
+
+// A student's own class
+export const getMyClass = async () => {
+  const response = await api.get('/school/my-class');
+  return response.data;
+};

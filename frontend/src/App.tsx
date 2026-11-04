@@ -9,11 +9,12 @@ import Dashboard from './pages/Dashboard';
 // Admin pages
 import AdminStudents from './pages/admin/Students';
 import AdminTeachers from './pages/admin/Teachers';
-import AdminSections from './pages/admin/Sections';
-import AdminCourses from './pages/admin/Courses';
-import AdminSubjects from './pages/admin/Subjects';
-import AdminEnrollments from './pages/admin/Enrollments';
 import AdminEvents from './pages/admin/Events';
+import AdminClasses from './pages/admin/Classes';
+import AdminClassDetail from './pages/admin/ClassDetail';
+import SectionDetail from './pages/SectionDetail';
+import TeacherMyClasses from './pages/teacher/MyClasses';
+import StudentMyClass from './pages/student/MyClass';
 
 // Teacher pages
 import TeacherAssignments from './pages/teacher/Assignments';
@@ -71,41 +72,61 @@ function App() {
           }
         />
         <Route
-          path="/admin/sections"
+          path="/admin/classes"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
-                <AdminSections />
+                <AdminClasses />
               </Layout>
             </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/courses"
+          path="/admin/classes/:classId"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
-                <AdminCourses />
+                <AdminClassDetail />
               </Layout>
             </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/subjects"
+          path="/admin/sections/:sectionId"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
-                <AdminSubjects />
+                <SectionDetail />
               </Layout>
             </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/enrollments"
+          path="/teacher/classes"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['teacher']}>
               <Layout>
-                <AdminEnrollments />
+                <TeacherMyClasses />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/sections/:sectionId"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <Layout>
+                <SectionDetail />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student/class"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <Layout>
+                <StudentMyClass />
               </Layout>
             </ProtectedRoute>
           }
