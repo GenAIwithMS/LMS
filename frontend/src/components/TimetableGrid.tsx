@@ -1,5 +1,5 @@
 import React from 'react';
-import type { BellPeriod, PeriodSubject, TimetableSlot, TeacherSkills } from '../types';
+import type { BellPeriod, TimetableSlot } from '../types';
 
 interface TimetableGridProps {
   timetable: {
@@ -9,15 +9,10 @@ interface TimetableGridProps {
   };
   // A teacher's own week shows the section of each period instead of the teacher
   showSection?: boolean;
-  // Give this to let the admin choose the subject of each period
+  // Give this to let the admin click a period to change it (the choosing happens in a panel next to the grid)
   edit?: {
-    // The section's subjects, each with its current teacher in this section
-    subjects: PeriodSubject[];
-    // Every teacher with the subjects they teach, so other free teachers of a subject can be offered
-    teachers: TeacherSkills[];
-    // Where this teacher already is at this time (another section's name), or null when free
-    busyIn: (day: number, period: number, teacherId: number) => string | null;
-    onChange: (day: number, period: number, subjectId: number | null, teacherId: number | null) => void;
+    selected: { day: number; period: number } | null;
+    onSelect: (day: number, period: number) => void;
   };
 }
 
@@ -35,21 +30,11 @@ const SUBJECT_COLOURS = [
   'bg-rose-50 border-rose-200',
 ];
 
-const subjectColour = (subjectId: number | null): string => {
+export const subjectColour = (subjectId: number | null): string => {
   if (subjectId === null) {
     return 'bg-gray-50 border-gray-200';
   }
   return SUBJECT_COLOURS[subjectId % SUBJECT_COLOURS.length];
-};
-
-// True if the teacher's list of subjects has this subject (capitals and spaces don't matter)
-const teachesSubject = (teacher: TeacherSkills, subjectName: string): boolean => {
-  for (const name of teacher.subjects) {
-    if (name.trim().toLowerCase() === subjectName.trim().toLowerCase()) {
-      return true;
-    }
-  }
-  return false;
 };
 
 // The weekly timetable like a college timetable: days down the side, the periods
@@ -59,87 +44,42 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ timetable, showSec
     return timetable.slots.find((slot) => slot.day === day && slot.period === period);
   };
 
-  // A choice in a period is "subject:teacher", or "subject:none" for a subject with no teacher yet
-  const choiceValue = (subjectId: number, teacherId: number | null): string => {
-    if (teacherId === null) {
-      return `${subjectId}:none`;
+  // What a filled period shows: the subject, then the teacher (or the section for a teacher's own week)
+  const renderSlotText = (slot: TimetableSlot) => {
+    let secondLine = slot.teacher_name || 'No teacher yet';
+    if (showSection) {
+      secondLine = slot.section_name;
     }
-    return `${subjectId}:${teacherId}`;
-  };
-
-  const handleChoice = (day: number, period: number, value: string) => {
-    if (!edit) return;
-    if (value === '') {
-      edit.onChange(day, period, null, null);
-      return;
-    }
-    const parts = value.split(':');
-    const subjectId = Number(parts[0]);
-    let teacherId: number | null = null;
-    if (parts[1] !== 'none') {
-      teacherId = Number(parts[1]);
-    }
-    edit.onChange(day, period, subjectId, teacherId);
+    return (
+      <>
+        <div className="text-xs font-semibold text-gray-900 leading-tight break-words">{slot.subject_name}</div>
+        <div className="text-[11px] text-gray-600 leading-tight break-words">{secondLine}</div>
+      </>
+    );
   };
 
   const renderEditCell = (day: number, period: number) => {
     if (!edit) return null;
     const slot = findSlot(day, period);
-    let currentValue = '';
-    if (slot) {
-      currentValue = choiceValue(slot.subject_id, slot.teacher_id);
-    }
-    return (
-      <div className={`rounded-lg border p-1 ${slot ? subjectColour(slot.subject_id) : 'border-dashed border-gray-300'}`}>
-        <select
-          value={currentValue}
-          onChange={(e) => handleChoice(day, period, e.target.value)}
-          className="w-full bg-transparent text-xs font-semibold text-gray-900 focus:outline-none cursor-pointer"
-          title="Choose the subject and teacher for this period"
-        >
-          <option value="">Free</option>
-          {edit.subjects.map((subject) => {
-            // The section's own teacher of the subject first, then every other teacher who teaches it
-            const candidates: { teacherId: number; teacherName: string; isCurrent: boolean }[] = [];
-            if (subject.teacher_id !== null && subject.teacher_name !== null) {
-              candidates.push({ teacherId: subject.teacher_id, teacherName: subject.teacher_name, isCurrent: true });
-            }
-            for (const teacher of edit.teachers) {
-              if (teacher.teacher_id !== subject.teacher_id && teachesSubject(teacher, subject.subject_name)) {
-                candidates.push({ teacherId: teacher.teacher_id, teacherName: teacher.teacher_name, isCurrent: false });
-              }
-            }
+    const isSelected = edit.selected !== null && edit.selected.day === day && edit.selected.period === period;
 
-            return (
-              <optgroup key={subject.subject_id} label={subject.subject_name}>
-                {candidates.map((candidate) => {
-                  const value = choiceValue(subject.subject_id, candidate.teacherId);
-                  // Busy in another section at this time (unless it's already this period's choice)
-                  let busySection: string | null = null;
-                  if (value !== currentValue) {
-                    busySection = edit.busyIn(day, period, candidate.teacherId);
-                  }
-                  let label = `${subject.subject_name} - ${candidate.teacherName}`;
-                  if (busySection) {
-                    label = label + ` (busy in ${busySection})`;
-                  } else if (!candidate.isCurrent && subject.teacher_id !== null) {
-                    label = label + ' (becomes this class\'s teacher)';
-                  }
-                  return (
-                    <option key={value} value={value} disabled={busySection !== null}>{label}</option>
-                  );
-                })}
-                {subject.teacher_id === null && (
-                  <option value={choiceValue(subject.subject_id, null)}>{subject.subject_name} (no teacher yet)</option>
-                )}
-              </optgroup>
-            );
-          })}
-        </select>
-        {slot && (
-          <div className="text-[11px] text-gray-600 px-1 truncate">{slot.teacher_name || 'No teacher yet'}</div>
-        )}
-      </div>
+    let look = 'border-dashed border-gray-300 bg-white hover:border-primary-400';
+    if (slot) {
+      look = subjectColour(slot.subject_id) + ' hover:shadow';
+    }
+    if (isSelected) {
+      look = look + ' ring-2 ring-primary-500';
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => edit.onSelect(day, period)}
+        className={`w-full min-h-[3rem] rounded-lg border px-2 py-1 text-left ${look}`}
+        title="Click to choose the subject and teacher"
+      >
+        {slot ? renderSlotText(slot) : <div className="text-xs text-gray-400">Free</div>}
+      </button>
     );
   };
 
@@ -148,14 +88,9 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ timetable, showSec
     if (!slot) {
       return <div className="text-center text-gray-300 text-xs py-2">-</div>;
     }
-    let secondLine = slot.teacher_name || 'No teacher yet';
-    if (showSection) {
-      secondLine = slot.section_name;
-    }
     return (
       <div className={`rounded-lg border px-2 py-1 ${subjectColour(slot.subject_id)}`}>
-        <div className="text-xs font-semibold text-gray-900 truncate">{slot.subject_name}</div>
-        <div className="text-[11px] text-gray-600 truncate">{secondLine}</div>
+        {renderSlotText(slot)}
       </div>
     );
   };
@@ -167,7 +102,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ timetable, showSec
           <tr>
             <th className="sticky left-0 bg-white z-10 border border-gray-200 px-2 py-2 text-left text-xs text-gray-500">Day</th>
             {timetable.periods.map((period, index) => (
-              <th key={index} className={`border border-gray-200 px-2 py-2 text-center ${period.is_break ? 'bg-gray-100 w-12' : 'min-w-[8.5rem]'}`}>
+              <th key={index} className={`border border-gray-200 px-2 py-2 text-center ${period.is_break ? 'bg-gray-100 w-12' : 'min-w-[7.5rem]'}`}>
                 <div className="text-xs font-semibold text-gray-700">{period.is_break ? period.name : `Period ${period.number}`}</div>
                 <div className="text-[11px] font-normal text-gray-500">{period.start_time}-{period.end_time}</div>
               </th>

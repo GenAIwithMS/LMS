@@ -5,6 +5,7 @@ import { CalendarDays, Send, Settings, Printer, Plus, Trash2, AlertTriangle, Che
 import { getTimetableDraft, setTimetableSlot, clearSectionTimetable, getPublishCheck, publishTimetable, saveTimetableSettings } from '../../services/api';
 import type { SchoolTimetableDraft, DraftSection } from '../../types';
 import { TimetableGrid } from '../../components/TimetableGrid';
+import { PeriodPicker } from '../../components/PeriodPicker';
 import { Modal } from '../../components/Modal';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
@@ -39,6 +40,8 @@ const AdminTimetable: React.FC = () => {
   const [tab, setTab] = useState<Tab>('class');
   const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
   const [schoolDay, setSchoolDay] = useState<number>(1);
+  // The period being changed (its picker shows next to the grid)
+  const [selectedCell, setSelectedCell] = useState<{ day: number; period: number } | null>(null);
 
   // Publishing
   const [isPublishOpen, setIsPublishOpen] = useState(false);
@@ -87,18 +90,10 @@ const AdminTimetable: React.FC = () => {
 
   const selectedSection: DraftSection | undefined = draft?.sections.find((section) => section.section_id === selectedSectionId);
 
-  // Where a teacher already is on this day and period (another section), or null
-  const busyIn = (day: number, period: number, teacherId: number): string | null => {
-    if (!draft) return null;
-    for (const section of draft.sections) {
-      if (section.section_id === selectedSectionId) continue;
-      for (const slot of section.slots) {
-        if (slot.day === day && slot.period === period && slot.teacher_id === teacherId) {
-          return section.section_name;
-        }
-      }
-    }
-    return null;
+  // Choosing a section starts with no period picked
+  const chooseSection = (sectionId: number) => {
+    setSelectedSectionId(sectionId);
+    setSelectedCell(null);
   };
 
   const handleSlotChange = async (day: number, period: number, subjectId: number | null, teacherId: number | null) => {
@@ -259,6 +254,14 @@ const AdminTimetable: React.FC = () => {
 
   const status = draft.status;
 
+  // The period chosen in the grid: its times and its day
+  let selectedBellPeriod = undefined;
+  let selectedDay = undefined;
+  if (selectedCell) {
+    selectedBellPeriod = draft.periods.find((one) => one.number === selectedCell.period);
+    selectedDay = draft.days.find((one) => one.day === selectedCell.day);
+  }
+
   return (
     <div className="space-y-6">
       {/* Title, status and the main buttons */}
@@ -305,7 +308,7 @@ const AdminTimetable: React.FC = () => {
                 {group.sections.map((section) => (
                   <button
                     key={section.section_id}
-                    onClick={() => setSelectedSectionId(section.section_id)}
+                    onClick={() => chooseSection(section.section_id)}
                     className={`px-3 py-1 rounded-lg text-sm border ${section.section_id === selectedSectionId ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300 hover:border-primary-400'}`}
                   >
                     {section.section_name.replace(group.className + ' - ', 'Section ')}
@@ -340,13 +343,32 @@ const AdminTimetable: React.FC = () => {
                     </div>
                   )}
                   <p className="no-print text-sm text-gray-500">
-                    Choose the subject and teacher for each period. Every teacher who teaches the subject is offered;
-                    one who is busy in another section at that time is greyed out. Choosing a different teacher makes them this class's teacher of that subject.
+                    Click a period to choose its subject and teacher. The panel shows who is free at that time, and exactly where a busy teacher is.
                   </p>
-                  <TimetableGrid
-                    timetable={{ days: draft.days, periods: draft.periods, slots: selectedSection.slots }}
-                    edit={{ subjects: selectedSection.subjects, teachers: draft.teachers, busyIn: busyIn, onChange: handleSlotChange }}
-                  />
+                  <div className="flex flex-col xl:flex-row gap-4 items-start">
+                    <div className="w-full xl:flex-1 min-w-0">
+                      <TimetableGrid
+                        timetable={{ days: draft.days, periods: draft.periods, slots: selectedSection.slots }}
+                        edit={{ selected: selectedCell, onSelect: (day, period) => setSelectedCell({ day: day, period: period }) }}
+                      />
+                    </div>
+                    {selectedCell && selectedBellPeriod && selectedDay && (
+                      <div className="no-print w-full xl:w-96 xl:sticky xl:top-4">
+                        <PeriodPicker
+                          key={`${selectedSection.section_id}-${selectedCell.day}-${selectedCell.period}`}
+                          day={selectedCell.day}
+                          dayName={selectedDay.name}
+                          period={selectedBellPeriod}
+                          section={selectedSection}
+                          sections={draft.sections}
+                          teachers={draft.teachers}
+                          onChoose={(subjectId, teacherId) => handleSlotChange(selectedCell.day, selectedCell.period, subjectId, teacherId)}
+                          onClear={() => handleSlotChange(selectedCell.day, selectedCell.period, null, null)}
+                          onClose={() => setSelectedCell(null)}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </div>
