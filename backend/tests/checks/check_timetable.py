@@ -156,7 +156,8 @@ with app.app_context():
 r = client.post(f"/api/school/teachers/{ZARA}/subjects", json={"name": " maths "}, headers=H["root"])
 check("a new teacher gets a subject with no class yet (spelling follows the school's Maths)", r.status_code == 201 and "teaches Maths" in r.get_json()["message"], r.get_json())
 check("the same subject twice is refused", client.post(f"/api/school/teachers/{ZARA}/subjects", json={"name": "MATHS"}, headers=H["root"]).status_code == 409)
-check("a subject no class has yet is fine too", client.post(f"/api/school/teachers/{ZARA}/subjects", json={"name": "Computer"}, headers=H["root"]).status_code == 201)
+r = client.post(f"/api/school/teachers/{ZARA}/subjects", json={"name": "computer"}, headers=H["root"])
+check("a subject no class has yet is fine too, and starts with a capital", r.status_code == 201 and "teaches Computer" in r.get_json()["message"], r.get_json())
 check("teachers can't change this", client.post(f"/api/school/teachers/{ZARA}/subjects", json={"name": "Art"}, headers=H["sara"]).status_code == 403)
 listing = client.get("/api/school/teacher-subjects", headers=H["root"]).get_json()
 skills = {t["teacher_name"]: t["subjects"] for t in listing["teachers"]}

@@ -27,6 +27,9 @@ def neat_subject_name(name):
     for skill in TeacherSubject.query.all():
         if same_name(skill.subject_name, name):
             return skill.subject_name
+    # A new subject: start it with a capital letter ("islamiyat" becomes "Islamiyat"; "ICT" stays "ICT")
+    if name != "":
+        name = name[0].upper() + name[1:]
     return name
 
 
