@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit, Trash2, Search, Settings } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../../components/Modal';
 import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, getSections } from '../../services/api';
@@ -7,6 +8,7 @@ import type { Announcement, Section } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
 const TeacherAnnouncements: React.FC = () => {
+  const { user } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,13 +64,20 @@ const TeacherAnnouncements: React.FC = () => {
       } else if (data.announcement) {
         list = [data.announcement];
       }
-      // The API sends section_name and teacher_name; the page shows section and teacher
-      const announcementsData = list.map((announcement: any) => ({
-        ...announcement,
-        section: announcement.section || announcement.section_name || '',
-        section_id: announcement.section_id,
-        teacher: announcement.teacher || announcement.teacher_name || '',
-      }));
+      // The page shows who wrote it ("Principal (Admin)" for the admin) and where it goes
+      const announcementsData: Announcement[] = [];
+      for (const announcement of list) {
+        let author = announcement.author_name || announcement.teacher_name || '';
+        if (announcement.author_role === 'admin') {
+          author = author + ' (Admin)';
+        }
+        announcementsData.push({
+          ...announcement,
+          section: announcement.where || announcement.section_name || '',
+          section_id: announcement.section_id,
+          teacher: author,
+        });
+      }
       setAnnouncements(announcementsData);
     } catch (error: any) {
       showError(error, 'Failed to fetch announcements');
@@ -312,19 +321,22 @@ const TeacherAnnouncements: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">{announcement.title}</h3>
                   <p className="text-sm text-gray-500 mt-1">{announcement.teacher} • {announcement.section}</p>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <button onClick={() => handleEdit(announcement)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
-                    <Edit size={18} />
-                  </button>
-                  <button onClick={() => handleDeleteClick(announcement)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                    <Trash2 size={18} />
-                  </button>
-                </div>
+                {/* Only the teacher's own announcements can be changed here */}
+                {user !== null && announcement.teacher_id === user.id && (
+                  <div className="flex items-center space-x-2">
+                    <button onClick={() => handleEdit(announcement)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
+                      <Edit size={18} />
+                    </button>
+                    <button onClick={() => handleDeleteClick(announcement)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                )}
               </div>
               <p className="text-gray-600 mb-4">{announcement.content}</p>
               <div className="flex items-center justify-between text-sm text-gray-500">
                 <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
-                <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded-full text-xs">{announcement.target_audience}</span>
+                <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded-full text-xs">{announcement.audience_text || announcement.target_audience}</span>
               </div>
             </div>
           ))

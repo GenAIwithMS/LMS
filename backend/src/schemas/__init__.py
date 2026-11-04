@@ -1,4 +1,4 @@
-from .announcement import AnnouncementSchema, UpdateAnnouncementSchema
+from .announcement import AnnouncementSchema, UpdateAnnouncementSchema, AdminAnnouncementSchema, UpdateAdminAnnouncementSchema
 from .assignment_submission import AssignmentSubmissionSchema, UpdateAssignmentSubmissionSchema
 from .assignment import assignmentSchema, UpdateAssignmentSchema
 from .attendance import AttendanceSchema,UpdateAttendanceSchema

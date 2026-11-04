@@ -25,6 +25,7 @@ import {
   History,
   FileSpreadsheet,
   CalendarDays,
+  Megaphone,
 } from 'lucide-react';
 import { getAnnouncements, getEvents, getPublishedTimetableInfo } from '../services/api';
 import toast from 'react-hot-toast';
@@ -107,7 +108,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         const combined: Notification[] = [
           ...(Array.isArray(announcements) ? announcements
-            .filter((a: any) => !(userRole === 'teacher' && a.teacher_id === currentUserId))
+            .filter((a: any) => !(userRole === 'teacher' && a.teacher_id === currentUserId) && !(userRole === 'admin' && a.admin_id === currentUserId))
             .slice(0, 5)
             .map((a: any) => ({
               id: `a-${a.id}`,
@@ -224,6 +225,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/admin/promotion', label: 'Promotion', icon: TrendingUp },
     { path: '/admin/activity', label: 'Activity Log', icon: History },
     { path: '/admin/reports', label: 'Reports', icon: FileSpreadsheet },
+    { path: '/admin/announcements', label: 'Announcements', icon: Megaphone },
     { path: '/admin/events', label: 'Events', icon: Calendar },
   ];
 

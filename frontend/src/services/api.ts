@@ -920,3 +920,21 @@ export const removeTeacherSubject = async (teacherId: number, name: string) => {
   const response = await api.delete(`/school/teachers/${teacherId}/subjects`, { params: { name } });
   return response.data;
 };
+
+// ---------------- Announcements from the admin (whole school, a class or a section)
+
+export const createAdminAnnouncement = async (data: { title: string; content: string; target_audience: string; class_id?: number | null; section_id?: number | null }) => {
+  const response = await api.post('/admin/announcements', data);
+  return response.data;
+};
+
+export const updateAdminAnnouncement = async (id: number, data: { title?: string; content?: string; target_audience?: string; class_id?: number | null; section_id?: number | null }) => {
+  const response = await api.put(`/admin/announcements/${id}`, data);
+  return response.data;
+};
+
+// The admin can delete any announcement, a teacher's too
+export const deleteAnyAnnouncement = async (id: number) => {
+  const response = await api.delete(`/admin/announcements/${id}`);
+  return response.data;
+};

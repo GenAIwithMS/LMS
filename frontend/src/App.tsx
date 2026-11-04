@@ -24,6 +24,7 @@ import MyTimetable from './pages/MyTimetable';
 import AdminTeacherActivity from './pages/admin/TeacherActivity';
 import AdminActivityLog from './pages/admin/ActivityLog';
 import AdminReports from './pages/admin/Reports';
+import AdminAnnouncements from './pages/admin/Announcements';
 import ReportCardPage from './pages/ReportCardPage';
 import StudentMyClass from './pages/student/MyClass';
 
@@ -231,6 +232,16 @@ function App() {
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
                 <AdminActivityLog />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/announcements"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminAnnouncements />
               </Layout>
             </ProtectedRoute>
           }

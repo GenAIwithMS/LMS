@@ -3,7 +3,7 @@ from flask import Response
 from langchain.tools import tool
 from src.models import Subject,Student,Teacher,Course,Section,Attendance,Announcement,Result,AssignmentSubmission,Event,Enrollment,Assignment
 from src.agent.confirm import is_confirmed, ask_to_confirm, describe_changes
-from src.services.access import teacher_teaches_student_subject
+from src.services.access import teacher_teaches_student_subject, get_teacher_announcement_ids
 from src.agent.scope import (
     get_teacher_subject_ids, get_teacher_student_ids, get_teacher_assignment_ids,
     get_student_announcement_ids, filter_by_ids, find_student, find_subject, find_section,
@@ -105,6 +105,12 @@ def get_announcements():
         allowed_ids = get_student_announcement_ids(student_id)
         result = filter_by_ids(result, allowed_ids)
 
+    # A teacher only sees their own announcements and the ones meant for teachers in their classes
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        allowed_ids = get_teacher_announcement_ids(teacher_id)
+        result = filter_by_ids(result, allowed_ids)
+
     return result
 
 
@@ -120,6 +126,13 @@ def get_announcement(announcement_title):
     token = get_jwt()
     if token.get("role") not in ["admin", "teacher", "student"]:
         return {"message": "Unauthorized access", "status": "failed"}
+
+    # A teacher can only open announcements meant for them
+    if token.get("role") == "teacher":
+        teacher_id = int(get_jwt_identity())
+        announcement = Announcement.query.filter_by(title=announcement_title).first()
+        if not announcement or announcement.id not in get_teacher_announcement_ids(teacher_id):
+            return {"message": "Announcement not found", "status": "failed"}
 
     if token.get("role") == "student":
         student_id = int(get_jwt_identity())

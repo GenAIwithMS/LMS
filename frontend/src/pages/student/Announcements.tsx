@@ -23,12 +23,20 @@ const StudentAnnouncements: React.FC = () => {
       } else if (data.announcement) {
         list = [data.announcement];
       }
-      // The API sends section_name and teacher_name; the page shows section and teacher
-      const announcementsData = list.map((announcement: any) => ({
-        ...announcement,
-        section: announcement.section || announcement.section_name || '',
-        teacher: announcement.teacher || announcement.teacher_name || '',
-      }));
+      // The page shows who wrote it ("Principal (Admin)" for the admin) and where it goes
+      const announcementsData: Announcement[] = [];
+      for (const announcement of list) {
+        let author = announcement.author_name || announcement.teacher_name || '';
+        if (announcement.author_role === 'admin') {
+          author = author + ' (Admin)';
+        }
+        announcementsData.push({
+          ...announcement,
+          section: announcement.where || announcement.section_name || '',
+          section_id: announcement.section_id,
+          teacher: author,
+        });
+      }
       setAnnouncements(announcementsData);
     } catch (error) {
       toast.error('Failed to fetch announcements');
@@ -87,7 +95,7 @@ const StudentAnnouncements: React.FC = () => {
                   <p className="text-sm text-gray-500">{announcement.teacher} • {announcement.section}</p>
                 </div>
                 <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded-full text-xs">
-                  {announcement.target_audience}
+                  {announcement.audience_text || announcement.target_audience}
                 </span>
               </div>
               <p className="text-gray-600 mb-4">{announcement.content}</p>

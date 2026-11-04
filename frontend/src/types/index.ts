@@ -133,13 +133,24 @@ export interface Result {
 
 export interface Announcement {
   id: number;
-  section_id?: number;
+  section_id?: number | null;
   title: string;
   content: string;
-  target_audience: string;
+  target_audience: string;      // "all", "teachers" or "students"
   section: string;
   teacher: string;
   created_at: string;
+  // Who wrote it and where it goes (sent by the API)
+  audience_text?: string;       // "Everyone", "Teachers", "Students"
+  section_name?: string | null;
+  class_id?: number | null;
+  class_name?: string | null;
+  where?: string;               // "Whole school", "Class 5 (all sections)" or "Class 5 - A"
+  teacher_id?: number | null;
+  teacher_name?: string | null;
+  admin_id?: number | null;
+  author_role?: 'admin' | 'teacher';
+  author_name?: string | null;
 }
 
 export interface Event {

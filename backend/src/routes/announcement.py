@@ -1,10 +1,11 @@
 from src.services import add_announcement,get_all_announcements,get_announcement_by_title,edit_announcement,delete_announcement
+from src.services.announsment import add_admin_announcement, edit_admin_announcement, delete_announcement_by_id
 from flask import jsonify,request,Blueprint
-from src.schemas import AnnouncementSchema,UpdateAnnouncementSchema
+from src.schemas import AnnouncementSchema,UpdateAnnouncementSchema, AdminAnnouncementSchema, UpdateAdminAnnouncementSchema
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt,get_jwt_identity
 from src.models import Section, Announcement
-from src.services.access import find_teacher_section, get_student_announcement_ids, filter_response_by_ids
+from src.services.access import find_teacher_section, get_student_announcement_ids, get_teacher_announcement_ids, filter_response_by_ids
 
 
 def teacher_owns_announcement(teacher_id, announcement_title):
@@ -63,16 +64,22 @@ def fetch_all_announcements():
     announcement_title = request.args.get("title")
     if not announcement_title:
         result = get_all_announcements()
-        # A student only sees announcements for their section, plus school-wide ones
+        # Students and teachers only see the announcements meant for them (the admin sees all)
         if user_role == "student":
             student_id = int(get_jwt_identity())
             result = filter_response_by_ids(result, get_student_announcement_ids(student_id))
+        if user_role == "teacher":
+            teacher_id = int(get_jwt_identity())
+            result = filter_response_by_ids(result, get_teacher_announcement_ids(teacher_id))
         return result
 
-    if user_role == "student":
-        student_id = int(get_jwt_identity())
+    if user_role == "student" or user_role == "teacher":
+        user_id = int(get_jwt_identity())
+        allowed_ids = get_student_announcement_ids(user_id)
+        if user_role == "teacher":
+            allowed_ids = get_teacher_announcement_ids(user_id)
         announcement = Announcement.query.filter_by(title=announcement_title).first()
-        if not announcement or announcement.id not in get_student_announcement_ids(student_id):
+        if not announcement or announcement.id not in allowed_ids:
             return jsonify({
                 "message": "Announcement not found",
                 "status": "failed"
@@ -151,3 +158,50 @@ def delete_announce():
 
     result = delete_announcement(announcement_title)
     return result
+
+
+# ---------------- Announcements from the admin
+
+def only_admin():
+    """An error answer if the user is not the admin, otherwise None."""
+    if get_jwt().get("role") != "admin":
+        return jsonify({"message": "Only the admin can do this", "status": "failed"}), 403
+    return None
+
+
+@announcement_bp.route("/api/admin/announcements", methods=["POST"])
+@jwt_required()
+def create_admin_announcement():
+    error = only_admin()
+    if error:
+        return error
+    try:
+        data = AdminAnnouncementSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    admin_id = int(get_jwt_identity())
+    return add_admin_announcement(admin_id, data["title"], data["content"], data["target_audience"],
+                                  data.get("class_id"), data.get("section_id"))
+
+
+@announcement_bp.route("/api/admin/announcements/<int:announcement_id>", methods=["PUT"])
+@jwt_required()
+def update_admin_announcement(announcement_id):
+    error = only_admin()
+    if error:
+        return error
+    try:
+        data = UpdateAdminAnnouncementSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    return edit_admin_announcement(announcement_id, data)
+
+
+@announcement_bp.route("/api/admin/announcements/<int:announcement_id>", methods=["DELETE"])
+@jwt_required()
+def remove_any_announcement(announcement_id):
+    """The admin can delete any announcement, a teacher's too."""
+    error = only_admin()
+    if error:
+        return error
+    return delete_announcement_by_id(announcement_id)

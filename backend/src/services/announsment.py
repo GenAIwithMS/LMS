@@ -1,4 +1,4 @@
-from src.models import Announcement,Section
+from src.models import Announcement, Section, SchoolClass
 from flask import jsonify
 from src.db import db
   
@@ -28,26 +28,62 @@ def add_announcement(title, content, teacher_id, section_id,target_audience='all
         "status": "success"
     }), 201
 
-def get_all_announcements():
-    
-    announcements = Announcement.query.all()
+AUDIENCE_TEXT = {"all": "Everyone", "teachers": "Teachers", "students": "Students"}
 
+
+def announcement_data(announcement):
+    """One announcement for pages and the chatbot: who wrote it, who it's for, and where."""
+    section = None
+    if announcement.section_id:
+        section = Section.query.get(announcement.section_id)
+
+    # The author: a teacher or the admin
+    author_role = "teacher"
+    author_name = None
+    if announcement.teacher:
+        author_name = announcement.teacher.name
+    if announcement.admin_id:
+        author_role = "admin"
+        if announcement.admin:
+            author_name = announcement.admin.name
+
+    # Where it goes: one section, one class, or the whole school
+    where = "Whole school"
+    class_name = None
+    if announcement.school_class:
+        class_name = announcement.school_class.name
+        where = class_name + " (all sections)"
+    if section:
+        where = section.full_name()
+
+    return {
+        "id": announcement.id,
+        "title": announcement.title,
+        "content": announcement.content,
+        "target_audience": announcement.target_audience,
+        "audience_text": AUDIENCE_TEXT.get(announcement.target_audience, announcement.target_audience),
+        "section_id": announcement.section_id,
+        "section_name": section.full_name() if section else None,
+        "class_id": announcement.class_id,
+        "class_name": class_name,
+        "where": where,
+        "created_at": announcement.created_at,
+        "teacher_id": announcement.teacher_id,
+        "teacher_name": announcement.teacher.name if announcement.teacher else None,
+        "admin_id": announcement.admin_id,
+        "author_role": author_role,
+        "author_name": author_name
+    }
+
+
+def get_all_announcements():
+    """Every announcement, newest first."""
+    announcements = Announcement.query.order_by(Announcement.created_at.desc(), Announcement.id.desc()).all()
     announcement_list = []
     for announcement in announcements:
-        section = Section.query.get(announcement.section_id)
-        announcement_data = {
-            "id": announcement.id,
-            "title": announcement.title,
-            "content": announcement.content,
-            "target_audience": announcement.target_audience,
-            "section_id": announcement.section_id,
-            "section_name": section.name if section else None,
-            "created_at": announcement.created_at,
-            "teacher_id": announcement.teacher_id,
-            "teacher_name": announcement.teacher.name if announcement.teacher else None
-        }
-        announcement_list.append(announcement_data)
+        announcement_list.append(announcement_data(announcement))
     return jsonify(announcement_list)
+
 
 def get_announcement_by_title(announcement_title):
     announcement = Announcement.query.filter_by(title=announcement_title).first()
@@ -56,20 +92,8 @@ def get_announcement_by_title(announcement_title):
             "message": "Announcement not found",
             "status": "error"
         }), 404
+    return jsonify(announcement_data(announcement))
 
-    section = Section.query.get(announcement.section_id)
-    announcement_data = {
-        "id": announcement.id,
-        "title": announcement.title,
-        "content": announcement.content,
-        "target_audience": announcement.target_audience,
-        "section_id": announcement.section_id,
-        "section_name": section.name if section else None,
-        "created_at": announcement.created_at,
-        "teacher_id": announcement.teacher_id,
-        "teacher_name": announcement.teacher.name if announcement.teacher else None
-    }
-    return jsonify(announcement_data)
 
 def edit_announcement(announcement_title, **kwargs):
     announcement = Announcement.query.filter_by(title=announcement_title).first()
@@ -115,3 +139,84 @@ def delete_announcement(announcement_title):
         "message": "Announcement deleted successfully",
         "status": "success"
     })
+
+# ---------------- Announcements from the admin
+
+def check_admin_target(class_id, section_id):
+    """An error message if the class or section doesn't exist or don't match, otherwise None."""
+    if class_id:
+        if not SchoolClass.query.get(class_id):
+            return "Class not found"
+    if section_id:
+        section = Section.query.get(section_id)
+        if not section:
+            return "Section not found"
+        if class_id and section.class_id != class_id:
+            return "This section is not in the chosen class"
+    return None
+
+
+def add_admin_announcement(admin_id, title, content, target_audience, class_id=None, section_id=None):
+    title = title.strip()
+    if Announcement.query.filter_by(title=title).first():
+        return jsonify({"message": "Another announcement already has this title; choose another", "status": "failed"}), 400
+
+    problem = check_admin_target(class_id, section_id)
+    if problem:
+        return jsonify({"message": problem, "status": "failed"}), 400
+
+    # A section is enough on its own (it already belongs to a class)
+    if section_id:
+        class_id = None
+
+    announcement = Announcement(title=title, content=content, target_audience=target_audience,
+                                admin_id=admin_id, class_id=class_id, section_id=section_id)
+    db.session.add(announcement)
+    db.session.commit()
+    return jsonify({"message": "Announcement posted", "status": "success", "announcement": announcement_data(announcement)}), 201
+
+
+def edit_admin_announcement(announcement_id, data):
+    """data can hold title, content, target_audience, class_id and section_id (None = whole school)."""
+    announcement = Announcement.query.get(announcement_id)
+    if not announcement or not announcement.admin_id:
+        return jsonify({"message": "Announcement not found among the admin's announcements", "status": "failed"}), 404
+
+    if "title" in data:
+        new_title = data["title"].strip()
+        other = Announcement.query.filter_by(title=new_title).first()
+        if other and other.id != announcement.id:
+            return jsonify({"message": "Another announcement already has this title; choose another", "status": "failed"}), 400
+
+    # Where it goes: check the new class and section together
+    class_id = announcement.class_id
+    section_id = announcement.section_id
+    if "class_id" in data or "section_id" in data:
+        class_id = data.get("class_id")
+        section_id = data.get("section_id")
+        problem = check_admin_target(class_id, section_id)
+        if problem:
+            return jsonify({"message": problem, "status": "failed"}), 400
+        if section_id:
+            class_id = None
+
+    if "title" in data:
+        announcement.title = data["title"].strip()
+    if "content" in data:
+        announcement.content = data["content"]
+    if "target_audience" in data:
+        announcement.target_audience = data["target_audience"]
+    announcement.class_id = class_id
+    announcement.section_id = section_id
+    db.session.commit()
+    return jsonify({"message": "Announcement updated", "status": "success", "announcement": announcement_data(announcement)})
+
+
+def delete_announcement_by_id(announcement_id):
+    """The admin can remove any announcement, a teacher's too."""
+    announcement = Announcement.query.get(announcement_id)
+    if not announcement:
+        return jsonify({"message": "Announcement not found", "status": "failed"}), 404
+    db.session.delete(announcement)
+    db.session.commit()
+    return jsonify({"message": "Announcement deleted", "status": "success"})

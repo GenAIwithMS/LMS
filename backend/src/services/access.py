@@ -142,18 +142,56 @@ def teacher_owns_assignment(teacher_id, assignment_id):
     return int(assignment_id) in get_teacher_assignment_ids(teacher_id)
 
 
+def announcement_reaches(announcement, audience, section_ids, class_ids):
+    """True if the announcement is for this audience ("teachers" or "students") and covers
+    one of these sections or classes (or the whole school)."""
+    if announcement.target_audience not in ["all", audience]:
+        return False
+    # The whole school
+    if announcement.section_id is None and announcement.class_id is None:
+        return True
+    if announcement.section_id is not None and announcement.section_id in section_ids:
+        return True
+    if announcement.section_id is None and announcement.class_id in class_ids:
+        return True
+    return False
+
+
 def get_student_announcement_ids(student_id):
-    """IDs of announcements for the student's section, plus ones with no section (school-wide)."""
+    """IDs of the announcements a student can see: for everyone or for students, and for
+    the whole school, the student's class, or the student's section."""
     announcement_ids = []
     student = Student.query.get(student_id)
+    if not student:
+        return announcement_ids
 
-    announcements = Announcement.query.all()
-    for announcement in announcements:
-        if announcement.section_id is None:
-            announcement_ids.append(announcement.id)
-        elif student and announcement.section_id == student.section_id:
-            announcement_ids.append(announcement.id)
+    section_ids = [student.section_id]
+    class_ids = []
+    if student.section and student.section.class_id:
+        class_ids.append(student.section.class_id)
 
+    for announcement in Announcement.query.all():
+        if announcement_reaches(announcement, "students", section_ids, class_ids):
+            announcement_ids.append(announcement.id)
+    return announcement_ids
+
+
+def get_teacher_announcement_ids(teacher_id):
+    """IDs of the announcements a teacher can see: their own, and ones for everyone or for
+    teachers, for the whole school or a class or section they lead or teach in."""
+    announcement_ids = []
+    section_ids = get_teacher_section_ids(teacher_id)
+    class_ids = []
+    for section_id in section_ids:
+        section = Section.query.get(section_id)
+        if section and section.class_id and section.class_id not in class_ids:
+            class_ids.append(section.class_id)
+
+    for announcement in Announcement.query.all():
+        if announcement.teacher_id == teacher_id:
+            announcement_ids.append(announcement.id)
+        elif announcement_reaches(announcement, "teachers", section_ids, class_ids):
+            announcement_ids.append(announcement.id)
     return announcement_ids
 
 
