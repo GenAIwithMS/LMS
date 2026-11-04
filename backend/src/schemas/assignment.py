@@ -6,6 +6,7 @@ class assignmentSchema(Schema):
     title = fields.String(required=True, validate=validate.Length(min=1, max=255))
     subject_id = fields.Integer(required=False)   # preferred: names can repeat
     subject_name = fields.String(required=False)
+    section_id = fields.Integer(required=False)   # needed when the teacher teaches the subject in several sections
     teacher_name = fields.String(dump_only=True)
     due_date = fields.Date(required=True)
     description = fields.String(required=True)

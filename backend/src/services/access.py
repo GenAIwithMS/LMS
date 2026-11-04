@@ -38,6 +38,27 @@ def teacher_teaches_student_subject(teacher_id, student_id, subject_id):
     return teacher_teaches(teacher_id, student.section_id, subject_id)
 
 
+def teacher_is_incharge(teacher_id, section_id):
+    """True if this teacher is the class incharge of this section."""
+    section = Section.query.get(section_id)
+    if not section:
+        return False
+    return section.teacher_id == teacher_id
+
+
+def user_can_view_section(role, user_id, section_id):
+    """True if this user may see a section's timetable, diary and syllabus progress:
+    the admin, any teacher who leads or teaches in the section, and its own students."""
+    if role == "admin":
+        return True
+    if role == "teacher":
+        return section_id in get_teacher_section_ids(user_id)
+    if role == "student":
+        student = Student.query.get(user_id)
+        return student is not None and student.section_id == section_id
+    return False
+
+
 def get_teacher_subject_ids(teacher_id):
     """IDs of the subjects this teacher teaches (in any section)."""
     subject_ids = []
@@ -82,8 +103,8 @@ def get_teacher_assignment_ids(teacher_id):
 
 
 def get_student_assignment_ids(student_id):
-    """IDs of the assignments a student can see and submit: ones set by the teacher
-    who teaches that subject in the student's section."""
+    """IDs of the assignments a student can see and submit: ones for the student's
+    section, set by the teacher who teaches that subject there."""
     assignment_ids = []
     student = Student.query.get(student_id)
     if not student:
@@ -91,6 +112,9 @@ def get_student_assignment_ids(student_id):
 
     assignments = Assignment.query.all()
     for assignment in assignments:
+        # An assignment for another section is not for this student
+        if assignment.section_id is not None and assignment.section_id != student.section_id:
+            continue
         if teacher_teaches(assignment.teacher_id, student.section_id, assignment.subject_id):
             assignment_ids.append(assignment.id)
 

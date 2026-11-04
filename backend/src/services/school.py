@@ -1,7 +1,9 @@
 from flask import jsonify
 from src.db import db
 from src.models import (AcademicSession, SchoolClass, Section, Subject, SyllabusChapter, TeachingAssignment,
-                        Teacher, Student, Assignment, Result, Attendance)
+                        Teacher, Student, Assignment, Result, Attendance, DailyAttendance, ChapterProgress,
+                        DiaryEntry, ClassTest, TimetablePeriod)
+from src.services.timetable import check_new_subject_teacher
 
 
 # ---------------- Classes 1 to 10
@@ -132,6 +134,17 @@ def remove_class_section(section_id):
     if Student.query.filter_by(section_id=section_id).count() > 0:
         return jsonify({"message": "This section still has students. Move them to another section first.", "status": "failed"}), 409
 
+    # Don't lose teaching records: refuse while the section has any
+    in_use = (DiaryEntry.query.filter_by(section_id=section_id).count()
+              + ClassTest.query.filter_by(section_id=section_id).count()
+              + Assignment.query.filter_by(section_id=section_id).count()
+              + DailyAttendance.query.filter_by(section_id=section_id).count())
+    if in_use > 0:
+        return jsonify({"message": "This section already has diary entries, tests, assignments or attendance, so it can't be deleted", "status": "failed"}), 409
+
+    # The timetable and syllabus progress belong only to this section
+    TimetablePeriod.query.filter_by(section_id=section_id).delete()
+    ChapterProgress.query.filter_by(section_id=section_id).delete()
     TeachingAssignment.query.filter_by(section_id=section_id).delete()
     db.session.delete(section)
     db.session.commit()
@@ -195,6 +208,11 @@ def set_subject_teacher(section_id, subject_id, teacher_id):
     if not teacher:
         return jsonify({"message": "Teacher not found", "status": "failed"}), 400
 
+    # The new teacher must be free in every period of this subject in this section
+    clash = check_new_subject_teacher(section_id, subject_id, teacher.id)
+    if clash:
+        return jsonify({"message": clash, "status": "failed"}), 409
+
     if teaching:
         teaching.teacher_id = teacher.id
     else:
@@ -243,11 +261,17 @@ def remove_class_subject(subject_id):
     # Don't lose students' work: refuse while anything still uses the subject
     in_use = (Assignment.query.filter_by(subject_id=subject_id).count()
               + Result.query.filter_by(subject_id=subject_id).count()
-              + Attendance.query.filter_by(subject_id=subject_id).count())
+              + Attendance.query.filter_by(subject_id=subject_id).count()
+              + DiaryEntry.query.filter_by(subject_id=subject_id).count()
+              + ClassTest.query.filter_by(subject_id=subject_id).count())
     if in_use > 0:
-        return jsonify({"message": "This subject already has assignments, results or attendance, so it can't be deleted", "status": "failed"}), 409
+        return jsonify({"message": "This subject already has assignments, results, attendance, diary entries or tests, so it can't be deleted", "status": "failed"}), 409
 
+    TimetablePeriod.query.filter_by(subject_id=subject_id).delete()
     TeachingAssignment.query.filter_by(subject_id=subject_id).delete()
+    chapters = SyllabusChapter.query.filter_by(subject_id=subject_id).all()
+    for chapter in chapters:
+        ChapterProgress.query.filter_by(chapter_id=chapter.id).delete()
     SyllabusChapter.query.filter_by(subject_id=subject_id).delete()
     db.session.delete(subject)
     db.session.commit()
@@ -329,6 +353,11 @@ def remove_subject_chapter(chapter_id):
     chapter = SyllabusChapter.query.get(chapter_id)
     if not chapter:
         return jsonify({"message": "Chapter not found", "status": "failed"}), 404
+
+    # Progress on the chapter goes with it; tests on it stay, without a chapter
+    ChapterProgress.query.filter_by(chapter_id=chapter_id).delete()
+    for test in ClassTest.query.filter_by(chapter_id=chapter_id).all():
+        test.chapter_id = None
     db.session.delete(chapter)
     db.session.commit()
     return jsonify({"message": "Chapter deleted", "status": "success"})

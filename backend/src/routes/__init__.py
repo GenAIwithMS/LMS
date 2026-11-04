@@ -15,6 +15,7 @@ from .enrollment import enrollment_bp
 from .event import event_bp
 from .attendance import attendance_bp
 from .school import school_bp
+from .teaching import teaching_bp
 
-__all__ = ["home_bp","auth_bp","student_bp","teacher_bp","admin_bp","assignment_bp","subject_bp","result_bp","section_bp","assignment_submission_bp","announcement_bp","chatbot_bp","course_bp","enrollment_bp","event_bp","attendance_bp","school_bp"]
+__all__ = ["home_bp","auth_bp","student_bp","teacher_bp","admin_bp","assignment_bp","subject_bp","result_bp","section_bp","assignment_submission_bp","announcement_bp","chatbot_bp","course_bp","enrollment_bp","event_bp","attendance_bp","school_bp","teaching_bp"]
 
