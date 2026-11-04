@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 
 from flask import Blueprint, request, jsonify, g
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
@@ -18,6 +19,14 @@ AGENT_RECURSION_LIMIT = 15
 
 # How many earlier messages the assistant sees. Older ones stay saved but aren't sent.
 HISTORY_LIMIT = 20
+
+
+def assistant_is_set_up():
+    """True when .env has a real Groq API key (not empty, not the example placeholder)."""
+    key = os.getenv("GROQ_API_KEY", "").strip()
+    if key == "" or key == "your-groq-api-key-here":
+        return False
+    return True
 
 GREETING = "Hello! I'm your LMS AI assistant. How can I help you today?"
 
@@ -63,6 +72,13 @@ def chat():
             "message": "Invalid or missing user role",
             "status": "failed"
         }), 403
+
+    # Without an API key every message would fail; say why instead
+    if not assistant_is_set_up():
+        return jsonify({
+            "message": "The assistant isn't set up yet. The admin needs to add a Groq API key (GROQ_API_KEY) to the server's .env file.",
+            "status": "failed"
+        }), 503
 
     try:
         data = request.get_json()
