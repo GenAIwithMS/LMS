@@ -46,6 +46,22 @@ def teacher_is_incharge(teacher_id, section_id):
     return section.teacher_id == teacher_id
 
 
+def incharge_clash_message(teacher_id, section_id=None):
+    """A teacher can be the class incharge of only one section at a time.
+
+    Before making teacher_id the incharge of section_id (None for a new section):
+    an error message if they already lead another section, otherwise None.
+    """
+    if not teacher_id:
+        return None
+    other = Section.query.filter_by(teacher_id=teacher_id).first()
+    if other and other.id != section_id:
+        teacher_name = other.teacher.name
+        return (f"{teacher_name} is already the class incharge of {other.full_name()}. "
+                f"A teacher can lead only one section; choose another teacher or remove {teacher_name} from {other.full_name()} first.")
+    return None
+
+
 def user_can_view_section(role, user_id, section_id):
     """True if this user may see a section's timetable, diary and syllabus progress:
     the admin, any teacher who leads or teaches in the section, and its own students."""

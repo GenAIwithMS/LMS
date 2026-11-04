@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Edit, BookOpen, Users, ListOrdered, ChevronRight } from 'lucide-react';
 import {
-  getSchoolClass, addClassSection, updateClassSection, deleteClassSection,
+  getSchoolClass, getSchoolClasses, addClassSection, updateClassSection, deleteClassSection,
   addClassSubject, renameClassSubject, deleteClassSubject,
   getSubjectChapters, addSubjectChapter, updateSubjectChapter, deleteSubjectChapter, getTeachers,
 } from '../../services/api';
-import type { SchoolClassDetails, ClassSubject, SyllabusChapter, Teacher } from '../../types';
+import type { SchoolClassDetails, SchoolClassSummary, ClassSubject, SyllabusChapter, Teacher } from '../../types';
 import { Modal } from '../../components/Modal';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
@@ -16,6 +16,8 @@ const AdminClassDetail: React.FC = () => {
   const navigate = useNavigate();
   const [schoolClass, setSchoolClass] = useState<SchoolClassDetails | null>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  // Which section each teacher already leads (a teacher can be incharge of only one section)
+  const [inchargeOf, setInchargeOf] = useState<Record<number, { sectionId: number; name: string }>>({});
   const [loading, setLoading] = useState(true);
 
   const [newSectionName, setNewSectionName] = useState('');
@@ -36,10 +38,28 @@ const AdminClassDetail: React.FC = () => {
     try {
       const data = await getSchoolClass(Number(classId));
       setSchoolClass(data);
+      fetchIncharges();
     } catch (error: any) {
       showError(error, 'Failed to load the class');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchIncharges = async () => {
+    try {
+      const classes: SchoolClassSummary[] = await getSchoolClasses();
+      const leads: Record<number, { sectionId: number; name: string }> = {};
+      for (const oneClass of classes) {
+        for (const section of oneClass.sections) {
+          if (section.incharge_id) {
+            leads[section.incharge_id] = { sectionId: section.id, name: section.full_name };
+          }
+        }
+      }
+      setInchargeOf(leads);
+    } catch (error: any) {
+      showError(error, 'Failed to load the class incharges');
     }
   };
 
@@ -222,9 +242,16 @@ const AdminClassDetail: React.FC = () => {
                     <td>
                       <select value={section.incharge_id ? String(section.incharge_id) : ''} onChange={(e) => handleInchargeChange(section.id, e.target.value)} className="input py-1">
                         <option value="">No incharge yet</option>
-                        {teachers.map((teacher) => (
-                          <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
-                        ))}
+                        {teachers.map((teacher) => {
+                          // A teacher who already leads another section can't be chosen here
+                          const leads = inchargeOf[teacher.id];
+                          const leadsOther = leads !== undefined && leads.sectionId !== section.id;
+                          return (
+                            <option key={teacher.id} value={teacher.id} disabled={leadsOther}>
+                              {teacher.name} ({teacher.username}){leadsOther ? ` - incharge of ${leads.name}` : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </td>
                     <td>{section.student_count}</td>

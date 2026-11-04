@@ -4,6 +4,7 @@ from src.models import (AcademicSession, SchoolClass, Section, Subject, Syllabus
                         Teacher, Student, Assignment, Result, Attendance, DailyAttendance, ChapterProgress,
                         DiaryEntry, ClassTest, TimetablePeriod, ExamPaper, ExamMark)
 from src.services.timetable import check_new_subject_teacher
+from src.services.access import incharge_clash_message
 
 
 # ---------------- Classes 1 to 10
@@ -97,6 +98,11 @@ def add_class_section(class_id, name, incharge_id=None):
     if incharge_id and not Teacher.query.get(incharge_id):
         return jsonify({"message": "Teacher not found", "status": "failed"}), 400
 
+    # A teacher can be the class incharge of only one section
+    clash = incharge_clash_message(incharge_id)
+    if clash:
+        return jsonify({"message": clash, "status": "failed"}), 409
+
     section = Section(name=name, class_id=class_id, teacher_id=incharge_id)
     db.session.add(section)
     db.session.commit()
@@ -109,18 +115,26 @@ def edit_class_section(section_id, data):
     if not section:
         return jsonify({"message": "Section not found", "status": "failed"}), 404
 
+    # Check everything first, so nothing changes if one part is wrong
     if "name" in data:
         new_name = data["name"].strip()
         other = Section.query.filter_by(class_id=section.class_id, name=new_name).first()
         if other and other.id != section.id:
             return jsonify({"message": f"This class already has a section {new_name}", "status": "failed"}), 409
-        section.name = new_name
 
     if "incharge_id" in data:
         incharge_id = data["incharge_id"]
         if incharge_id and not Teacher.query.get(incharge_id):
             return jsonify({"message": "Teacher not found", "status": "failed"}), 400
-        section.teacher_id = incharge_id
+        # A teacher can be the class incharge of only one section
+        clash = incharge_clash_message(incharge_id, section.id)
+        if clash:
+            return jsonify({"message": clash, "status": "failed"}), 409
+
+    if "name" in data:
+        section.name = data["name"].strip()
+    if "incharge_id" in data:
+        section.teacher_id = data["incharge_id"]
 
     db.session.commit()
     return jsonify({"message": "Section updated", "status": "success"})
