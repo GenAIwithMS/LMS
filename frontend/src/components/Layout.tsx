@@ -167,9 +167,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path === '/admin/classes' && location.pathname.startsWith('/admin/')) {
       return location.pathname.startsWith('/admin/classes/') || location.pathname.startsWith('/admin/sections/');
     }
-    // A term's page belongs to "Exams"
+    // A term's page and the grading scale belong to "Exams"
     if (path === '/admin/exams') {
-      return location.pathname.startsWith('/admin/exams/');
+      return location.pathname.startsWith('/admin/exams/') || location.pathname === '/admin/grading';
     }
     if (path === '/teacher/classes') {
       return location.pathname.startsWith('/teacher/sections/');

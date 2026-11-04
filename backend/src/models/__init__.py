@@ -17,5 +17,6 @@ from .revoked_token import RevokedToken
 from .school import AcademicSession, SchoolClass, SyllabusChapter, TeachingAssignment
 from .teaching import DailyAttendance, ChapterProgress, DiaryEntry, ClassTest, ClassTestMark, TimetablePeriod
 from .exam import ExamTerm, ExamPaper, ExamMark, ReportRemark
+from .grading import GradeBand
 
-__all__ = ["Student", "Teacher", "Admin", "Assignment", "Attendance","Result","Subject","Course","Announcement","AssignmentSubmission","Enrollment","Event","Message","Section","ChatMessage","PendingAction","RevokedToken","AcademicSession","SchoolClass","SyllabusChapter","TeachingAssignment","DailyAttendance","ChapterProgress","DiaryEntry","ClassTest","ClassTestMark","TimetablePeriod","ExamTerm","ExamPaper","ExamMark","ReportRemark"]
+__all__ = ["Student", "Teacher", "Admin", "Assignment", "Attendance","Result","Subject","Course","Announcement","AssignmentSubmission","Enrollment","Event","Message","Section","ChatMessage","PendingAction","RevokedToken","AcademicSession","SchoolClass","SyllabusChapter","TeachingAssignment","DailyAttendance","ChapterProgress","DiaryEntry","ClassTest","ClassTestMark","TimetablePeriod","ExamTerm","ExamPaper","ExamMark","ReportRemark","GradeBand"]

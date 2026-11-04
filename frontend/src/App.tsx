@@ -17,6 +17,7 @@ import TeacherMyClasses from './pages/teacher/MyClasses';
 import AdminExams from './pages/admin/Exams';
 import AdminExamTerm from './pages/admin/ExamTerm';
 import AdminPromotion from './pages/admin/Promotion';
+import AdminGradingScale from './pages/admin/GradingScale';
 import ReportCardPage from './pages/ReportCardPage';
 import StudentMyClass from './pages/student/MyClass';
 
@@ -164,6 +165,16 @@ function App() {
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
                 <AdminExamTerm />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/grading"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminGradingScale />
               </Layout>
             </ProtectedRoute>
           }

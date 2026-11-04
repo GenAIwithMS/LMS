@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Plus, Trash2, CalendarDays } from 'lucide-react';
+import { GraduationCap, Plus, Trash2, CalendarDays, Award } from 'lucide-react';
 import { getAcademicSessions, getExamTerms, addExamTerm, deleteExamTerm } from '../../services/api';
 import type { AcademicSession, ExamTerm } from '../../types';
 import { Modal } from '../../components/Modal';
@@ -115,11 +115,16 @@ const AdminExams: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Exams</h1>
           <p className="text-gray-600 mt-2">Exam terms, papers, results and report cards</p>
         </div>
-        {sessions.length > 0 && (
-          <button onClick={openAdd} className="btn btn-primary flex items-center gap-2">
-            <Plus size={18} /> Add Term
+        <div className="flex gap-2">
+          <button onClick={() => navigate('/admin/grading')} className="btn btn-secondary flex items-center gap-2">
+            <Award size={18} /> Grading Scale
           </button>
-        )}
+          {sessions.length > 0 && (
+            <button onClick={openAdd} className="btn btn-primary flex items-center gap-2">
+              <Plus size={18} /> Add Term
+            </button>
+          )}
+        </div>
       </div>
 
       {sessions.length === 0 ? (

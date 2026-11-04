@@ -56,3 +56,14 @@ class ReportRemarksSchema(Schema):
 class PromotionSchema(Schema):
     target_section_id = fields.Integer(required=True)
     student_ids = fields.List(fields.Integer(), required=True)
+
+
+# ---------------- Grading scale
+
+class GradeBandSchema(Schema):
+    grade = fields.String(required=True, validate=validate.Length(min=1, max=5))
+    min_percentage = fields.Decimal(required=True, validate=validate.Range(min=0, max=100))
+
+
+class GradeScaleSchema(Schema):
+    bands = fields.List(fields.Nested(GradeBandSchema), required=True, validate=validate.Length(max=20))

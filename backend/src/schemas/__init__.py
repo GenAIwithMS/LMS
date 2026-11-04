@@ -15,4 +15,4 @@ from .school import ClassSectionSchema, UpdateClassSectionSchema, SubjectTeacher
 from .teaching import (DailyAttendanceSchema, ChapterProgressSchema, DiaryEntrySchema, ClassTestSchema,
                        UpdateClassTestSchema, ClassTestMarksSchema, TimetableSlotSchema)
 from .exam import (ExamTermSchema, UpdateExamTermSchema, ClassPapersSchema, UpdatePaperSchema, PaperReviewSchema,
-                   PaperMarksSchema, ReportRemarksSchema, PromotionSchema)
+                   PaperMarksSchema, ReportRemarksSchema, PromotionSchema, GradeScaleSchema)

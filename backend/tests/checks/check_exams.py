@@ -224,6 +224,33 @@ card = client.get(f"/api/exams/terms/{TERM}/students/{ST['ali']}/report-card", h
 check("Ali's old report card still says Class 5 - A, first of 3", card["section_name"] == "Class 5 - A" and card["position"] == 1 and card["class_strength"] == 3, card)
 check("Sara (5-A incharge) can still open it", client.get(f"/api/exams/terms/{TERM}/students/{ST['ali']}/report-card", headers=H["sara"]).status_code == 200)
 
+print("--- Grading scale (editable by the admin)")
+scale = client.get("/api/exams/grading-scale", headers=H["sara"]).get_json()
+check("the default scale is A+ 80, A 70, B 60, C 50, D 40, E 33, F 0",
+      [(b["grade"], b["min_percentage"]) for b in scale] == [("A+", 80), ("A", 70), ("B", 60), ("C", 50), ("D", 40), ("E", 33), ("F", 0)], scale)
+custom = [{"grade": "A1", "min_percentage": 90}, {"grade": "A", "min_percentage": 80}, {"grade": "B", "min_percentage": 65},
+          {"grade": "C", "min_percentage": 50}, {"grade": "Fail", "min_percentage": 0}]
+check("teachers can't change the scale", client.put("/api/exams/grading-scale", json={"bands": custom}, headers=H["sara"]).status_code == 403)
+r = client.put("/api/exams/grading-scale", json={"bands": custom[:-1]}, headers=H["root"])
+check("the lowest grade must start at 0%", r.status_code == 400 and "0%" in r.get_json()["message"], r.get_json())
+r = client.put("/api/exams/grading-scale", json={"bands": custom + [{"grade": "a1", "min_percentage": 95}]}, headers=H["root"])
+check("the same grade can't be listed twice", r.status_code == 400, r.get_json())
+r = client.put("/api/exams/grading-scale", json={"bands": custom + [{"grade": "X", "min_percentage": 90}]}, headers=H["root"])
+check("two grades can't start at the same percentage", r.status_code == 400, r.get_json())
+check("percentages must be 0 to 100", client.put("/api/exams/grading-scale", json={"bands": [{"grade": "A", "min_percentage": 120}, {"grade": "F", "min_percentage": 0}]}, headers=H["root"]).status_code == 400)
+r = client.put("/api/exams/grading-scale", json={"bands": custom}, headers=H["root"])
+check("the admin saves the school's own scale", r.status_code == 200, r.get_json())
+card = client.get(f"/api/exams/terms/{TERM}/students/{ST['ali']}/report-card", headers=H["root"]).get_json()
+maths = [s for s in card["subjects"] if s["subject_name"] == "Maths"][0]
+check("report cards use it: Ali's 80% is now A, Maths 85% is A",
+      card["grade"] == "A" and maths["grade"] == "A" and [b["grade"] for b in card["grade_scale"]] == ["A1", "A", "B", "C", "Fail"], (card["grade"], maths["grade"]))
+hina_sheet = [s for s in client.get(f"/api/exams/terms/{TERM}/sections/{A}/results", headers=H["root"]).get_json()["students"] if s["name"] == "Hina"][0]
+check("and the result sheet too (Hina 37.2% = Fail)", hina_sheet["grade"] == "Fail", hina_sheet["grade"])
+r = client.post("/api/exams/grading-scale/reset", headers=H["root"])
+check("reset brings back the default scale", r.status_code == 200 and r.get_json()["scale"][0] == {"grade": "A+", "min_percentage": 80.0}, r.get_json())
+card = client.get(f"/api/exams/terms/{TERM}/students/{ST['ali']}/report-card", headers=H["root"]).get_json()
+check("Ali is A+ again", card["grade"] == "A+", card["grade"])
+
 print("--- Safe deletes")
 check("a term with marks can't be deleted", client.delete(f"/api/exams/terms/{TERM}", headers=H["root"]).status_code == 409)
 check("a paper with marks can't be deleted", client.delete(f"/api/exams/papers/{P['Maths']}", headers=H["root"]).status_code == 409)

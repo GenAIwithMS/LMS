@@ -460,6 +460,11 @@ export interface SectionResultSheet {
   passed_count: number;
 }
 
+export interface GradeBand {
+  grade: string;
+  min_percentage: number;
+}
+
 export interface ReportCard extends StudentTermResult {
   term: ExamTerm;
   section_id: number;
@@ -470,6 +475,7 @@ export interface ReportCard extends StudentTermResult {
   guardian_name: string | null;
   attendance: AttendanceCounts;
   remarks: string | null;
+  grade_scale: GradeBand[];    // the school's scale, highest grade first
 }
 
 export interface TermAnalysis {

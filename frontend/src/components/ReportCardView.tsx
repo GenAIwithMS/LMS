@@ -20,6 +20,13 @@ export const ReportCardView: React.FC<ReportCardViewProps> = ({ card }) => {
     attendanceText = `${card.attendance.percentage}% (present ${card.attendance.present + card.attendance.late} of ${card.attendance.present + card.attendance.late + card.attendance.absent} days)`;
   }
 
+  // The school's own grading scale, like "A+ from 80%, A from 70%, ..., F from 0%"
+  const legendParts: string[] = [];
+  for (const band of card.grade_scale) {
+    legendParts.push(`${band.grade} from ${band.min_percentage}%`);
+  }
+  const gradeLegend = legendParts.join(', ');
+
   return (
     <div className="print-area card space-y-6">
       <div className="text-center border-b border-gray-200 pb-4">
@@ -118,7 +125,7 @@ export const ReportCardView: React.FC<ReportCardViewProps> = ({ card }) => {
         </div>
       </div>
 
-      <p className="text-xs text-gray-400">Grades: A+ 80% and above, A 70%, B 60%, C 50%, D 40%, E 33%, F below 33%.</p>
+      <p className="text-xs text-gray-400">Grades: {gradeLegend}</p>
     </div>
   );
 };

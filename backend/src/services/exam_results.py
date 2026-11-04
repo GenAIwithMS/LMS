@@ -4,30 +4,14 @@ from src.db import db, pakistan_time
 from src.models import ExamTerm, ExamPaper, ExamMark, ReportRemark, Section, Student, DailyAttendance, TeachingAssignment
 from src.services.exam import term_is_closed, marks_text, paper_data, term_data
 from src.services.daily_attendance import count_statuses
+from src.services.grading import grade_for, scale_data
 
 
 # Exam results: subject teachers enter marks for their sections, then the school
 # gets report cards (with each student's position in the section), result sheets
 # for a whole section, and an analysis by class, subject and teacher.
 
-# Grades used by most Pakistani schools and boards
-GRADE_SCALE = [
-    (80, "A+"),
-    (70, "A"),
-    (60, "B"),
-    (50, "C"),
-    (40, "D"),
-    (33, "E"),
-]
-
-
-def grade_for(percentage):
-    if percentage is None:
-        return None
-    for lowest, grade in GRADE_SCALE:
-        if percentage >= lowest:
-            return grade
-    return "F"
+# Grades come from the school's grading scale (services/grading.py), which the admin can change.
 
 
 def percentage_of(obtained, total):
@@ -329,6 +313,7 @@ def get_report_card(term_id, student_id):
     card["guardian_name"] = student.guardian_name
     card["attendance"] = term_attendance(term, student)
     card["remarks"] = remark.remarks if remark else None
+    card["grade_scale"] = scale_data()
     return jsonify(card)
 
 

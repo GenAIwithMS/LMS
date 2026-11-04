@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from marshmallow import ValidationError
 from src.models import ExamTerm, ExamPaper, TeachingAssignment
 from src.schemas import (ExamTermSchema, UpdateExamTermSchema, ClassPapersSchema, UpdatePaperSchema, PaperReviewSchema,
-                         PaperMarksSchema, ReportRemarksSchema, PromotionSchema)
+                         PaperMarksSchema, ReportRemarksSchema, PromotionSchema, GradeScaleSchema)
 from src.services.access import teacher_teaches, teacher_is_incharge, get_teacher_section_ids
 from src.services.exam import (get_all_terms, get_term, add_term, edit_term, delete_term, get_term_papers, set_up_class_papers,
                                edit_paper, delete_paper, get_teacher_papers, save_question_file, get_question_file_path,
@@ -12,6 +12,7 @@ from src.services.exam_results import (get_section_paper_marks, save_section_pap
                                        get_report_card, find_report_card_section_id, save_report_remarks,
                                        get_student_report_cards, get_term_analysis)
 from src.services.promotion import get_promotion_list, promote_students
+from src.services.grading import get_grade_scale, save_grade_scale, reset_grade_scale
 
 # Exams:
 # - the admin sets up terms and papers, reviews question papers, locks and publishes
@@ -324,3 +325,33 @@ def promote(section_id):
     except ValidationError as e:
         return jsonify(e.messages), 400
     return promote_students(section_id, data["target_section_id"], data["student_ids"])
+
+
+# ---------------- Grading scale (each school can use its own)
+
+@exam_bp.route("/api/exams/grading-scale", methods=["GET"])
+@jwt_required()
+def grading_scale():
+    return get_grade_scale()
+
+
+@exam_bp.route("/api/exams/grading-scale", methods=["PUT"])
+@jwt_required()
+def change_grading_scale():
+    error = only_admin()
+    if error:
+        return error
+    try:
+        data = GradeScaleSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    return save_grade_scale(data["bands"])
+
+
+@exam_bp.route("/api/exams/grading-scale/reset", methods=["POST"])
+@jwt_required()
+def reset_grading_scale():
+    error = only_admin()
+    if error:
+        return error
+    return reset_grade_scale()

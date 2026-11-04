@@ -784,3 +784,20 @@ export const promoteStudents = async (sectionId: number, data: { target_section_
   const response = await api.post(`/exams/promotion/sections/${sectionId}`, data);
   return response.data;
 };
+
+// ---------------- Grading scale (the admin can set the school's own)
+
+export const getGradeScale = async () => {
+  const response = await api.get('/exams/grading-scale');
+  return response.data;
+};
+
+export const saveGradeScale = async (bands: { grade: string; min_percentage: number }[]) => {
+  const response = await api.put('/exams/grading-scale', { bands });
+  return response.data;
+};
+
+export const resetGradeScale = async () => {
+  const response = await api.post('/exams/grading-scale/reset');
+  return response.data;
+};
