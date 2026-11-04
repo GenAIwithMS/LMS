@@ -22,12 +22,14 @@ import TeacherAttendance from './pages/teacher/Attendance';
 import TeacherResults from './pages/teacher/Results';
 import TeacherAnnouncements from './pages/teacher/Announcements';
 import TeacherSubmissions from './pages/teacher/Submissions';
+import TeacherClassTests from './pages/teacher/ClassTests';
 
 // Student pages
 import StudentAssignments from './pages/student/Assignments';
 import StudentResults from './pages/student/Results';
 import StudentAttendance from './pages/student/Attendance';
 import StudentAnnouncements from './pages/student/Announcements';
+import StudentClassTests from './pages/student/ClassTests';
 
 // Chatbot
 import Chatbot from './pages/Chatbot';
@@ -174,6 +176,16 @@ function App() {
           }
         />
         <Route
+          path="/teacher/class-tests"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <Layout>
+                <TeacherClassTests />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/teacher/announcements"
           element={
             <ProtectedRoute allowedRoles={['teacher']}>
@@ -211,6 +223,16 @@ function App() {
             <ProtectedRoute allowedRoles={['student']}>
               <Layout>
                 <StudentResults />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student/class-tests"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <Layout>
+                <StudentClassTests />
               </Layout>
             </ProtectedRoute>
           }

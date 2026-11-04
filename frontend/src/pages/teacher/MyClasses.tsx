@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserCheck, BookOpen, Users, ChevronDown, ChevronUp } from 'lucide-react';
-import { getMyClasses } from '../../services/api';
-import type { MyClasses } from '../../types';
+import { UserCheck, BookOpen, Users, ChevronDown, ChevronUp, CalendarDays } from 'lucide-react';
+import { getMyClasses, getMyTimetable } from '../../services/api';
+import type { MyClasses, Timetable } from '../../types';
 import { SyllabusList } from '../../components/SyllabusList';
+import { TimetableGrid } from '../../components/TimetableGrid';
 import { showError } from '../../utils/errorHandler';
 
-// A teacher's own classes: the sections they lead as class incharge,
-// and every subject they teach, with that subject's syllabus.
+// A teacher's own classes: their weekly timetable, the sections they lead as
+// class incharge, and every subject they teach, with that subject's syllabus.
 const TeacherMyClasses: React.FC = () => {
   const navigate = useNavigate();
   const [myClasses, setMyClasses] = useState<MyClasses | null>(null);
   const [loading, setLoading] = useState(true);
   const [openSyllabus, setOpenSyllabus] = useState<string | null>(null);   // "sectionId-subjectId"
+  const [timetable, setTimetable] = useState<Timetable | null>(null);
 
   useEffect(() => {
     const fetchMyClasses = async () => {
@@ -20,6 +22,8 @@ const TeacherMyClasses: React.FC = () => {
         setLoading(true);
         const data = await getMyClasses();
         setMyClasses(data);
+        const timetableData = await getMyTimetable();
+        setTimetable(timetableData);
       } catch (error: any) {
         showError(error, 'Failed to load your classes');
       } finally {
@@ -42,6 +46,19 @@ const TeacherMyClasses: React.FC = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">My Classes</h1>
         <p className="text-gray-600 mt-2">The sections you lead and the subjects you teach</p>
+      </div>
+
+      {/* My week */}
+      <div className="card">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarDays size={20} className="text-primary-600" />
+          <h2 className="text-lg font-semibold text-gray-900">My Timetable</h2>
+        </div>
+        {!timetable || timetable.slots.length === 0 ? (
+          <p className="text-sm text-gray-500">No periods yet. The admin sets the timetable for each section.</p>
+        ) : (
+          <TimetableGrid timetable={timetable} showSection={true} />
+        )}
       </div>
 
       {/* Class incharge */}

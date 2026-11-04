@@ -2,19 +2,26 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit, Trash2, Search, Eye, Settings } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { DeleteConfirmation } from '../../components/DeleteConfirmation';
-import { getAssignments, createAssignment, updateAssignment, deleteAssignment, getSubjects } from '../../services/api';
-import type { Assignment, Subject } from '../../types';
+import { getAssignments, createAssignment, updateAssignment, deleteAssignment, getMyClasses } from '../../services/api';
+import type { Assignment, TeachingItem } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import { useNavigate } from 'react-router-dom';
 
+// An assignment as shown on this page: it also knows which section it is for
+interface SectionAssignment extends Assignment {
+  section_id: number | null;
+  section_name: string | null;
+}
+
 const TeacherAssignments: React.FC = () => {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [assignments, setAssignments] = useState<SectionAssignment[]>([]);
+  // What the teacher teaches: one item per section and subject, like "Class 5 - A · Maths"
+  const [teaching, setTeaching] = useState<TeachingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [editingAssignment, setEditingAssignment] = useState<SectionAssignment | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deletingAssignment, setDeletingAssignment] = useState<Assignment | null>(null);
+  const [deletingAssignment, setDeletingAssignment] = useState<SectionAssignment | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [sortBy, setSortBy] = useState('id');
@@ -28,13 +35,14 @@ const TeacherAssignments: React.FC = () => {
     due_date: '',
     subject_id: '',
     subject_name: '',
+    section_id: '',
     total_marks: 100,
   });
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchAssignments();
-    fetchSubjects();
+    fetchTeaching();
   }, []);
 
   // Close options dropdown when clicking outside
@@ -54,13 +62,13 @@ const TeacherAssignments: React.FC = () => {
     };
   }, [showOptions]);
 
+  // The spinner shows only on the first load, so the page doesn't blank out after each save.
   const fetchAssignments = async () => {
     try {
-      setLoading(true);
       const data = await getAssignments();
       
       // Handle different response formats
-      let assignmentsData: Assignment[] = [];
+      let assignmentsData: SectionAssignment[] = [];
       
       if (Array.isArray(data)) {
         assignmentsData = data;
@@ -70,7 +78,7 @@ const TeacherAssignments: React.FC = () => {
         assignmentsData = Array.isArray(data.assignment) ? data.assignment : [data.assignment];
       } else if (data && typeof data === 'object') {
         // Try to find any array in the response
-        const assignmentsArray = Object.values(data).find((val) => Array.isArray(val)) as Assignment[] | undefined;
+        const assignmentsArray = Object.values(data).find((val) => Array.isArray(val)) as SectionAssignment[] | undefined;
         if (assignmentsArray) {
           assignmentsData = assignmentsArray;
         }
@@ -84,6 +92,8 @@ const TeacherAssignments: React.FC = () => {
         due_date: assignment.due_date || assignment.dueDate || '',
         subject: assignment.subject || assignment.subject_name || '',
         subject_id: assignment.subject_id,
+        section_id: assignment.section_id || null,
+        section_name: assignment.section_name || null,
         teacher: assignment.teacher || assignment.teacher_name || '',
         total_marks: assignment.total_marks || assignment.totalMarks || 100,
       }));
@@ -98,61 +108,63 @@ const TeacherAssignments: React.FC = () => {
     }
   };
 
-  const fetchSubjects = async () => {
+  const fetchTeaching = async () => {
     try {
-      const data = await getSubjects();
-      
-      // Handle different response formats
-      let subjectsData: Subject[] = [];
-      
-      if (Array.isArray(data)) {
-        subjectsData = data;
-      } else if (data && Array.isArray(data.subjects)) {
-        subjectsData = data.subjects;
-      } else if (data && data.subject) {
-        subjectsData = Array.isArray(data.subject) ? data.subject : [data.subject];
-      } else if (data && typeof data === 'object') {
-        // Try to find any array in the response
-        const subjectsArray = Object.values(data).find((val) => Array.isArray(val)) as Subject[] | undefined;
-        if (subjectsArray) {
-          subjectsData = subjectsArray;
-        }
+      const data = await getMyClasses();
+      if (data && Array.isArray(data.teaching)) {
+        setTeaching(data.teaching);
+      } else {
+        setTeaching([]);
       }
-      
-      // Ensure all subjects have required fields
-      subjectsData = subjectsData.map((subject: any) => ({
-        id: subject.id || 0,
-        name: subject.name || '',
-        teacher: subject.teacher || subject.teacher_name || '',
-        course: subject.class_name || subject.course || subject.course_name || '',
-      }));
-      
-      setSubjects(subjectsData);
     } catch (error: any) {
-      console.error('Failed to fetch subjects:', error);
-      showError(error, 'Failed to fetch subjects');
-      setSubjects([]);
+      showError(error, 'Failed to load the subjects you teach');
+      setTeaching([]);
     }
   };
 
-  // Keep the chosen subject's ID and name together
-  const handleSubjectChange = (subjectId: string) => {
+  // The class picker's value is "sectionId-subjectId", like "3-12"
+  const teachingKey = (sectionId: number | string, subjectId: number | string) => {
+    return `${sectionId}-${subjectId}`;
+  };
+
+  // Keep the chosen section, subject ID and subject name together
+  const handleTeachingChange = (key: string) => {
+    let sectionId = '';
+    let subjectId = '';
     let subjectName = '';
-    for (const subject of subjects) {
-      if (String(subject.id) === subjectId) {
-        subjectName = subject.name;
+    for (const item of teaching) {
+      if (teachingKey(item.section_id, item.subject_id) === key) {
+        sectionId = String(item.section_id);
+        subjectId = String(item.subject_id);
+        subjectName = item.subject_name;
       }
     }
-    setFormData({ ...formData, subject_id: subjectId, subject_name: subjectName });
+    setFormData({ ...formData, section_id: sectionId, subject_id: subjectId, subject_name: subjectName });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Send the ID: names can repeat, IDs can't
-    const submitData = { ...formData, subject_id: formData.subject_id ? Number(formData.subject_id) : undefined };
+    // Send the IDs: names can repeat, IDs can't
+    const submitData = {
+      title: formData.title,
+      description: formData.description,
+      due_date: formData.due_date,
+      subject_name: formData.subject_name,
+      total_marks: formData.total_marks,
+      subject_id: formData.subject_id ? Number(formData.subject_id) : undefined,
+      section_id: formData.section_id ? Number(formData.section_id) : undefined,
+    };
     try {
       if (editingAssignment) {
-        await updateAssignment(editingAssignment.id, submitData);
+        // The section of an assignment doesn't change after it is set
+        const updateData = {
+          title: submitData.title,
+          description: submitData.description,
+          due_date: submitData.due_date,
+          total_marks: submitData.total_marks,
+          subject_id: submitData.subject_id,
+        };
+        await updateAssignment(editingAssignment.id, updateData);
         showSuccess('Assignment updated successfully');
       } else {
         await createAssignment(submitData);
@@ -166,7 +178,7 @@ const TeacherAssignments: React.FC = () => {
     }
   };
 
-  const handleEdit = (assignment: Assignment) => {
+  const handleEdit = (assignment: SectionAssignment) => {
     setEditingAssignment(assignment);
     setFormData({
       title: assignment.title,
@@ -174,12 +186,13 @@ const TeacherAssignments: React.FC = () => {
       due_date: assignment.due_date,
       subject_id: assignment.subject_id ? String(assignment.subject_id) : '',
       subject_name: assignment.subject,
+      section_id: assignment.section_id ? String(assignment.section_id) : '',
       total_marks: assignment.total_marks,
     });
     setIsModalOpen(true);
   };
 
-  const handleDeleteClick = (assignment: Assignment) => {
+  const handleDeleteClick = (assignment: SectionAssignment) => {
     setDeletingAssignment(assignment);
     setShowDeleteConfirm(true);
   };
@@ -202,7 +215,7 @@ const TeacherAssignments: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ title: '', description: '', due_date: '', subject_id: '', subject_name: '', total_marks: 100 });
+    setFormData({ title: '', description: '', due_date: '', subject_id: '', subject_name: '', section_id: '', total_marks: 100 });
     setEditingAssignment(null);
   };
 
@@ -247,6 +260,20 @@ const TeacherAssignments: React.FC = () => {
         return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
       }
     });
+
+  // Each subject name once, for the filter
+  const subjectNames: string[] = [];
+  for (const item of teaching) {
+    if (!subjectNames.includes(item.subject_name)) {
+      subjectNames.push(item.subject_name);
+    }
+  }
+
+  // On the edit form, the picker shows the assignment's own section and subject
+  let pickerKey = '';
+  if (formData.section_id && formData.subject_id) {
+    pickerKey = teachingKey(formData.section_id, formData.subject_id);
+  }
 
   if (loading) {
     return (
@@ -321,9 +348,9 @@ const TeacherAssignments: React.FC = () => {
                       className="input text-sm py-2 px-3 w-full transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option value="all">All Subjects</option>
-                      {subjects.map((subject) => (
-                        <option key={subject.id} value={subject.name}>
-                          {subject.name}
+                      {subjectNames.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
                         </option>
                       ))}
                     </select>
@@ -349,7 +376,9 @@ const TeacherAssignments: React.FC = () => {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900">{assignment.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{assignment.subject}</p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {assignment.section_name ? `${assignment.section_name} · ${assignment.subject}` : assignment.subject}
+                  </p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <button onClick={() => navigate(`/teacher/submissions?assignmentId=${assignment.id}`)} className="p-2 text-green-600 hover:bg-green-50 rounded" title="View Submissions">
@@ -384,19 +413,20 @@ const TeacherAssignments: React.FC = () => {
             <textarea required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="input" rows={4} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-            <select required value={formData.subject_id} onChange={(e) => handleSubjectChange(e.target.value)} className="input">
-              <option value="">Select a subject</option>
-              {subjects.length === 0 ? (
-                <option value="" disabled>No subjects available</option>
-              ) : (
-                subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>{subject.name} ({subject.course})</option>
-                ))
-              )}
+            <label className="block text-sm font-medium text-gray-700 mb-2">Class and Subject</label>
+            <select required value={pickerKey} onChange={(e) => handleTeachingChange(e.target.value)} className="input" disabled={editingAssignment !== null && editingAssignment.section_id !== null}>
+              <option value="">Select a class and subject</option>
+              {teaching.map((item) => (
+                <option key={teachingKey(item.section_id, item.subject_id)} value={teachingKey(item.section_id, item.subject_id)}>
+                  {item.section_name} · {item.subject_name}
+                </option>
+              ))}
             </select>
-            {subjects.length === 0 && (
-              <p className="text-xs text-red-600 mt-1">No subjects found. Please create subjects first.</p>
+            {teaching.length === 0 && (
+              <p className="text-xs text-red-600 mt-1">The admin hasn't given you any subjects yet.</p>
+            )}
+            {editingAssignment !== null && editingAssignment.section_id !== null && (
+              <p className="text-xs text-gray-500 mt-1">The class of an assignment can't be changed.</p>
             )}
           </div>
           <div className="grid grid-cols-2 gap-4">

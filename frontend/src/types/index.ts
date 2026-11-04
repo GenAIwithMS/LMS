@@ -237,3 +237,137 @@ export interface MyClass {
   roll_number: string | null;
   subjects: { subject_id: number; subject_name: string; teacher_name: string | null }[];
 }
+
+// ---------------- Teaching
+
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'leave';
+
+export interface RegisterStudent {
+  student_id: number;
+  name: string;
+  roll_number: string | null;
+  status: AttendanceStatus | null;
+}
+
+export interface AttendanceRegister {
+  section_id: number;
+  section_name: string;
+  incharge_id: number | null;
+  incharge_name: string | null;
+  date: string;
+  is_marked: boolean;
+  marked_count: number;
+  students: RegisterStudent[];
+}
+
+export interface AttendanceCounts {
+  present: number;
+  absent: number;
+  late: number;
+  leave: number;
+  total_days: number;
+  percentage: number | null;
+}
+
+export interface StudentMonthSummary extends AttendanceCounts {
+  student_id: number;
+  name: string;
+  roll_number: string | null;
+}
+
+export interface MyDailyAttendance {
+  summary: AttendanceCounts;
+  records: { id: number; date: string; status: AttendanceStatus; marked_by: string | null }[];
+}
+
+export type ProgressStatus = 'not_started' | 'in_progress' | 'done';
+
+export interface ChapterProgressItem {
+  chapter_id: number;
+  number: number;
+  title: string;
+  status: ProgressStatus;
+  planned_date: string | null;
+  started_on: string | null;
+  completed_on: string | null;
+}
+
+export interface SubjectProgress {
+  section_id: number;
+  section_name: string;
+  subject_id: number;
+  subject_name: string;
+  teacher_id: number | null;
+  teacher_name: string | null;
+  chapter_count: number;
+  done_count: number;
+  percentage: number;
+  chapters: ChapterProgressItem[];
+}
+
+export interface SectionProgressSubject {
+  subject_id: number;
+  subject_name: string;
+  teacher_name: string | null;
+  chapter_count: number;
+  done_count: number;
+  in_progress_count: number;
+  percentage: number;
+}
+
+export interface DiaryEntry {
+  id: number;
+  section_id: number;
+  section_name: string;
+  subject_id: number;
+  subject_name: string;
+  teacher_id: number;
+  teacher_name: string;
+  date: string;
+  classwork: string | null;
+  homework: string | null;
+}
+
+export interface ClassTest {
+  id: number;
+  title: string;
+  date: string;
+  total_marks: string;
+  section_id: number;
+  section_name: string;
+  subject_id: number;
+  subject_name: string;
+  teacher_id: number;
+  teacher_name: string;
+  chapter_id: number | null;
+  chapter_title: string | null;
+  marks_entered: number;
+  average: number | null;
+  my_marks?: string | null;      // only in a student's own list
+  was_absent?: boolean;
+}
+
+export interface ClassTestDetails extends ClassTest {
+  students: { student_id: number; name: string; roll_number: string | null; obtained_marks: string | null; is_absent: boolean }[];
+}
+
+export interface TimetableSlot {
+  id: number;
+  section_id: number;
+  section_name: string;
+  day: number;
+  day_name: string;
+  period: number;
+  subject_id: number;
+  subject_name: string;
+  teacher_id: number | null;
+  teacher_name: string | null;
+}
+
+export interface Timetable {
+  section_id?: number;
+  section_name?: string;
+  days: { day: number; name: string }[];
+  periods_per_day: number;
+  slots: TimetableSlot[];
+}

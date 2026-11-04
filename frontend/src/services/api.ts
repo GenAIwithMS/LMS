@@ -252,7 +252,7 @@ export const deleteEnrollment = async (id: number) => {
 };
 
 // Assignment
-export const createAssignment = async (data: { title: string; description: string; due_date: string; subject_name: string; total_marks: number }) => {
+export const createAssignment = async (data: { title: string; description: string; due_date: string; subject_name: string; total_marks: number; subject_id?: number; section_id?: number }) => {
   const response = await api.post('/create/assignments', data);
   return response.data;
 };
@@ -550,5 +550,107 @@ export const getMyClasses = async () => {
 // A student's own class
 export const getMyClass = async () => {
   const response = await api.get('/school/my-class');
+  return response.data;
+};
+
+// ---------------- Teaching (daily attendance, syllabus progress, diary, class tests, timetable)
+
+// Daily attendance: the class incharge marks the whole section once a day
+export const getSectionAttendance = async (sectionId: number, date: string) => {
+  const response = await api.get(`/school/sections/${sectionId}/attendance`, { params: { date } });
+  return response.data;
+};
+
+export const saveSectionAttendance = async (sectionId: number, date: string, records: { student_id: number; status: string }[]) => {
+  const response = await api.post(`/school/sections/${sectionId}/attendance`, { date, records });
+  return response.data;
+};
+
+export const getSectionAttendanceSummary = async (sectionId: number, month: string) => {
+  const response = await api.get(`/school/sections/${sectionId}/attendance/summary`, { params: { month } });
+  return response.data;
+};
+
+export const getMyDailyAttendance = async () => {
+  const response = await api.get('/school/my-attendance');
+  return response.data;
+};
+
+// Syllabus progress per section
+export const getSectionProgress = async (sectionId: number) => {
+  const response = await api.get(`/school/sections/${sectionId}/progress`);
+  return response.data;
+};
+
+export const getSubjectProgress = async (sectionId: number, subjectId: number) => {
+  const response = await api.get(`/school/sections/${sectionId}/subjects/${subjectId}/progress`);
+  return response.data;
+};
+
+export const updateChapterProgress = async (sectionId: number, chapterId: number, data: { status?: string; planned_date?: string | null }) => {
+  const response = await api.put(`/school/sections/${sectionId}/chapters/${chapterId}/progress`, data);
+  return response.data;
+};
+
+// Daily diary
+export const getSectionDiary = async (sectionId: number, date: string) => {
+  const response = await api.get(`/school/sections/${sectionId}/diary`, { params: { date } });
+  return response.data;
+};
+
+export const saveDiaryEntry = async (sectionId: number, data: { subject_id: number; date: string; classwork?: string; homework?: string }) => {
+  const response = await api.post(`/school/sections/${sectionId}/diary`, data);
+  return response.data;
+};
+
+export const deleteDiaryEntry = async (entryId: number) => {
+  const response = await api.delete(`/school/diary/${entryId}`);
+  return response.data;
+};
+
+// Class tests
+export const getClassTests = async (filters?: { section_id?: number; subject_id?: number }) => {
+  const response = await api.get('/school/class-tests', { params: filters });
+  return response.data;
+};
+
+export const addClassTest = async (data: { section_id: number; subject_id: number; title: string; date: string; total_marks: number; chapter_id?: number | null }) => {
+  const response = await api.post('/school/class-tests', data);
+  return response.data;
+};
+
+export const getClassTest = async (testId: number) => {
+  const response = await api.get(`/school/class-tests/${testId}`);
+  return response.data;
+};
+
+export const updateClassTest = async (testId: number, data: { title?: string; date?: string; total_marks?: number; chapter_id?: number | null }) => {
+  const response = await api.put(`/school/class-tests/${testId}`, data);
+  return response.data;
+};
+
+export const saveClassTestMarks = async (testId: number, marks: { student_id: number; obtained_marks: number | null }[]) => {
+  const response = await api.put(`/school/class-tests/${testId}/marks`, { marks });
+  return response.data;
+};
+
+export const deleteClassTest = async (testId: number) => {
+  const response = await api.delete(`/school/class-tests/${testId}`);
+  return response.data;
+};
+
+// Weekly timetable
+export const getSectionTimetable = async (sectionId: number) => {
+  const response = await api.get(`/school/sections/${sectionId}/timetable`);
+  return response.data;
+};
+
+export const setTimetableSlot = async (sectionId: number, data: { day: number; period: number; subject_id: number | null }) => {
+  const response = await api.put(`/school/sections/${sectionId}/timetable`, data);
+  return response.data;
+};
+
+export const getMyTimetable = async () => {
+  const response = await api.get('/school/my-timetable');
   return response.data;
 };

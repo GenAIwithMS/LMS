@@ -19,6 +19,7 @@ import {
   Award,
   Clock,
   PanelLeft,
+  ClipboardCheck,
 } from 'lucide-react';
 import { getAnnouncements, getEvents } from '../services/api';
 import toast from 'react-hot-toast';
@@ -185,6 +186,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/teacher/assignments', label: 'Assignments', icon: FileText },
     { path: '/teacher/attendance', label: 'Attendance', icon: Clock },
     { path: '/teacher/results', label: 'Results', icon: Award },
+    { path: '/teacher/class-tests', label: 'Class Tests', icon: ClipboardCheck },
     { path: '/teacher/announcements', label: 'Announcements', icon: Bell },
     { path: '/teacher/submissions', label: 'Submissions', icon: ClipboardList },
   ];
@@ -194,6 +196,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/student/class', label: 'My Class', icon: BookOpen },
     { path: '/student/assignments', label: 'Assignments', icon: FileText },
     { path: '/student/results', label: 'Results', icon: Award },
+    { path: '/student/class-tests', label: 'Class Tests', icon: ClipboardCheck },
     { path: '/student/attendance', label: 'Attendance', icon: Clock },
     { path: '/student/announcements', label: 'Announcements', icon: Bell },
   ];

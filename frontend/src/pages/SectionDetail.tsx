@@ -1,22 +1,45 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, UserCheck, BookOpen, Users } from 'lucide-react';
-import { getClassSection, setSubjectTeacher, getTeachers } from '../services/api';
-import type { SectionDetails, Teacher } from '../types';
+import { ArrowLeft, UserCheck, BookOpen, Users, CalendarDays, ListChecks, PenSquare, ClipboardCheck } from 'lucide-react';
+import { getClassSection, setSubjectTeacher, getTeachers, getSectionTimetable, setTimetableSlot, getSectionAttendance } from '../services/api';
+import type { SectionDetails, Teacher, Timetable, AttendanceRegister } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { TimetableGrid } from '../components/TimetableGrid';
+import { ProgressView } from '../components/ProgressView';
+import { DiaryView } from '../components/DiaryView';
 import { showError, showSuccess } from '../utils/errorHandler';
+import { todayText } from '../utils/date';
 
-// One section (for example Class 5 - A): its class incharge, who teaches each subject,
-// and its students. The admin can choose the subject teachers; teachers can only look.
+type Tab = 'overview' | 'timetable' | 'progress' | 'diary' | 'attendance';
+
+const STATUS_COLOURS: Record<string, string> = {
+  present: 'bg-green-100 text-green-800',
+  absent: 'bg-red-100 text-red-800',
+  late: 'bg-yellow-100 text-yellow-800',
+  leave: 'bg-blue-100 text-blue-800',
+};
+
+// One section (for example Class 5 - A), in tabs:
+// - Overview: class incharge, who teaches each subject, and the students
+// - Timetable: the weekly periods (the admin fills it in)
+// - Syllabus progress: how far each subject has got (subject teachers update theirs)
+// - Diary: classwork and homework by day (subject teachers write theirs)
+// - Attendance: the day's register (the class incharge marks it on the Attendance page)
 const SectionDetail: React.FC = () => {
   const { sectionId } = useParams();
   const navigate = useNavigate();
-  const { userRole } = useAuth();
+  const { userRole, user } = useAuth();
   const isAdmin = userRole === 'admin';
 
   const [section, setSection] = useState<SectionDetails | null>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>('overview');
+
+  const [timetable, setTimetable] = useState<Timetable | null>(null);
+
+  const [attendanceDate, setAttendanceDate] = useState(todayText());
+  const [register, setRegister] = useState<AttendanceRegister | null>(null);
 
   useEffect(() => {
     fetchSection();
@@ -24,6 +47,15 @@ const SectionDetail: React.FC = () => {
       fetchTeachers();
     }
   }, [sectionId]);
+
+  useEffect(() => {
+    if (tab === 'timetable') {
+      fetchTimetable();
+    }
+    if (tab === 'attendance') {
+      fetchRegister();
+    }
+  }, [tab, sectionId, attendanceDate]);
 
   // The spinner shows only on the first load, so the page doesn't blank out after each save.
   const fetchSection = async () => {
@@ -46,13 +78,43 @@ const SectionDetail: React.FC = () => {
     }
   };
 
+  const fetchTimetable = async () => {
+    try {
+      const data = await getSectionTimetable(Number(sectionId));
+      setTimetable(data);
+    } catch (error: any) {
+      showError(error, 'Failed to load the timetable');
+    }
+  };
+
+  const fetchRegister = async () => {
+    try {
+      const data = await getSectionAttendance(Number(sectionId), attendanceDate);
+      setRegister(data);
+    } catch (error: any) {
+      showError(error, 'Failed to load the attendance');
+    }
+  };
+
   const handleTeacherChange = async (subjectId: number, teacherId: string) => {
     try {
       const data = await setSubjectTeacher(Number(sectionId), subjectId, teacherId ? Number(teacherId) : null);
       showSuccess(data.message || 'Subject teacher updated');
       fetchSection();
     } catch (error: any) {
+      // For example: the new teacher is busy in another section in one of this subject's periods
       showError(error, 'Failed to change the subject teacher');
+    }
+  };
+
+  const handleTimetableChange = async (day: number, period: number, subjectId: number | null) => {
+    try {
+      const data = await setTimetableSlot(Number(sectionId), { day, period, subject_id: subjectId });
+      showSuccess(data.message || 'Timetable updated');
+      fetchTimetable();
+    } catch (error: any) {
+      // For example: the subject's teacher is already in another section in this period
+      showError(error, 'Failed to change the timetable');
     }
   };
 
@@ -71,8 +133,30 @@ const SectionDetail: React.FC = () => {
     backLabel = section.class_name || 'Classes';
   }
 
+  // The subjects the logged-in teacher teaches in this section
+  const mySubjects: { subject_id: number; subject_name: string }[] = [];
+  if (userRole === 'teacher' && user) {
+    for (const item of section.subjects) {
+      if (item.teacher_id === user.id) {
+        mySubjects.push({ subject_id: item.subject_id, subject_name: item.subject_name });
+      }
+    }
+  }
+  const mySubjectIds = mySubjects.map((subject) => subject.subject_id);
+  const isIncharge = userRole === 'teacher' && user !== null && section.incharge_id === user.id;
+
+  const allSubjects = section.subjects.map((item) => ({ subject_id: item.subject_id, subject_name: item.subject_name }));
+
+  const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
+    { key: 'overview', label: 'Overview', icon: <Users size={16} /> },
+    { key: 'timetable', label: 'Timetable', icon: <CalendarDays size={16} /> },
+    { key: 'progress', label: 'Syllabus Progress', icon: <ListChecks size={16} /> },
+    { key: 'diary', label: 'Diary', icon: <PenSquare size={16} /> },
+    { key: 'attendance', label: 'Attendance', icon: <ClipboardCheck size={16} /> },
+  ];
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <button onClick={() => navigate(backPath)} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 mb-2">
           <ArrowLeft size={16} /> {backLabel}
@@ -83,78 +167,184 @@ const SectionDetail: React.FC = () => {
         </p>
       </div>
 
-      {/* Subject teachers */}
-      <div className="card">
-        <div className="flex items-center gap-2 mb-4">
-          <BookOpen size={20} className="text-primary-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Subject Teachers</h2>
-        </div>
-        {section.subjects.length === 0 ? (
-          <p className="text-sm text-gray-500">This class has no subjects yet. The admin adds them on the class page.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Teacher</th>
-                </tr>
-              </thead>
-              <tbody>
-                {section.subjects.map((item) => (
-                  <tr key={item.subject_id}>
-                    <td className="font-semibold">{item.subject_name}</td>
-                    <td>
-                      {isAdmin ? (
-                        <select value={item.teacher_id ? String(item.teacher_id) : ''} onChange={(e) => handleTeacherChange(item.subject_id, e.target.value)} className="input py-1">
-                          <option value="">No teacher yet</option>
-                          {teachers.map((teacher) => (
-                            <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span>{item.teacher_name || <span className="text-gray-400">No teacher yet</span>}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="flex flex-wrap gap-2 border-b border-gray-200">
+        {tabs.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => setTab(item.key)}
+            className={`px-4 py-2 text-sm font-medium flex items-center gap-2 border-b-2 -mb-px ${tab === item.key ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+          >
+            {item.icon} {item.label}
+          </button>
+        ))}
       </div>
 
-      {/* Students */}
-      <div className="card">
-        <div className="flex items-center gap-2 mb-4">
-          <Users size={20} className="text-primary-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Students ({section.students.length})</h2>
-        </div>
-        {section.students.length === 0 ? (
-          <p className="text-sm text-gray-500">No students in this section yet. The admin adds them on the Students page.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Roll No.</th>
-                  <th>Name</th>
-                  <th>Username</th>
-                </tr>
-              </thead>
-              <tbody>
-                {section.students.map((student) => (
-                  <tr key={student.id}>
-                    <td>{student.roll_number || '-'}</td>
-                    <td>{student.name}</td>
-                    <td>{student.username}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {tab === 'overview' && (
+        <>
+          {/* Subject teachers */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-4">
+              <BookOpen size={20} className="text-primary-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Subject Teachers</h2>
+            </div>
+            {section.subjects.length === 0 ? (
+              <p className="text-sm text-gray-500">This class has no subjects yet. The admin adds them on the class page.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Subject</th>
+                      <th>Teacher</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {section.subjects.map((item) => (
+                      <tr key={item.subject_id}>
+                        <td className="font-semibold">{item.subject_name}</td>
+                        <td>
+                          {isAdmin ? (
+                            <select value={item.teacher_id ? String(item.teacher_id) : ''} onChange={(e) => handleTeacherChange(item.subject_id, e.target.value)} className="input py-1">
+                              <option value="">No teacher yet</option>
+                              {teachers.map((teacher) => (
+                                <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span>{item.teacher_name || <span className="text-gray-400">No teacher yet</span>}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+
+          {/* Students */}
+          <div className="card">
+            <div className="flex items-center gap-2 mb-4">
+              <Users size={20} className="text-primary-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Students ({section.students.length})</h2>
+            </div>
+            {section.students.length === 0 ? (
+              <p className="text-sm text-gray-500">No students in this section yet. The admin adds them on the Students page.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Roll No.</th>
+                      <th>Name</th>
+                      <th>Username</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {section.students.map((student) => (
+                      <tr key={student.id}>
+                        <td>{student.roll_number || '-'}</td>
+                        <td>{student.name}</td>
+                        <td>{student.username}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {tab === 'timetable' && (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Weekly Timetable</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            {isAdmin
+              ? 'Choose the subject for each period. A teacher can\'t be in two sections in the same period.'
+              : 'Monday to Saturday, with the teacher of each period.'}
+          </p>
+          {!timetable ? (
+            <p className="text-sm text-gray-400">Loading the timetable...</p>
+          ) : isAdmin ? (
+            <TimetableGrid timetable={timetable} subjects={allSubjects} onChange={handleTimetableChange} />
+          ) : (
+            <TimetableGrid timetable={timetable} />
+          )}
+        </div>
+      )}
+
+      {tab === 'progress' && (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Syllabus Progress</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            {mySubjects.length > 0
+              ? 'Open your subject to mark each chapter as in progress or done.'
+              : 'How much of each subject this section has covered.'}
+          </p>
+          <ProgressView sectionId={section.id} editableSubjectIds={mySubjectIds} />
+        </div>
+      )}
+
+      {tab === 'diary' && (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Daily Diary</h2>
+          <DiaryView sectionId={section.id} writableSubjects={mySubjects} />
+        </div>
+      )}
+
+      {tab === 'attendance' && (
+        <div className="card">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Attendance</h2>
+            <div className="flex items-center gap-2">
+              <input type="date" value={attendanceDate} max={todayText()} onChange={(e) => setAttendanceDate(e.target.value)} className="input max-w-[12rem]" />
+              {isIncharge && (
+                <button onClick={() => navigate('/teacher/attendance')} className="btn btn-primary text-sm">Mark attendance</button>
+              )}
+            </div>
+          </div>
+          {!register ? (
+            <p className="text-sm text-gray-400">Loading the attendance...</p>
+          ) : register.students.length === 0 ? (
+            <p className="text-sm text-gray-500">No students in this section yet.</p>
+          ) : (
+            <>
+              <p className="text-sm mb-3">
+                {register.is_marked
+                  ? <span className="text-green-700">Marked for this day.</span>
+                  : <span className="text-orange-600">Not marked yet ({register.marked_count} of {register.students.length} students). The class incharge marks it.</span>}
+              </p>
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Roll No.</th>
+                      <th>Name</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {register.students.map((student) => (
+                      <tr key={student.student_id}>
+                        <td>{student.roll_number || '-'}</td>
+                        <td>{student.name}</td>
+                        <td>
+                          {student.status ? (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${STATUS_COLOURS[student.status]}`}>{student.status}</span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
