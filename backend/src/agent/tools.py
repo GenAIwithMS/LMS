@@ -3,6 +3,7 @@ from flask import Response
 from langchain.tools import tool
 from src.models import Subject,Student,Teacher,Course,Section,Attendance,Announcement,Result,AssignmentSubmission,Event,Enrollment,Assignment
 from src.agent.confirm import is_confirmed, ask_to_confirm, describe_changes
+from src.services.access import teacher_teaches_student_subject
 from src.agent.scope import (
     get_teacher_subject_ids, get_teacher_student_ids, get_teacher_assignment_ids,
     get_student_announcement_ids, filter_by_ids, find_student, find_subject, find_section,
@@ -780,6 +781,9 @@ def add_result_tool(total_marks, obtained_marks, exam_type, student_name=None, s
     if error:
         return error
 
+    teacher_id = int(get_jwt_identity())
+    if not teacher_teaches_student_subject(teacher_id, student.id, subject.id):
+        return {"message": f"You don't teach {subject.name} in this student's section", "status": "failed"}
     return add_result(subject.id, student.id, total_marks, obtained_marks, exam_type, remarks)
 
 
@@ -792,7 +796,7 @@ def can_access_result(result_id):
 
     if token.get("role") == "teacher":
         teacher_id = int(get_jwt_identity())
-        return result.subject_id in get_teacher_subject_ids(teacher_id)
+        return teacher_teaches_student_subject(teacher_id, result.student_id, result.subject_id)
 
     return True
 
@@ -830,9 +834,8 @@ def get_results():
     if token.get("role") == "teacher":
         teacher_id = int(get_jwt_identity())
         allowed_ids = []
-        for subject_id in get_teacher_subject_ids(teacher_id):
-            results = Result.query.filter_by(subject_id=subject_id).all()
-            for item in results:
+        for item in Result.query.all():
+            if teacher_teaches_student_subject(teacher_id, item.student_id, item.subject_id):
                 allowed_ids.append(item.id)
         result = filter_by_ids(result, allowed_ids)
 
@@ -1321,9 +1324,8 @@ def get_student_attendance(student_id):
     if token.get("role") == "teacher":
         teacher_id = int(get_jwt_identity())
         allowed_ids = []
-        for subject_id in get_teacher_subject_ids(teacher_id):
-            records = Attendance.query.filter_by(student_id=student_id, subject_id=subject_id).all()
-            for record in records:
+        for record in Attendance.query.filter_by(student_id=student_id).all():
+            if teacher_teaches_student_subject(teacher_id, record.student_id, record.subject_id):
                 allowed_ids.append(record.id)
         result = filter_by_ids(result, allowed_ids)
 
@@ -1356,6 +1358,9 @@ def mark_attendance(status, student_name=None, subject_name=None, student_id=Non
     if error:
         return error
 
+    teacher_id = int(get_jwt_identity())
+    if not teacher_teaches_student_subject(teacher_id, student.id, subject.id):
+        return {"message": f"You don't teach {subject.name} in this student's section", "status": "failed"}
     return mark_attend(student.id, subject.id, status)
 
 
@@ -1415,9 +1420,8 @@ def get_all_attendance_tool():
     if token.get("role") == "teacher":
         teacher_id = int(get_jwt_identity())
         allowed_ids = []
-        for subject_id in get_teacher_subject_ids(teacher_id):
-            records = Attendance.query.filter_by(subject_id=subject_id).all()
-            for record in records:
+        for record in Attendance.query.all():
+            if teacher_teaches_student_subject(teacher_id, record.student_id, record.subject_id):
                 allowed_ids.append(record.id)
         result = filter_by_ids(result, allowed_ids)
 

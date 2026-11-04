@@ -4,23 +4,23 @@ from flask import Blueprint, request, jsonify
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required,get_jwt,get_jwt_identity
 from src.models import Student,Attendance,Subject
-from src.services.access import find_teacher_student, find_teacher_student_by_id, find_teacher_subject, get_teacher_subject_ids, filter_response_by_ids
+from src.services.access import find_teacher_student, find_teacher_student_by_id, find_teacher_subject, teacher_teaches_student_subject, filter_response_by_ids
 
 
 def teacher_can_access_attendance(teacher_id, attendance_id):
-    """True if the attendance record is in a subject this teacher teaches."""
+    """True if this teacher teaches the record's subject in the student's section."""
     record = Attendance.query.get(attendance_id)
     if not record:
         return False
-    return record.subject_id in get_teacher_subject_ids(teacher_id)
+    return teacher_teaches_student_subject(teacher_id, record.student_id, record.subject_id)
 
 
 def get_teacher_attendance_ids(teacher_id):
-    """IDs of all attendance records in the subjects this teacher teaches."""
+    """IDs of the attendance records for the subjects this teacher teaches, in their sections."""
     attendance_ids = []
-    for subject_id in get_teacher_subject_ids(teacher_id):
-        records = Attendance.query.filter_by(subject_id=subject_id).all()
-        for record in records:
+    records = Attendance.query.all()
+    for record in records:
+        if teacher_teaches_student_subject(teacher_id, record.student_id, record.subject_id):
             attendance_ids.append(record.id)
     return attendance_ids
 
@@ -70,6 +70,13 @@ def create_attendance():
             "message": "Subject not found among the subjects you teach",
             "status": "failed"
         }), 400
+
+    # Only the teacher of this subject in the student's section marks it
+    if not teacher_teaches_student_subject(teacher_id, student.id, subject.id):
+        return jsonify({
+            "message": f"You don't teach {subject.name} in this student's section",
+            "status": "failed"
+        }), 403
 
     result = mark_attend(student.id, subject.id,status)
     return result

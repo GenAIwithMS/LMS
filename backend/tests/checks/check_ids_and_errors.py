@@ -11,6 +11,7 @@ from sqlalchemy.ext.compiler import compiles
 def _bigint_sqlite(type_, compiler, **kw):  # let SQLite autoincrement BigInteger PKs
     return "INTEGER"
 
+from school_setup import give_teachers_their_subjects
 from src import create_app
 from src.db import db
 from src.models import Admin, Teacher, Course, Subject, Section, Student, Result, Attendance, Assignment, Enrollment, Announcement
@@ -41,6 +42,7 @@ with app.app_context():
     physics = Subject(name="Physics", teacher_id=omar.id, course_id=cs.id)
     student = make(Student, "Zain", "zain", section_id=sec_a.id)
     db.session.add_all([maths_cs, maths_se, physics, student]); db.session.commit()
+    give_teachers_their_subjects()
     I = dict(ali_1=ali_1.id, ali_2=ali_2.id, cs=cs.id, se=se.id, sec_a=sec_a.id, sec_a2=sec_a2.id,
              maths_cs=maths_cs.id, maths_se=maths_se.id, physics=physics.id, zain=student.id)
 

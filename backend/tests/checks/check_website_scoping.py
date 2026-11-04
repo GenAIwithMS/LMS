@@ -9,6 +9,7 @@ from sqlalchemy.ext.compiler import compiles
 @compiles(BigInteger, "sqlite")
 def _b(t, c, **kw): return "INTEGER"
 
+from school_setup import give_teachers_their_subjects
 from src import create_app
 from src.db import db
 from src.models import (Admin, Teacher, Course, Subject, Section, Student, Assignment, Result,
@@ -42,6 +43,7 @@ with app.app_context():
     ann_all = Announcement(id=2, title="Holiday", content="c", teacher_id=omar.id, section_id=None)
     enr_zara = Enrollment(student_id=zara.id, course_id=ph.id, grade="A")
     db.session.add_all([hw_sara, hw_omar, r_omar, att_omar, ann_omar, ann_all, enr_zara]); db.session.commit()
+    give_teachers_their_subjects()
     I = dict(hw_sara=hw_sara.id, hw_omar=hw_omar.id, r_omar=r_omar.id, att_omar=att_omar.id, ali=ali.id, zara=zara.id)
 
 def tok(u):

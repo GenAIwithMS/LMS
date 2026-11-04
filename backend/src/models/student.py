@@ -9,6 +9,12 @@ class Student(db.Model):
     email = db.Column(db.String(255), nullable=False, unique=True)
     password = db.Column(db.String(255), nullable=False)
     section_id = db.Column(db.BigInteger, db.ForeignKey("sections.id") , nullable=False)
+    # School record (all optional, so older accounts still work)
+    roll_number = db.Column(db.String(20), nullable=True)
+    admission_number = db.Column(db.String(50), nullable=True, unique=True)
+    guardian_name = db.Column(db.String(255), nullable=True)
+    guardian_phone = db.Column(db.String(30), nullable=True)
+    date_of_birth = db.Column(db.Date, nullable=True)
 
     # Read-only shortcut to a student's courses. Enrollments are created and changed
     # through the Enrollment model, which also owns the status, grade and date.

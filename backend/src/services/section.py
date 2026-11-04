@@ -36,7 +36,9 @@ def get_section_by_id(section_id):
         "id": section.id,
         "name": section.name,
         "teacher_id": section.teacher_id,
-        "teacher_name": section.teacher.name
+        "teacher_name": section.teacher.name if section.teacher else None,
+        "class_id": section.class_id,
+        "full_name": section.full_name()
     })
 
 def get_all_sections():
@@ -47,7 +49,9 @@ def get_all_sections():
             "id": section.id,
             "name": section.name,
             "teacher_id": section.teacher_id,
-            "teacher_name": section.teacher.name
+            "teacher_name": section.teacher.name if section.teacher else None,
+        "class_id": section.class_id,
+        "full_name": section.full_name()
         })
     return jsonify(section_list)
 

@@ -26,6 +26,12 @@ class RegisterStudentSchema(Schema):
     section_name = fields.String(required=False)
     email = fields.Email(required=True)
     password = fields.String(required=True, validate=validate.Length(min=6))
+    # School record (all optional)
+    roll_number = fields.String(required=False, allow_none=True, validate=validate.Length(max=20))
+    admission_number = fields.String(required=False, allow_none=True, validate=validate.Length(max=50))
+    guardian_name = fields.String(required=False, allow_none=True, validate=validate.Length(max=255))
+    guardian_phone = fields.String(required=False, allow_none=True, validate=validate.Length(max=30))
+    date_of_birth = fields.Date(required=False, allow_none=True)
 
 class UpdateStudentSchema(Schema):
     section_id = fields.Integer(required=False)
@@ -35,6 +41,11 @@ class UpdateStudentSchema(Schema):
     section_name = fields.String(required=False)
     email = fields.Email(required=False)
     password = fields.String(required=False, validate=validate.Length(min=6))
+    roll_number = fields.String(required=False, allow_none=True, validate=validate.Length(max=20))
+    admission_number = fields.String(required=False, allow_none=True, validate=validate.Length(max=50))
+    guardian_name = fields.String(required=False, allow_none=True, validate=validate.Length(max=255))
+    guardian_phone = fields.String(required=False, allow_none=True, validate=validate.Length(max=30))
+    date_of_birth = fields.Date(required=False, allow_none=True)
 
 class loginSchema(Schema):
     email = fields.Email(required=True)
