@@ -801,3 +801,66 @@ export const resetGradeScale = async () => {
   const response = await api.post('/exams/grading-scale/reset');
   return response.data;
 };
+
+// ---------------- Oversight (admin): activity log, teachers' activity, dashboard, reports
+
+export interface ActivityFilters {
+  name?: string;
+  role?: string;
+  action?: string;
+  area?: string;
+  class_id?: number;
+  section_id?: number;
+  user_id?: number;
+  date_from?: string;
+  date_to?: string;
+}
+
+export const getActivityLog = async (filters: ActivityFilters, page: number, perPage: number) => {
+  const response = await api.get('/oversight/activity', { params: { ...filters, page, per_page: perPage } });
+  return response.data;
+};
+
+export const getActivityAreas = async () => {
+  const response = await api.get('/oversight/activity/areas');
+  return response.data;
+};
+
+export const getTeachersOverview = async () => {
+  const response = await api.get('/oversight/teachers');
+  return response.data;
+};
+
+export const getTeacherActivity = async (teacherId: number) => {
+  const response = await api.get(`/oversight/teachers/${teacherId}`);
+  return response.data;
+};
+
+export const getOversightDashboard = async () => {
+  const response = await api.get('/oversight/dashboard');
+  return response.data;
+};
+
+// Download an Excel report. name: attendance, results, syllabus, teachers, low-attendance or activity
+export const downloadReport = async (name: string, params?: Record<string, string | number | undefined>) => {
+  const response = await api.get(`/reports/${name}`, { params, responseType: 'blob' });
+
+  // Read the file name from the server's "Content-Disposition" header
+  let fileName = `${name}.xlsx`;
+  const disposition = response.headers['content-disposition'];
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match) {
+      fileName = match[1];
+    }
+  }
+
+  const fileUrl = window.URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = fileUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(fileUrl);
+};

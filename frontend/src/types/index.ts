@@ -511,3 +511,120 @@ export interface PromotionList {
   target_sections: ClassSection[];
   students: { student_id: number; name: string; roll_number: string | null; result: TermResultStatus | null; percentage: number | null; suggest_promote: boolean }[];
 }
+
+// ---------------- Oversight
+
+export type ActivityAction = 'login' | 'login_failed' | 'logout' | 'create' | 'update' | 'delete';
+
+export interface ActivityEntry {
+  id: number;
+  created_at: string;          // "2026-11-04 09:15"
+  user_role: UserRole | null;
+  user_id: number | null;
+  user_name: string | null;    // for a failed login: the email that was tried
+  action: ActivityAction;
+  area: string;
+  description: string;
+  ip_address: string | null;
+  section_id: number | null;
+  class_id: number | null;
+}
+
+export interface ActivityPage {
+  total: number;
+  page: number;
+  per_page: number;
+  entries: ActivityEntry[];
+}
+
+export interface TeacherWeek {
+  diary_entries: number;
+  assignments: number;
+  class_tests: number;
+  progress_updates: number;
+  attendance_days_marked: number;
+  actions: number;
+}
+
+export interface TeacherOverview {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+  last_login: string | null;
+  last_active: string | null;
+  incharge_of: string[];
+  subjects_taught: number;
+  this_week: TeacherWeek;
+  attendance_not_marked_today: string[];
+  papers_pending: number;
+}
+
+export interface TeachersOverview {
+  week_start: string;
+  today: string;
+  teachers: TeacherOverview[];
+}
+
+export interface PendingMarks {
+  term_name: string;
+  subject_name: string;
+  section_name: string;
+  entered: number;
+  student_count: number;
+  teacher_name?: string | null;
+}
+
+export interface TeacherActivity extends TeacherOverview {
+  teaching: { section_id: number; section_name: string; subject_name: string; chapters_done: number; chapter_count: number; percentage: number; periods_per_week: number }[];
+  periods_per_week: number;
+  marks_pending: PendingMarks[];
+  diary_this_week: { date: string; section_name: string; subject_name: string; classwork: string | null; homework: string | null }[];
+  assignments_this_week: { title: string; subject_name: string; section_name: string | null; due_date: string; created_at: string }[];
+  recent_actions: ActivityEntry[];
+}
+
+export interface SectionAttendanceToday {
+  section_id: number;
+  section_name: string;
+  incharge_name: string | null;
+  student_count: number;
+  marked_count: number;
+  is_marked: boolean;
+  present: number;
+  absent: number;
+  late: number;
+  leave: number;
+}
+
+export interface ClassCoverage {
+  class_id: number;
+  class_name: string;
+  average_percentage: number | null;
+  sections: {
+    section_id: number;
+    section_name: string;
+    average_percentage: number | null;
+    subjects: { subject_name: string; teacher_name: string | null; chapters_done: number; chapter_count: number; percentage: number }[];
+  }[];
+}
+
+export interface LowAttendanceStudent {
+  student_id: number;
+  name: string;
+  roll_number: string | null;
+  section_name: string | null;
+  percentage: number;
+  absent: number;
+  days_counted: number;
+}
+
+export interface OversightDashboard {
+  today: string;
+  low_attendance_percent: number;
+  counts: { students: number; teachers: number; sections: number; sections_marked_today: number; question_papers_waiting: number };
+  attendance_today: SectionAttendanceToday[];
+  syllabus_coverage: ClassCoverage[];
+  marks_pending: PendingMarks[];
+  low_attendance: LowAttendanceStudent[];
+}

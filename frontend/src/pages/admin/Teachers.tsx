@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, Search, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Edit, Trash2, Search, Settings, Activity } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getTeachers, addTeacher, updateTeacher, deleteTeacher } from '../../services/api';
@@ -8,6 +9,7 @@ import { showError, showSuccess } from '../../utils/errorHandler';
 import toast from 'react-hot-toast';
 
 const AdminTeachers: React.FC = () => {
+  const navigate = useNavigate();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -261,6 +263,14 @@ const AdminTeachers: React.FC = () => {
                   <td>{teacher.subjects?.join(', ') || 'N/A'}</td>
                   <td>
                     <div className="flex items-center space-x-2">
+                      {/* What this teacher has been doing (classes, diary, marks, recent actions) */}
+                      <button
+                        onClick={() => navigate(`/admin/teachers/${teacher.id}/activity`)}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded"
+                        title="Activity"
+                      >
+                        <Activity size={18} />
+                      </button>
                       <button
                         onClick={() => handleEdit(teacher)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded"

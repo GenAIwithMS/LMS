@@ -21,6 +21,9 @@ import {
   PanelLeft,
   ClipboardCheck,
   TrendingUp,
+  Eye,
+  History,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { getAnnouncements, getEvents } from '../services/api';
 import toast from 'react-hot-toast';
@@ -167,6 +170,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path === '/admin/classes' && location.pathname.startsWith('/admin/')) {
       return location.pathname.startsWith('/admin/classes/') || location.pathname.startsWith('/admin/sections/');
     }
+    // A teacher's activity page belongs to "Teachers"
+    if (path === '/admin/teachers') {
+      return location.pathname.startsWith('/admin/teachers/');
+    }
     // A term's page and the grading scale belong to "Exams"
     if (path === '/admin/exams') {
       return location.pathname.startsWith('/admin/exams/') || location.pathname === '/admin/grading';
@@ -179,11 +186,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const adminMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/oversight', label: 'Oversight', icon: Eye },
     { path: '/admin/classes', label: 'Classes', icon: BookOpen },
     { path: '/admin/students', label: 'Students', icon: Users },
     { path: '/admin/teachers', label: 'Teachers', icon: GraduationCap },
     { path: '/admin/exams', label: 'Exams', icon: Award },
     { path: '/admin/promotion', label: 'Promotion', icon: TrendingUp },
+    { path: '/admin/activity', label: 'Activity Log', icon: History },
+    { path: '/admin/reports', label: 'Reports', icon: FileSpreadsheet },
     { path: '/admin/events', label: 'Events', icon: Calendar },
   ];
 

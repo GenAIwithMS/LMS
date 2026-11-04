@@ -18,6 +18,10 @@ import AdminExams from './pages/admin/Exams';
 import AdminExamTerm from './pages/admin/ExamTerm';
 import AdminPromotion from './pages/admin/Promotion';
 import AdminGradingScale from './pages/admin/GradingScale';
+import AdminOversight from './pages/admin/Oversight';
+import AdminTeacherActivity from './pages/admin/TeacherActivity';
+import AdminActivityLog from './pages/admin/ActivityLog';
+import AdminReports from './pages/admin/Reports';
 import ReportCardPage from './pages/ReportCardPage';
 import StudentMyClass from './pages/student/MyClass';
 
@@ -165,6 +169,46 @@ function App() {
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
                 <AdminExamTerm />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/oversight"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminOversight />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/teachers/:teacherId/activity"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminTeacherActivity />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/activity"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminActivityLog />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminReports />
               </Layout>
             </ProtectedRoute>
           }
