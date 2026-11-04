@@ -1,3 +1,4 @@
+from src.models import TeacherSubject
 from src.models import Teacher
 from src.services.users import is_email_taken, is_username_taken
 from src.db import db
@@ -103,6 +104,8 @@ def delete_teacher(teacher_id):
             "status":"failed"
         }), 400
     
+    # The list of subjects they can teach goes with them
+    TeacherSubject.query.filter_by(teacher_id=teacher_id).delete()
     db.session.delete(teacher)
     try:
         db.session.commit()

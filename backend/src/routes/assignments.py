@@ -3,8 +3,8 @@ from flask import Blueprint, request, jsonify
 from src.schemas import assignmentSchema,UpdateAssignmentSchema
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
-from src.models import Subject
-from src.services.access import find_teacher_subject, teacher_owns_assignment, get_teacher_assignment_ids, get_student_assignment_ids, filter_response_by_ids
+from src.models import Subject, Assignment
+from src.services.access import find_teacher_subject, teacher_teaches, get_teacher_teaching, teacher_owns_assignment, get_teacher_assignment_ids, get_student_assignment_ids, filter_response_by_ids
 
 assignment_bp = Blueprint("assignment", __name__)
 
@@ -38,7 +38,28 @@ def create_assign():
             "status": "failed"
         }), 400
 
-    result = add_assignment(title, description, teacher_id, due_date, subject.id, total_marks)
+    # The assignment is for one section where the teacher teaches this subject
+    section_id = data.get("section_id")
+    if section_id:
+        if not teacher_teaches(teacher_id, section_id, subject.id):
+            return jsonify({
+                "message": f"You don't teach {subject.name} in this section",
+                "status": "failed"
+            }), 403
+    else:
+        teaching_sections = []
+        for teaching in get_teacher_teaching(teacher_id):
+            if teaching.subject_id == subject.id:
+                teaching_sections.append(teaching.section_id)
+        if len(teaching_sections) == 1:
+            section_id = teaching_sections[0]
+        else:
+            return jsonify({
+                "message": f"You teach {subject.name} in more than one section. Choose the section.",
+                "status": "failed"
+            }), 400
+
+    result = add_assignment(title, description, teacher_id, due_date, subject.id, total_marks, section_id)
     return result
 
 @assignment_bp.route("/api/get/assignments", methods=["GET"])
@@ -110,6 +131,10 @@ def update_assignment():
             subject = find_teacher_subject(teacher_id, data.get('subject_name'), data.get('subject_id'))
             if not subject:
                 return jsonify({"message": "Subject not found among the subjects you teach", "status": "failed"}), 400
+            # The new subject must be one the teacher teaches in the assignment's section
+            assignment = Assignment.query.get(assignment_id)
+            if assignment.section_id and not teacher_teaches(teacher_id, assignment.section_id, subject.id):
+                return jsonify({"message": f"You don't teach {subject.name} in this assignment's section", "status": "failed"}), 400
             kwargs['subject_id'] = subject.id
         else:
             kwargs[key] = value

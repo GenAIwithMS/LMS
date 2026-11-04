@@ -24,7 +24,8 @@ const getUserFromToken = (token: string): User | null => {
   }
   const role = getRoleFromToken(token);
   return {
-    id: decoded.sub || decoded.id || decoded.user_id || 0,
+    // The token keeps the ID as text ("2"); pages compare it with numbers from the API
+    id: Number(decoded.sub || decoded.id || decoded.user_id || 0),
     email: decoded.email || '',
     name: decoded.name || decoded.username || '',
     username: decoded.username || decoded.email || '',

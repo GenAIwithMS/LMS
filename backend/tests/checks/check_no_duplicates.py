@@ -11,6 +11,7 @@ from sqlalchemy.ext.compiler import compiles
 def _bigint_sqlite(type_, compiler, **kw):  # let SQLite autoincrement BigInteger PKs
     return "INTEGER"
 
+from school_setup import give_teachers_their_subjects
 from src import create_app
 from src.db import db
 from src.models import Admin, Teacher, Course, Subject, Section, Student, Assignment, AssignmentSubmission, Enrollment, Announcement
@@ -44,6 +45,7 @@ with app.app_context():
     due_today = Assignment(title="Due today", subject_id=maths.id, teacher_id=sara.id, due_date=today, description="d")
     closed_hw = Assignment(title="Closed", subject_id=maths.id, teacher_id=sara.id, due_date=today - datetime.timedelta(days=1), description="d")
     db.session.add_all([open_hw, due_today, closed_hw]); db.session.commit()
+    give_teachers_their_subjects()
     I = dict(ali=ali.id, open=open_hw.id, today=due_today.id, closed=closed_hw.id)
 
 def token(user):

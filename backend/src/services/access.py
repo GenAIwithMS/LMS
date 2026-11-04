@@ -1,121 +1,144 @@
 from flask import jsonify
-from src.models import Student, Subject, Section, Course, Enrollment, Assignment, Announcement
+from src.models import Student, Subject, Section, Assignment, Announcement, TeachingAssignment
 
 
 # Who can reach what. Used by both the website routes and the chatbot tools,
 # so both follow the same rules.
 #
+# The admin decides who teaches what:
+# - each section (like 5-A) has a class incharge (Section.teacher_id)
+# - each subject in each section has a subject teacher (TeachingAssignment)
+#
 # A teacher can reach:
-# - subjects they teach
-# - students in sections they lead, or enrolled in their courses
-# - sections they lead, or sections of their students
-# - assignments they created, or assignments in their subjects
+# - the subjects they teach (in the sections where they teach them)
+# - the sections they lead as class incharge, and the sections where they teach
+# - the students in those sections
+# - the assignments they created
+
+
+def get_teacher_teaching(teacher_id):
+    """The teacher's teaching assignments: which subject they teach in which section."""
+    return TeachingAssignment.query.filter_by(teacher_id=teacher_id).all()
+
+
+def teacher_teaches(teacher_id, section_id, subject_id):
+    """True if this teacher teaches this subject in this section."""
+    teaching = TeachingAssignment.query.filter_by(teacher_id=teacher_id, section_id=section_id, subject_id=subject_id).first()
+    return teaching is not None
+
+
+def teacher_teaches_student_subject(teacher_id, student_id, subject_id):
+    """True if this teacher teaches this subject in the student's section.
+
+    Only that teacher may enter marks or subject attendance for the student.
+    """
+    student = Student.query.get(student_id)
+    if not student:
+        return False
+    return teacher_teaches(teacher_id, student.section_id, subject_id)
+
+
+def teacher_is_incharge(teacher_id, section_id):
+    """True if this teacher is the class incharge of this section."""
+    section = Section.query.get(section_id)
+    if not section:
+        return False
+    return section.teacher_id == teacher_id
+
+
+def incharge_clash_message(teacher_id, section_id=None):
+    """A teacher can be the class incharge of only one section at a time.
+
+    Before making teacher_id the incharge of section_id (None for a new section):
+    an error message if they already lead another section, otherwise None.
+    """
+    if not teacher_id:
+        return None
+    other = Section.query.filter_by(teacher_id=teacher_id).first()
+    if other and other.id != section_id:
+        teacher_name = other.teacher.name
+        return (f"{teacher_name} is already the class incharge of {other.full_name()}. "
+                f"A teacher can lead only one section; choose another teacher or remove {teacher_name} from {other.full_name()} first.")
+    return None
+
+
+def user_can_view_section(role, user_id, section_id):
+    """True if this user may see a section's timetable, diary and syllabus progress:
+    the admin, any teacher who leads or teaches in the section, and its own students."""
+    if role == "admin":
+        return True
+    if role == "teacher":
+        return section_id in get_teacher_section_ids(user_id)
+    if role == "student":
+        student = Student.query.get(user_id)
+        return student is not None and student.section_id == section_id
+    return False
 
 
 def get_teacher_subject_ids(teacher_id):
-    """IDs of the subjects this teacher teaches."""
+    """IDs of the subjects this teacher teaches (in any section)."""
     subject_ids = []
-    subjects = Subject.query.filter_by(teacher_id=teacher_id).all()
-    for subject in subjects:
-        subject_ids.append(subject.id)
+    for teaching in get_teacher_teaching(teacher_id):
+        if teaching.subject_id not in subject_ids:
+            subject_ids.append(teaching.subject_id)
     return subject_ids
 
 
-def get_teacher_course_ids(teacher_id):
-    """IDs of the courses this teacher runs, or teaches a subject in."""
-    course_ids = []
-
-    courses = Course.query.filter_by(teacher_id=teacher_id).all()
-    for course in courses:
-        course_ids.append(course.id)
-
-    subjects = Subject.query.filter_by(teacher_id=teacher_id).all()
-    for subject in subjects:
-        if subject.course_id not in course_ids:
-            course_ids.append(subject.course_id)
-
-    return course_ids
-
-
-def get_teacher_student_ids(teacher_id):
-    """IDs of the students in this teacher's sections or courses."""
-    student_ids = []
-
-    sections = Section.query.filter_by(teacher_id=teacher_id).all()
-    for section in sections:
-        students = Student.query.filter_by(section_id=section.id).all()
-        for student in students:
-            if student.id not in student_ids:
-                student_ids.append(student.id)
-
-    course_ids = get_teacher_course_ids(teacher_id)
-    for course_id in course_ids:
-        enrollments = Enrollment.query.filter_by(course_id=course_id).all()
-        for enrollment in enrollments:
-            if enrollment.student_id not in student_ids:
-                student_ids.append(enrollment.student_id)
-
-    return student_ids
-
-
 def get_teacher_section_ids(teacher_id):
-    """IDs of the sections this teacher leads, plus the sections of their students."""
+    """IDs of the sections this teacher leads as class incharge, or teaches a subject in."""
     section_ids = []
 
     sections = Section.query.filter_by(teacher_id=teacher_id).all()
     for section in sections:
         section_ids.append(section.id)
 
-    student_ids = get_teacher_student_ids(teacher_id)
-    for student_id in student_ids:
-        student = Student.query.get(student_id)
-        if student and student.section_id not in section_ids:
-            section_ids.append(student.section_id)
+    for teaching in get_teacher_teaching(teacher_id):
+        if teaching.section_id not in section_ids:
+            section_ids.append(teaching.section_id)
 
     return section_ids
 
 
-def get_teacher_assignment_ids(teacher_id):
-    """IDs of the teacher's own assignments, and assignments in their subjects."""
-    assignment_ids = []
+def get_teacher_student_ids(teacher_id):
+    """IDs of the students in this teacher's sections."""
+    student_ids = []
+    for section_id in get_teacher_section_ids(teacher_id):
+        students = Student.query.filter_by(section_id=section_id).all()
+        for student in students:
+            student_ids.append(student.id)
+    return student_ids
 
+
+def get_teacher_assignment_ids(teacher_id):
+    """IDs of the assignments this teacher created."""
+    assignment_ids = []
     assignments = Assignment.query.filter_by(teacher_id=teacher_id).all()
     for assignment in assignments:
         assignment_ids.append(assignment.id)
-
-    subject_ids = get_teacher_subject_ids(teacher_id)
-    for subject_id in subject_ids:
-        assignments = Assignment.query.filter_by(subject_id=subject_id).all()
-        for assignment in assignments:
-            if assignment.id not in assignment_ids:
-                assignment_ids.append(assignment.id)
-
     return assignment_ids
 
 
 def get_student_assignment_ids(student_id):
-    """IDs of the assignments a student can see and submit: ones set by a teacher who teaches them."""
+    """IDs of the assignments a student can see and submit: ones for the student's
+    section, set by the teacher who teaches that subject there."""
     assignment_ids = []
-    students_of_teacher = {}   # teacher id -> that teacher's student ids, so each teacher is worked out once
+    student = Student.query.get(student_id)
+    if not student:
+        return assignment_ids
 
     assignments = Assignment.query.all()
     for assignment in assignments:
-        teacher_ids = [assignment.teacher_id]
-        if assignment.subject and assignment.subject.teacher_id not in teacher_ids:
-            teacher_ids.append(assignment.subject.teacher_id)
-
-        for teacher_id in teacher_ids:
-            if teacher_id not in students_of_teacher:
-                students_of_teacher[teacher_id] = get_teacher_student_ids(teacher_id)
-            if student_id in students_of_teacher[teacher_id]:
-                assignment_ids.append(assignment.id)
-                break
+        # An assignment for another section is not for this student
+        if assignment.section_id is not None and assignment.section_id != student.section_id:
+            continue
+        if teacher_teaches(assignment.teacher_id, student.section_id, assignment.subject_id):
+            assignment_ids.append(assignment.id)
 
     return assignment_ids
 
 
 def teacher_owns_assignment(teacher_id, assignment_id):
-    """True if the teacher created this assignment or teaches its subject."""
+    """True if the teacher created this assignment."""
     return int(assignment_id) in get_teacher_assignment_ids(teacher_id)
 
 
@@ -166,15 +189,17 @@ def find_record(model, record_id, record_name):
 
 def find_teacher_subject(teacher_id, subject_name, subject_id=None):
     """Find a subject (by ID, or by name) among the subjects this teacher teaches. Returns None if not found."""
+    allowed_ids = get_teacher_subject_ids(teacher_id)
+
     if subject_id:
-        subject = Subject.query.get(int(subject_id))
-        if subject and subject.teacher_id == teacher_id:
-            return subject
+        if int(subject_id) in allowed_ids:
+            return Subject.query.get(int(subject_id))
         return None
 
-    subjects = Subject.query.filter_by(name=subject_name, teacher_id=teacher_id).all()
-    if subjects:
-        return subjects[0]
+    subjects = Subject.query.filter_by(name=subject_name).all()
+    for subject in subjects:
+        if subject.id in allowed_ids:
+            return subject
     return None
 
 

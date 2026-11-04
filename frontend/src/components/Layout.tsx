@@ -19,8 +19,14 @@ import {
   Award,
   Clock,
   PanelLeft,
+  ClipboardCheck,
+  TrendingUp,
+  Eye,
+  History,
+  FileSpreadsheet,
+  CalendarDays,
 } from 'lucide-react';
-import { getAnnouncements, getEvents } from '../services/api';
+import { getAnnouncements, getEvents, getPublishedTimetableInfo } from '../services/api';
 import toast from 'react-hot-toast';
 
 // Manus Icon Component
@@ -47,7 +53,7 @@ interface LayoutProps {
 interface Notification {
   id: string | number;
   title: string;
-  type: 'announcement' | 'event';
+  type: 'announcement' | 'event' | 'timetable';
   time: string;
   creatorId?: number | string;
 }
@@ -122,8 +128,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             })) : [])
         ];
         
+        // A newly published timetable, for teachers and students
+        let newTimetable = false;
+        if (userRole === 'teacher' || userRole === 'student') {
+          const timetableInfo = await getPublishedTimetableInfo();
+          if (timetableInfo.is_published) {
+            combined.unshift({
+              id: `t-${timetableInfo.version_id}`,
+              title: 'The timetable has been published. Open it to see your week.',
+              type: 'timetable',
+              time: timetableInfo.published_at,
+            });
+            // The bell lights up again for every new version
+            if (localStorage.getItem('timetableSeenVersion') !== String(timetableInfo.version_id)) {
+              newTimetable = true;
+              localStorage.setItem('timetableLatestVersion', String(timetableInfo.version_id));
+            }
+          }
+        }
+
         setNotifications(combined);
-        if (combined.length > 0 && !localStorage.getItem('notificationsRead')) {
+        if ((combined.length > 0 && !localStorage.getItem('notificationsRead')) || newTimetable) {
           setHasUnread(true);
         }
       } catch (error) {
@@ -138,8 +163,17 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [user, userRole]);
 
+  // Remember the newest timetable as seen, so the bell stays quiet until the next one
+  const markTimetableSeen = () => {
+    const latest = localStorage.getItem('timetableLatestVersion');
+    if (latest) {
+      localStorage.setItem('timetableSeenVersion', latest);
+    }
+  };
+
   const handleMarkAllRead = () => {
     setHasUnread(false);
+    markTimetableSeen();
     localStorage.setItem('notificationsRead', 'true');
     toast.success('All notifications marked as read');
   };
@@ -157,32 +191,61 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate('/login');
   };
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    if (location.pathname === path) {
+      return true;
+    }
+    // The class and section pages belong to "Classes" / "My Classes"
+    if (path === '/admin/classes' && location.pathname.startsWith('/admin/')) {
+      return location.pathname.startsWith('/admin/classes/') || location.pathname.startsWith('/admin/sections/');
+    }
+    // A teacher's activity page belongs to "Teachers"
+    if (path === '/admin/teachers') {
+      return location.pathname.startsWith('/admin/teachers/');
+    }
+    // A term's page and the grading scale belong to "Exams"
+    if (path === '/admin/exams') {
+      return location.pathname.startsWith('/admin/exams/') || location.pathname === '/admin/grading';
+    }
+    if (path === '/teacher/classes') {
+      return location.pathname.startsWith('/teacher/sections/');
+    }
+    return false;
+  };
 
   const adminMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/oversight', label: 'Oversight', icon: Eye },
+    { path: '/admin/classes', label: 'Classes', icon: BookOpen },
+    { path: '/admin/timetable', label: 'Timetable', icon: CalendarDays },
     { path: '/admin/students', label: 'Students', icon: Users },
     { path: '/admin/teachers', label: 'Teachers', icon: GraduationCap },
-    { path: '/admin/sections', label: 'Sections', icon: BookOpen },
-    { path: '/admin/courses', label: 'Courses', icon: BookOpen },
-    { path: '/admin/subjects', label: 'Subjects', icon: FileText },
-    { path: '/admin/enrollments', label: 'Enrollments', icon: ClipboardList },
+    { path: '/admin/exams', label: 'Exams', icon: Award },
+    { path: '/admin/promotion', label: 'Promotion', icon: TrendingUp },
+    { path: '/admin/activity', label: 'Activity Log', icon: History },
+    { path: '/admin/reports', label: 'Reports', icon: FileSpreadsheet },
     { path: '/admin/events', label: 'Events', icon: Calendar },
   ];
 
   const teacherMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/teacher/classes', label: 'My Classes', icon: BookOpen },
+    { path: '/teacher/timetable', label: 'Timetable', icon: CalendarDays },
     { path: '/teacher/assignments', label: 'Assignments', icon: FileText },
     { path: '/teacher/attendance', label: 'Attendance', icon: Clock },
-    { path: '/teacher/results', label: 'Results', icon: Award },
+    { path: '/teacher/exams', label: 'Exams', icon: Award },
+    { path: '/teacher/class-tests', label: 'Class Tests', icon: ClipboardCheck },
     { path: '/teacher/announcements', label: 'Announcements', icon: Bell },
     { path: '/teacher/submissions', label: 'Submissions', icon: ClipboardList },
   ];
 
   const studentMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/student/class', label: 'My Class', icon: BookOpen },
+    { path: '/student/timetable', label: 'Timetable', icon: CalendarDays },
     { path: '/student/assignments', label: 'Assignments', icon: FileText },
-    { path: '/student/results', label: 'Results', icon: Award },
+    { path: '/student/report-card', label: 'Report Card', icon: Award },
+    { path: '/student/class-tests', label: 'Class Tests', icon: ClipboardCheck },
     { path: '/student/attendance', label: 'Attendance', icon: Clock },
     { path: '/student/announcements', label: 'Announcements', icon: Bell },
   ];
@@ -373,13 +436,22 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       {notifications.length > 0 ? (
                         <div className="divide-y divide-gray-50">
                           {notifications.map((n) => (
-                            <div 
-                              key={n.id} 
-                              className="p-4 hover:bg-gray-50 transition-colors"
+                            <div
+                              key={n.id}
+                              className={`p-4 hover:bg-gray-50 transition-colors ${n.type === 'timetable' ? 'cursor-pointer' : ''}`}
+                              onClick={() => {
+                                // The timetable notice opens the Timetable page
+                                if (n.type === 'timetable') {
+                                  markTimetableSeen();
+                                  setHasUnread(false);
+                                  setShowNotifications(false);
+                                  navigate(`/${userRole}/timetable`);
+                                }
+                              }}
                             >
                               <div className="flex items-start gap-3">
-                                <div className={`mt-1 p-1.5 rounded-lg ${n.type === 'announcement' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-                                  {n.type === 'announcement' ? <Bell size={14} /> : <Calendar size={14} />}
+                                <div className={`mt-1 p-1.5 rounded-lg ${n.type === 'announcement' ? 'bg-blue-50 text-blue-600' : n.type === 'timetable' ? 'bg-green-50 text-green-600' : 'bg-purple-50 text-purple-600'}`}>
+                                  {n.type === 'announcement' ? <Bell size={14} /> : n.type === 'timetable' ? <CalendarDays size={14} /> : <Calendar size={14} />}
                                 </div>
                                 <div>
                                   <p className="text-sm font-medium text-gray-900">{n.title}</p>

@@ -39,6 +39,11 @@ def add_student():
         section=section.id,
         password=data['password'],
         email=data.get('email'),
+        roll_number=data.get('roll_number'),
+        admission_number=data.get('admission_number'),
+        guardian_name=data.get('guardian_name'),
+        guardian_phone=data.get('guardian_phone'),
+        date_of_birth=data.get('date_of_birth'),
     )
     
 

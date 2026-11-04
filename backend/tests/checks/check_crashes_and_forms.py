@@ -13,6 +13,7 @@ def _b(t, c, **kw): return "INTEGER"
 def _fk(conn, rec):          # make SQLite enforce foreign keys like MySQL does
     conn.execute("PRAGMA foreign_keys=ON")
 
+from school_setup import give_teachers_their_subjects
 from src import create_app
 from src.db import db
 from src.models import Admin, Teacher, Course, Subject, Section, Student, Assignment, Attendance, Result, Enrollment
@@ -39,6 +40,7 @@ with app.app_context():
     hw_omar = Assignment(title="Optics", subject_id=physics.id, teacher_id=omar.id, due_date=(datetime.date.today() + datetime.timedelta(days=30)), description="d")
     db.session.add_all([hw_sara, hw_omar]); db.session.commit()
     db.session.add(Attendance(student_id=zara.id, subject_id=physics.id, status="present")); db.session.commit()
+    give_teachers_their_subjects()
     I = dict(ali1=ali1.id, ali2=ali2.id, zara=zara.id, hw_sara=hw_sara.id, hw_omar=hw_omar.id, secB=secB.id, maths=maths.id)
 
 def tok(u): return client.post("/api/login", json={"email": f"{u}@x.com", "password": "secret1"}).get_json()["token"]

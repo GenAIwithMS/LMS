@@ -5,6 +5,8 @@ class Assignment(db.Model):
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     title = db.Column(db.String(255), nullable=False)
     subject_id = db.Column(db.BigInteger, db.ForeignKey('subjects.id'), nullable=False)
+    # The section the assignment is for. Empty for assignments from before the school system.
+    section_id = db.Column(db.BigInteger, db.ForeignKey('sections.id'), nullable=True)
     teacher_id = db.Column(db.BigInteger,db.ForeignKey('teachers.id'), nullable=False)
     due_date = db.Column(db.Date, nullable=False)
     description = db.Column(db.Text, nullable=False)
@@ -13,3 +15,4 @@ class Assignment(db.Model):
 
     subject = db.relationship('Subject', backref='assignments', lazy=True)
     teacher = db.relationship('Teacher', backref='assignments', lazy=True)
+    section = db.relationship('Section', lazy=True)

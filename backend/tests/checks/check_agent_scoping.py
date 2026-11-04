@@ -11,6 +11,7 @@ from sqlalchemy.ext.compiler import compiles
 def _bigint_sqlite(type_, compiler, **kw):
     return "INTEGER"
 
+from school_setup import give_teachers_their_subjects
 from src import create_app
 from src.db import db
 from src.models import (Teacher, Course, Subject, Section, Student, Result, Assignment,
@@ -53,6 +54,7 @@ with app.app_context():
     att_phys = Attendance(student_id=zara.id, subject_id=physics.id, status="present")
     att_ali1 = Attendance(student_id=ali1.id, subject_id=maths.id, status="present")
     db.session.add_all([sub_omar, ann_b, ann_all, att_phys, att_ali1]); db.session.commit()
+    give_teachers_their_subjects()
     I = {k: v.id for k, v in dict(sara=sara, omar=omar, ali1=ali1, ali2=ali2, ali3=ali3, zara=zara, bilal=bilal,
                                    r_maths=r_maths, r_phys=r_phys, a_sara=a_sara, a_omar=a_omar, sub_omar=sub_omar).items()}
 

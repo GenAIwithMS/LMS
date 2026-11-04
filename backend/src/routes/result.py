@@ -4,15 +4,15 @@ from marshmallow import ValidationError
 from src.schemas import ResultSchema,UpdateResultSchema
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from src.models import Student,Result,Subject 
-from src.services.access import find_teacher_student, find_teacher_student_by_id, find_teacher_subject, get_teacher_subject_ids, filter_response_by_ids
+from src.services.access import find_teacher_student, find_teacher_student_by_id, find_teacher_subject, teacher_teaches_student_subject, filter_response_by_ids
 
 
 def teacher_can_access_result(teacher_id, result_id):
-    """True if the result is in a subject this teacher teaches."""
+    """True if this teacher teaches the result's subject in the student's section."""
     result = Result.query.get(result_id)
     if not result:
         return False
-    return result.subject_id in get_teacher_subject_ids(teacher_id)
+    return teacher_teaches_student_subject(teacher_id, result.student_id, result.subject_id)
 
 result_bp = Blueprint("result", __name__)
 
@@ -65,6 +65,13 @@ def create_res():
             "status": "failed"
         }), 400
     
+    # Only the teacher of this subject in the student's section enters the marks
+    if not teacher_teaches_student_subject(teacher_id, student.id, subject.id):
+        return jsonify({
+            "message": f"You don't teach {subject.name} in this student's section",
+            "status": "failed"
+        }), 403
+
     result = add_result(subject.id, student.id, total_marks, obtained_marks, exam_type, remarks)
     return result
 
@@ -104,12 +111,12 @@ def get_res():
         result = get_results_by_student(user_id)
         return result
     elif user_role == "teacher":
-        # A teacher only sees results in the subjects they teach
+        # A teacher only sees results for the subjects they teach, in the sections where they teach them
         teacher_id = int(get_jwt_identity())
         allowed_ids = []
-        for subject_id in get_teacher_subject_ids(teacher_id):
-            results = Result.query.filter_by(subject_id=subject_id).all()
-            for item in results:
+        results = Result.query.all()
+        for item in results:
+            if teacher_teaches_student_subject(teacher_id, item.student_id, item.subject_id):
                 allowed_ids.append(item.id)
         result = filter_response_by_ids(get_all_results(), allowed_ids)
         return result

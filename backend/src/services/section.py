@@ -2,6 +2,7 @@ from src.models import Section
 from flask import jsonify
 from sqlalchemy.exc import IntegrityError
 from src.db import db
+from src.services.access import incharge_clash_message
 
 def add_section(name, teacher_id):
     existing_section = Section.query.filter_by(name=name).first()
@@ -10,8 +11,15 @@ def add_section(name, teacher_id):
             "message":"Section name already exists try another",
             "status":"failed"
         }), 400
-        
-    
+
+    # A teacher can be the class incharge of only one section
+    clash = incharge_clash_message(teacher_id)
+    if clash:
+        return jsonify({
+            "message": clash,
+            "status": "failed"
+        }), 409
+
     new_section = Section(
         name=name,
         teacher_id=teacher_id
@@ -36,7 +44,9 @@ def get_section_by_id(section_id):
         "id": section.id,
         "name": section.name,
         "teacher_id": section.teacher_id,
-        "teacher_name": section.teacher.name
+        "teacher_name": section.teacher.name if section.teacher else None,
+        "class_id": section.class_id,
+        "full_name": section.full_name()
     })
 
 def get_all_sections():
@@ -47,7 +57,9 @@ def get_all_sections():
             "id": section.id,
             "name": section.name,
             "teacher_id": section.teacher_id,
-            "teacher_name": section.teacher.name
+            "teacher_name": section.teacher.name if section.teacher else None,
+        "class_id": section.class_id,
+        "full_name": section.full_name()
         })
     return jsonify(section_list)
 
@@ -58,7 +70,16 @@ def edit_section(section_id, **kwargs):
             "message":"section not found",
             "status":"error"
         }), 404
-    
+
+    # A teacher can be the class incharge of only one section
+    if "teacher_id" in kwargs:
+        clash = incharge_clash_message(kwargs["teacher_id"], section.id)
+        if clash:
+            return jsonify({
+                "message": clash,
+                "status": "failed"
+            }), 409
+
     for key, value in kwargs.items():
         if hasattr(section, key):
             setattr(section, key, value)

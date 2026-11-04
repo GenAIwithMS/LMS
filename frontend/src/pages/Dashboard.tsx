@@ -13,7 +13,7 @@ import {
   Activity,
   Clock,
 } from 'lucide-react';
-import { getStudents, getTeachers, getCourses, getAssignments, getAnnouncements, getEvents } from '../services/api';
+import { getStudents, getTeachers, getSchoolClasses, getAssignments, getAnnouncements, getEvents } from '../services/api';
 import toast from 'react-hot-toast';
 
 // Count the rows in an API answer: a plain list, or a list inside "data" / "assignments"
@@ -64,7 +64,17 @@ const Dashboard: React.FC = () => {
         if (userRole === 'admin') {
           newStats.students = await countFrom(getStudents);
           newStats.teachers = await countFrom(getTeachers);
-          newStats.courses = await countFrom(getCourses);
+          // "courses" now counts the sections of Classes 1-10
+          try {
+            const classes = await getSchoolClasses();
+            let sectionCount = 0;
+            for (const schoolClass of classes) {
+              sectionCount = sectionCount + schoolClass.sections.length;
+            }
+            newStats.courses = sectionCount;
+          } catch (error) {
+            newStats.courses = 0;
+          }
         }
         if (userRole === 'teacher') {
           newStats.students = await countFrom(getStudents);
@@ -105,12 +115,12 @@ const Dashboard: React.FC = () => {
     },
     {
       roles: ['admin'],
-      title: 'Active Courses',
+      title: 'Sections',
       value: stats.courses,
       icon: BookOpen,
       color: 'text-violet-600',
       bgColor: 'bg-violet-50',
-      path: userRole === 'admin' ? '/admin/courses' : undefined,
+      path: userRole === 'admin' ? '/admin/classes' : undefined,
     },
     {
       roles: ['admin', 'teacher', 'student'],
@@ -243,21 +253,21 @@ const Dashboard: React.FC = () => {
                     </div>
                     <ArrowRight size={18} className="text-emerald-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
                   </button>
-                  <button onClick={() => navigate('/admin/courses')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-violet-50 to-violet-100/50 border-2 border-violet-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <button onClick={() => navigate('/admin/classes')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-violet-50 to-violet-100/50 border-2 border-violet-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
                         <BookOpen size={22} className="text-violet-600" />
                       </div>
-                      <span className="font-bold text-gray-800">Manage Courses</span>
+                      <span className="font-bold text-gray-800">Manage Classes</span>
                     </div>
                     <ArrowRight size={18} className="text-violet-400 group-hover:text-violet-600 group-hover:translate-x-1 transition-all" />
                   </button>
-                  <button onClick={() => navigate('/admin/enrollments')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-amber-50 to-amber-100/50 border-2 border-amber-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <button onClick={() => navigate('/admin/events')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-amber-50 to-amber-100/50 border-2 border-amber-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
                         <FileText size={22} className="text-amber-600" />
                       </div>
-                      <span className="font-bold text-gray-800">Manage Enrollments</span>
+                      <span className="font-bold text-gray-800">Manage Events</span>
                     </div>
                     <ArrowRight size={18} className="text-amber-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
                   </button>
@@ -283,12 +293,12 @@ const Dashboard: React.FC = () => {
                     </div>
                     <ArrowRight size={18} className="text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
                   </button>
-                  <button onClick={() => navigate('/teacher/results')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border-2 border-rose-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <button onClick={() => navigate('/teacher/exams')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border-2 border-rose-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
                         <Award size={22} className="text-rose-600" />
                       </div>
-                      <span className="font-bold text-gray-800">Manage Results</span>
+                      <span className="font-bold text-gray-800">Exam Marks</span>
                     </div>
                     <ArrowRight size={18} className="text-rose-400 group-hover:text-rose-600 group-hover:translate-x-1 transition-all" />
                   </button>
@@ -314,12 +324,12 @@ const Dashboard: React.FC = () => {
                     </div>
                     <ArrowRight size={18} className="text-amber-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
                   </button>
-                  <button onClick={() => navigate('/student/results')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border-2 border-rose-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <button onClick={() => navigate('/student/report-card')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border-2 border-rose-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
                         <Award size={22} className="text-rose-600" />
                       </div>
-                      <span className="font-bold text-gray-800">View Results</span>
+                      <span className="font-bold text-gray-800">Report Card</span>
                     </div>
                     <ArrowRight size={18} className="text-rose-400 group-hover:text-rose-600 group-hover:translate-x-1 transition-all" />
                   </button>

@@ -9,24 +9,38 @@ import Dashboard from './pages/Dashboard';
 // Admin pages
 import AdminStudents from './pages/admin/Students';
 import AdminTeachers from './pages/admin/Teachers';
-import AdminSections from './pages/admin/Sections';
-import AdminCourses from './pages/admin/Courses';
-import AdminSubjects from './pages/admin/Subjects';
-import AdminEnrollments from './pages/admin/Enrollments';
 import AdminEvents from './pages/admin/Events';
+import AdminClasses from './pages/admin/Classes';
+import AdminClassDetail from './pages/admin/ClassDetail';
+import SectionDetail from './pages/SectionDetail';
+import TeacherMyClasses from './pages/teacher/MyClasses';
+import AdminExams from './pages/admin/Exams';
+import AdminExamTerm from './pages/admin/ExamTerm';
+import AdminPromotion from './pages/admin/Promotion';
+import AdminGradingScale from './pages/admin/GradingScale';
+import AdminOversight from './pages/admin/Oversight';
+import AdminTimetable from './pages/admin/Timetable';
+import MyTimetable from './pages/MyTimetable';
+import AdminTeacherActivity from './pages/admin/TeacherActivity';
+import AdminActivityLog from './pages/admin/ActivityLog';
+import AdminReports from './pages/admin/Reports';
+import ReportCardPage from './pages/ReportCardPage';
+import StudentMyClass from './pages/student/MyClass';
 
 // Teacher pages
 import TeacherAssignments from './pages/teacher/Assignments';
 import TeacherAttendance from './pages/teacher/Attendance';
-import TeacherResults from './pages/teacher/Results';
+import TeacherExams from './pages/teacher/Exams';
 import TeacherAnnouncements from './pages/teacher/Announcements';
 import TeacherSubmissions from './pages/teacher/Submissions';
+import TeacherClassTests from './pages/teacher/ClassTests';
 
 // Student pages
 import StudentAssignments from './pages/student/Assignments';
-import StudentResults from './pages/student/Results';
+import StudentReportCards from './pages/student/ReportCards';
 import StudentAttendance from './pages/student/Attendance';
 import StudentAnnouncements from './pages/student/Announcements';
+import StudentClassTests from './pages/student/ClassTests';
 
 // Chatbot
 import Chatbot from './pages/Chatbot';
@@ -71,41 +85,61 @@ function App() {
           }
         />
         <Route
-          path="/admin/sections"
+          path="/admin/classes"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
-                <AdminSections />
+                <AdminClasses />
               </Layout>
             </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/courses"
+          path="/admin/classes/:classId"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
-                <AdminCourses />
+                <AdminClassDetail />
               </Layout>
             </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/subjects"
+          path="/admin/sections/:sectionId"
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
-                <AdminSubjects />
+                <SectionDetail />
               </Layout>
             </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/enrollments"
+          path="/teacher/classes"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute allowedRoles={['teacher']}>
               <Layout>
-                <AdminEnrollments />
+                <TeacherMyClasses />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/sections/:sectionId"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <Layout>
+                <SectionDetail />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student/class"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <Layout>
+                <StudentMyClass />
               </Layout>
             </ProtectedRoute>
           }
@@ -116,6 +150,129 @@ function App() {
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
                 <AdminEvents />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/exams"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminExams />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/exams/:termId"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminExamTerm />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/timetable"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminTimetable />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/timetable"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <Layout>
+                <MyTimetable />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student/timetable"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <Layout>
+                <MyTimetable />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/oversight"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminOversight />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/teachers/:teacherId/activity"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminTeacherActivity />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/activity"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminActivityLog />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminReports />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/grading"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminGradingScale />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/promotion"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminPromotion />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* A report card, for the admin, the student's teachers and the student */}
+        <Route
+          path="/report-card/:termId/:studentId"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'teacher', 'student']}>
+              <Layout>
+                <ReportCardPage />
               </Layout>
             </ProtectedRoute>
           }
@@ -143,11 +300,21 @@ function App() {
           }
         />
         <Route
-          path="/teacher/results"
+          path="/teacher/exams"
           element={
             <ProtectedRoute allowedRoles={['teacher']}>
               <Layout>
-                <TeacherResults />
+                <TeacherExams />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/class-tests"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <Layout>
+                <TeacherClassTests />
               </Layout>
             </ProtectedRoute>
           }
@@ -185,11 +352,21 @@ function App() {
           }
         />
         <Route
-          path="/student/results"
+          path="/student/report-card"
           element={
             <ProtectedRoute allowedRoles={['student']}>
               <Layout>
-                <StudentResults />
+                <StudentReportCards />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student/class-tests"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <Layout>
+                <StudentClassTests />
               </Layout>
             </ProtectedRoute>
           }

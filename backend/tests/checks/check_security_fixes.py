@@ -10,6 +10,7 @@ from sqlalchemy.ext.compiler import compiles
 @compiles(BigInteger, "sqlite")
 def _b(t, c, **kw): return "INTEGER"
 
+from school_setup import give_teachers_their_subjects
 from src import create_app
 from src.db import db
 from src.models import Admin, Teacher, Course, Subject, Section, Student, Assignment, AssignmentSubmission
@@ -42,6 +43,7 @@ with app.app_context():
     db.session.add_all([maths, ali, bilal]); db.session.commit()
     hw = Assignment(title="HW", subject_id=maths.id, teacher_id=sara.id, due_date=(datetime.date.today() + datetime.timedelta(days=30)), description="d")
     db.session.add(hw); db.session.commit()
+    give_teachers_their_subjects()
     HW = hw.id; ALI = ali.id
 
 def login(email, pw="secret1"):

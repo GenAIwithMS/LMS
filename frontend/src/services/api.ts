@@ -252,7 +252,7 @@ export const deleteEnrollment = async (id: number) => {
 };
 
 // Assignment
-export const createAssignment = async (data: { title: string; description: string; due_date: string; subject_name: string; total_marks: number }) => {
+export const createAssignment = async (data: { title: string; description: string; due_date: string; subject_name: string; total_marks: number; subject_id?: number; section_id?: number }) => {
   const response = await api.post('/create/assignments', data);
   return response.data;
 };
@@ -452,3 +452,471 @@ export const answerChatAction = async (action_id: number, approve: boolean) => {
   return response.data;
 };
 
+
+// ---------------- School structure (Classes 1-10)
+
+export const getSchoolClasses = async () => {
+  const response = await api.get('/school/classes');
+  return response.data;
+};
+
+export const getSchoolClass = async (classId: number) => {
+  const response = await api.get(`/school/classes/${classId}`);
+  return response.data;
+};
+
+export const addClassSection = async (classId: number, data: { name: string; incharge_id?: number | null }) => {
+  const response = await api.post(`/school/classes/${classId}/sections`, data);
+  return response.data;
+};
+
+export const getClassSection = async (sectionId: number) => {
+  const response = await api.get(`/school/sections/${sectionId}`);
+  return response.data;
+};
+
+export const updateClassSection = async (sectionId: number, data: { name?: string; incharge_id?: number | null }) => {
+  const response = await api.put(`/school/sections/${sectionId}`, data);
+  return response.data;
+};
+
+export const deleteClassSection = async (sectionId: number) => {
+  const response = await api.delete(`/school/sections/${sectionId}`);
+  return response.data;
+};
+
+// Choose who teaches a subject in a section (teacherId null removes the teacher)
+export const setSubjectTeacher = async (sectionId: number, subjectId: number, teacherId: number | null) => {
+  const response = await api.put(`/school/sections/${sectionId}/teachers`, { subject_id: subjectId, teacher_id: teacherId });
+  return response.data;
+};
+
+export const addClassSubject = async (classId: number, name: string) => {
+  const response = await api.post(`/school/classes/${classId}/subjects`, { name });
+  return response.data;
+};
+
+export const renameClassSubject = async (subjectId: number, name: string) => {
+  const response = await api.put(`/school/subjects/${subjectId}`, { name });
+  return response.data;
+};
+
+export const deleteClassSubject = async (subjectId: number) => {
+  const response = await api.delete(`/school/subjects/${subjectId}`);
+  return response.data;
+};
+
+export const getSubjectChapters = async (subjectId: number) => {
+  const response = await api.get(`/school/subjects/${subjectId}/chapters`);
+  return response.data;
+};
+
+export const addSubjectChapter = async (subjectId: number, data: { title: string; description?: string }) => {
+  const response = await api.post(`/school/subjects/${subjectId}/chapters`, data);
+  return response.data;
+};
+
+export const updateSubjectChapter = async (chapterId: number, data: { title?: string; number?: number; description?: string }) => {
+  const response = await api.put(`/school/chapters/${chapterId}`, data);
+  return response.data;
+};
+
+export const deleteSubjectChapter = async (chapterId: number) => {
+  const response = await api.delete(`/school/chapters/${chapterId}`);
+  return response.data;
+};
+
+export const getAcademicSessions = async () => {
+  const response = await api.get('/school/sessions');
+  return response.data;
+};
+
+export const addAcademicSession = async (data: { name: string; start_date: string; end_date: string; is_current?: boolean }) => {
+  const response = await api.post('/school/sessions', data);
+  return response.data;
+};
+
+export const makeSessionCurrent = async (sessionId: number) => {
+  const response = await api.put(`/school/sessions/${sessionId}/current`);
+  return response.data;
+};
+
+// A teacher's own sections and subjects
+export const getMyClasses = async () => {
+  const response = await api.get('/school/my-classes');
+  return response.data;
+};
+
+// A student's own class
+export const getMyClass = async () => {
+  const response = await api.get('/school/my-class');
+  return response.data;
+};
+
+// ---------------- Teaching (daily attendance, syllabus progress, diary, class tests, timetable)
+
+// Daily attendance: the class incharge marks the whole section once a day
+export const getSectionAttendance = async (sectionId: number, date: string) => {
+  const response = await api.get(`/school/sections/${sectionId}/attendance`, { params: { date } });
+  return response.data;
+};
+
+export const saveSectionAttendance = async (sectionId: number, date: string, records: { student_id: number; status: string }[]) => {
+  const response = await api.post(`/school/sections/${sectionId}/attendance`, { date, records });
+  return response.data;
+};
+
+export const getSectionAttendanceSummary = async (sectionId: number, month: string) => {
+  const response = await api.get(`/school/sections/${sectionId}/attendance/summary`, { params: { month } });
+  return response.data;
+};
+
+export const getMyDailyAttendance = async () => {
+  const response = await api.get('/school/my-attendance');
+  return response.data;
+};
+
+// Syllabus progress per section
+export const getSectionProgress = async (sectionId: number) => {
+  const response = await api.get(`/school/sections/${sectionId}/progress`);
+  return response.data;
+};
+
+export const getSubjectProgress = async (sectionId: number, subjectId: number) => {
+  const response = await api.get(`/school/sections/${sectionId}/subjects/${subjectId}/progress`);
+  return response.data;
+};
+
+export const updateChapterProgress = async (sectionId: number, chapterId: number, data: { status?: string; planned_date?: string | null }) => {
+  const response = await api.put(`/school/sections/${sectionId}/chapters/${chapterId}/progress`, data);
+  return response.data;
+};
+
+// Daily diary
+export const getSectionDiary = async (sectionId: number, date: string) => {
+  const response = await api.get(`/school/sections/${sectionId}/diary`, { params: { date } });
+  return response.data;
+};
+
+export const saveDiaryEntry = async (sectionId: number, data: { subject_id: number; date: string; classwork?: string; homework?: string }) => {
+  const response = await api.post(`/school/sections/${sectionId}/diary`, data);
+  return response.data;
+};
+
+export const deleteDiaryEntry = async (entryId: number) => {
+  const response = await api.delete(`/school/diary/${entryId}`);
+  return response.data;
+};
+
+// Class tests
+export const getClassTests = async (filters?: { section_id?: number; subject_id?: number }) => {
+  const response = await api.get('/school/class-tests', { params: filters });
+  return response.data;
+};
+
+export const addClassTest = async (data: { section_id: number; subject_id: number; title: string; date: string; total_marks: number; chapter_id?: number | null }) => {
+  const response = await api.post('/school/class-tests', data);
+  return response.data;
+};
+
+export const getClassTest = async (testId: number) => {
+  const response = await api.get(`/school/class-tests/${testId}`);
+  return response.data;
+};
+
+export const updateClassTest = async (testId: number, data: { title?: string; date?: string; total_marks?: number; chapter_id?: number | null }) => {
+  const response = await api.put(`/school/class-tests/${testId}`, data);
+  return response.data;
+};
+
+export const saveClassTestMarks = async (testId: number, marks: { student_id: number; obtained_marks: number | null }[]) => {
+  const response = await api.put(`/school/class-tests/${testId}/marks`, { marks });
+  return response.data;
+};
+
+export const deleteClassTest = async (testId: number) => {
+  const response = await api.delete(`/school/class-tests/${testId}`);
+  return response.data;
+};
+
+// Weekly timetable
+export const getSectionTimetable = async (sectionId: number) => {
+  const response = await api.get(`/school/sections/${sectionId}/timetable`);
+  return response.data;
+};
+
+// teacher_id (optional): who teaches it; a different teacher becomes the section's teacher of that subject
+export const setTimetableSlot = async (sectionId: number, data: { day: number; period: number; subject_id: number | null; teacher_id?: number | null }) => {
+  const response = await api.put(`/school/sections/${sectionId}/timetable`, data);
+  return response.data;
+};
+
+export const getMyTimetable = async () => {
+  const response = await api.get('/school/my-timetable');
+  return response.data;
+};
+
+// ---------------- Exams (terms, papers, marks, report cards, analysis, promotion)
+
+export const getExamTerms = async (sessionId?: number) => {
+  const response = await api.get('/exams/terms', { params: { session_id: sessionId } });
+  return response.data;
+};
+
+export const getExamTerm = async (termId: number) => {
+  const response = await api.get(`/exams/terms/${termId}`);
+  return response.data;
+};
+
+export const addExamTerm = async (data: { session_id: number; name: string; start_date: string; end_date: string; marks_deadline?: string | null }) => {
+  const response = await api.post('/exams/terms', data);
+  return response.data;
+};
+
+export const updateExamTerm = async (termId: number, data: { name?: string; start_date?: string; end_date?: string; marks_deadline?: string | null; is_locked?: boolean; is_published?: boolean }) => {
+  const response = await api.put(`/exams/terms/${termId}`, data);
+  return response.data;
+};
+
+export const deleteExamTerm = async (termId: number) => {
+  const response = await api.delete(`/exams/terms/${termId}`);
+  return response.data;
+};
+
+export const getTermPapers = async (termId: number, classId?: number) => {
+  const response = await api.get(`/exams/terms/${termId}/papers`, { params: { class_id: classId } });
+  return response.data;
+};
+
+export const setUpClassPapers = async (termId: number, data: { class_id: number; total_marks?: number; passing_marks?: number }) => {
+  const response = await api.post(`/exams/terms/${termId}/papers`, data);
+  return response.data;
+};
+
+export const updateExamPaper = async (paperId: number, data: { total_marks?: number; passing_marks?: number; exam_date?: string | null }) => {
+  const response = await api.put(`/exams/papers/${paperId}`, data);
+  return response.data;
+};
+
+export const deleteExamPaper = async (paperId: number) => {
+  const response = await api.delete(`/exams/papers/${paperId}`);
+  return response.data;
+};
+
+// The papers a teacher marks in a term (one row per section)
+export const getMyPapers = async (termId: number) => {
+  const response = await api.get(`/exams/terms/${termId}/my-papers`);
+  return response.data;
+};
+
+export const uploadQuestionPaper = async (paperId: number, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(`/exams/papers/${paperId}/question-paper`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const downloadQuestionPaper = async (paperId: number) => {
+  const response = await api.get(`/exams/papers/${paperId}/question-paper`, { responseType: 'blob' });
+
+  // Read the original file name from the server's "Content-Disposition" header
+  let fileName = 'question-paper.pdf';
+  const disposition = response.headers['content-disposition'];
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match) {
+      fileName = match[1];
+    }
+  }
+
+  const fileUrl = window.URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = fileUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(fileUrl);
+};
+
+export const reviewQuestionPaper = async (paperId: number, approve: boolean, note?: string) => {
+  const response = await api.put(`/exams/papers/${paperId}/review`, { approve, note });
+  return response.data;
+};
+
+export const getPaperMarks = async (paperId: number, sectionId: number) => {
+  const response = await api.get(`/exams/papers/${paperId}/sections/${sectionId}/marks`);
+  return response.data;
+};
+
+export const savePaperMarks = async (paperId: number, sectionId: number, marks: { student_id: number; obtained_marks: number | null; is_absent: boolean }[]) => {
+  const response = await api.put(`/exams/papers/${paperId}/sections/${sectionId}/marks`, { marks });
+  return response.data;
+};
+
+export const getSectionResults = async (termId: number, sectionId: number) => {
+  const response = await api.get(`/exams/terms/${termId}/sections/${sectionId}/results`);
+  return response.data;
+};
+
+export const getReportCard = async (termId: number, studentId: number) => {
+  const response = await api.get(`/exams/terms/${termId}/students/${studentId}/report-card`);
+  return response.data;
+};
+
+export const saveReportRemarks = async (termId: number, studentId: number, remarks: string) => {
+  const response = await api.put(`/exams/terms/${termId}/students/${studentId}/remarks`, { remarks });
+  return response.data;
+};
+
+export const getTermAnalysis = async (termId: number, classId?: number) => {
+  const response = await api.get(`/exams/terms/${termId}/analysis`, { params: { class_id: classId } });
+  return response.data;
+};
+
+export const getPromotionList = async (sectionId: number, termId?: number) => {
+  const response = await api.get(`/exams/promotion/sections/${sectionId}`, { params: { term_id: termId } });
+  return response.data;
+};
+
+export const promoteStudents = async (sectionId: number, data: { target_section_id: number; student_ids: number[] }) => {
+  const response = await api.post(`/exams/promotion/sections/${sectionId}`, data);
+  return response.data;
+};
+
+// ---------------- Grading scale (the admin can set the school's own)
+
+export const getGradeScale = async () => {
+  const response = await api.get('/exams/grading-scale');
+  return response.data;
+};
+
+export const saveGradeScale = async (bands: { grade: string; min_percentage: number }[]) => {
+  const response = await api.put('/exams/grading-scale', { bands });
+  return response.data;
+};
+
+export const resetGradeScale = async () => {
+  const response = await api.post('/exams/grading-scale/reset');
+  return response.data;
+};
+
+// ---------------- Oversight (admin): activity log, teachers' activity, dashboard, reports
+
+export interface ActivityFilters {
+  name?: string;
+  role?: string;
+  action?: string;
+  area?: string;
+  class_id?: number;
+  section_id?: number;
+  user_id?: number;
+  date_from?: string;
+  date_to?: string;
+}
+
+export const getActivityLog = async (filters: ActivityFilters, page: number, perPage: number) => {
+  const response = await api.get('/oversight/activity', { params: { ...filters, page, per_page: perPage } });
+  return response.data;
+};
+
+export const getActivityAreas = async () => {
+  const response = await api.get('/oversight/activity/areas');
+  return response.data;
+};
+
+export const getTeachersOverview = async () => {
+  const response = await api.get('/oversight/teachers');
+  return response.data;
+};
+
+export const getTeacherActivity = async (teacherId: number) => {
+  const response = await api.get(`/oversight/teachers/${teacherId}`);
+  return response.data;
+};
+
+export const getOversightDashboard = async () => {
+  const response = await api.get('/oversight/dashboard');
+  return response.data;
+};
+
+// Download an Excel report. name: attendance, results, syllabus, teachers, low-attendance or activity
+export const downloadReport = async (name: string, params?: Record<string, string | number | undefined>) => {
+  const response = await api.get(`/reports/${name}`, { params, responseType: 'blob' });
+
+  // Read the file name from the server's "Content-Disposition" header
+  let fileName = `${name}.xlsx`;
+  const disposition = response.headers['content-disposition'];
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match) {
+      fileName = match[1];
+    }
+  }
+
+  const fileUrl = window.URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = fileUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(fileUrl);
+};
+
+// ---------------- The school timetable (bell schedule, draft, publishing)
+
+export const getTimetableSettings = async () => {
+  const response = await api.get('/timetable/settings');
+  return response.data;
+};
+
+export const saveTimetableSettings = async (data: { days: number[]; periods: { name: string; start_time: string; end_time: string; is_break: boolean }[] }) => {
+  const response = await api.put('/timetable/settings', data);
+  return response.data;
+};
+
+export const getTimetableDraft = async () => {
+  const response = await api.get('/timetable/draft');
+  return response.data;
+};
+
+export const clearSectionTimetable = async (sectionId: number) => {
+  const response = await api.delete(`/school/sections/${sectionId}/timetable`);
+  return response.data;
+};
+
+export const getPublishCheck = async () => {
+  const response = await api.get('/timetable/publish-check');
+  return response.data;
+};
+
+export const publishTimetable = async () => {
+  const response = await api.post('/timetable/publish');
+  return response.data;
+};
+
+export const getPublishedTimetableInfo = async () => {
+  const response = await api.get('/timetable/published-info');
+  return response.data;
+};
+
+
+// ---------------- The subjects each teacher teaches (before giving them any class)
+
+export const getTeacherSubjects = async () => {
+  const response = await api.get('/school/teacher-subjects');
+  return response.data;
+};
+
+export const addTeacherSubject = async (teacherId: number, name: string) => {
+  const response = await api.post(`/school/teachers/${teacherId}/subjects`, { name });
+  return response.data;
+};
+
+export const removeTeacherSubject = async (teacherId: number, name: string) => {
+  const response = await api.delete(`/school/teachers/${teacherId}/subjects`, { params: { name } });
+  return response.data;
+};
