@@ -151,6 +151,8 @@ export interface Announcement {
   admin_id?: number | null;
   author_role?: 'admin' | 'teacher';
   author_name?: string | null;
+  from_incharge?: boolean;      // a class announcement from the section's class incharge
+  author_text?: string;         // "Principal (Admin)", "Sara Ahmed (Class incharge of Class 5 - A)"
 }
 
 export interface Event {

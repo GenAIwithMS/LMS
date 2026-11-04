@@ -385,7 +385,8 @@ export const deleteResult = async (id: number) => {
 };
 
 // Announcement
-export const createAnnouncement = async (data: { title: string; content: string; target_audience: string; section_name: string }) => {
+// as_incharge: post as the section's class incharge (a class announcement for the section they lead)
+export const createAnnouncement = async (data: { title: string; content: string; target_audience: string; section_name?: string; section_id?: number; as_incharge?: boolean }) => {
   const response = await api.post('/create/announcement', data);
   return response.data;
 };
@@ -396,7 +397,7 @@ export const getAnnouncements = async (id?: number) => {
 };
 
 // The backend finds announcements by their title, not by id
-export const updateAnnouncement = async (title: string, data: { title?: string; content?: string; section_name?: string }) => {
+export const updateAnnouncement = async (title: string, data: { title?: string; content?: string; target_audience?: string; section_id?: number; section_name?: string }) => {
   const response = await api.put('/update/announcement', data, { params: { title } });
   return response.data;
 };

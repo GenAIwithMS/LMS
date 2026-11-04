@@ -19,6 +19,8 @@ class Announcement(db.Model):
     target_audience = db.Column(db.String(50), default='all')
     class_id = db.Column(db.BigInteger, db.ForeignKey('school_classes.id'), nullable=True)
     section_id = db.Column(db.BigInteger, db.ForeignKey('sections.id'), nullable=True)
+    # Posted by the section's class incharge as a class announcement (shown in its own colour)
+    from_incharge = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=pakistan_time)
 
     section = db.relationship("Section", backref="announcements",lazy=True)

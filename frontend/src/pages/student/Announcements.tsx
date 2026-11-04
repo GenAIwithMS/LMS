@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Bell, Calendar } from 'lucide-react';
 import { getAnnouncements } from '../../services/api';
 import type { Announcement } from '../../types';
+import { announcementLook } from '../../utils/announcementLook';
 import toast from 'react-hot-toast';
 
 const StudentAnnouncements: React.FC = () => {
@@ -26,10 +27,8 @@ const StudentAnnouncements: React.FC = () => {
       // The page shows who wrote it ("Principal (Admin)" for the admin) and where it goes
       const announcementsData: Announcement[] = [];
       for (const announcement of list) {
-        let author = announcement.author_name || announcement.teacher_name || '';
-        if (announcement.author_role === 'admin') {
-          author = author + ' (Admin)';
-        }
+        // "Principal (Admin)", "Sara Ahmed (Class incharge of Class 5 - A)" or "Omar Malik (Teacher)"
+        let author = announcement.author_text || announcement.author_name || announcement.teacher_name || '';
         announcementsData.push({
           ...announcement,
           section: announcement.where || announcement.section_name || '',
@@ -85,12 +84,15 @@ const StudentAnnouncements: React.FC = () => {
           <div className="col-span-full text-center py-8 text-gray-500">No announcements found</div>
         ) : (
           filteredAnnouncements.map((announcement) => (
-            <div key={announcement.id} className="card">
+            <div key={announcement.id} className={`card ${announcementLook(announcement).cardClass}`}>
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-2">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     <Bell className="text-primary-600" size={20} />
                     <h3 className="text-lg font-semibold text-gray-900">{announcement.title}</h3>
+                    {announcementLook(announcement).badgeText && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${announcementLook(announcement).badgeClass}`}>{announcementLook(announcement).badgeText}</span>
+                    )}
                   </div>
                   <p className="text-sm text-gray-500">{announcement.teacher} • {announcement.section}</p>
                 </div>

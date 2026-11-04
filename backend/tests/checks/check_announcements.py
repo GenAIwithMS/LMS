@@ -118,5 +118,23 @@ check("the admin can remove a teacher's announcement", client.delete(f"/api/admi
 check("and their own", client.delete(f"/api/admin/announcements/{ID['Staff meeting']}", headers=H["root"]).status_code == 200)
 check("deleting again says not found", client.delete(f"/api/admin/announcements/{ID['Staff meeting']}", headers=H["root"]).status_code == 404)
 
+print("--- Class announcements from the class incharge")
+def incharge_post(title, section, user, audience="all"):
+    return client.post("/api/create/announcement", json={"title": title, "content": f"About {title}", "target_audience": audience,
+                                                         "section_id": section, "as_incharge": True}, headers=H[user])
+r = incharge_post("5-A trip money", A, "sara", "students")
+check("Sara (incharge of 5-A) posts a class announcement for 5-A", r.status_code == 201, r.get_json())
+check("Sara can't post one for 5-B (Omar leads it)", incharge_post("Not my class", B, "sara").status_code in (400, 403))
+check("Zara (no class) can't post one", incharge_post("No class", A, "zara").status_code in (400, 403))
+row = [a for a in client.get("/api/get/announcements", headers=H["root"]).get_json() if a["title"] == "5-A trip money"][0]
+check("it is marked as from the class incharge, with the author shown",
+      row["from_incharge"] is True and row["author_text"] == "Sara (Class incharge of Class 5 - A)" and row["where"] == "Class 5 - A", row)
+check("5-A's student sees it; 5-B's doesn't", "5-A trip money" in titles("ali") and "5-A trip money" not in titles("bilal"))
+check("an ordinary teacher announcement is not marked", [a for a in client.get("/api/get/announcements", headers=H["root"]).get_json() if a["title"] == "5-A homework"][0]["from_incharge"] is False)
+r = client.put("/api/update/announcement?title=5-A trip money", json={"section_id": B}, headers=H["sara"])
+check("a class announcement can't be moved to another section", r.status_code in (400, 403), r.get_json())
+r = client.put("/api/update/announcement?title=5-A trip money", json={"content": "Bring 500 rupees by Thursday"}, headers=H["sara"])
+check("Sara can still edit its message", r.status_code == 200)
+
 print("\nFAILED:" if fails else "\nALL PASSED", fails if fails else "")
 sys.exit(1 if fails else 0)

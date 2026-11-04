@@ -5,7 +5,7 @@ from src.schemas import AnnouncementSchema,UpdateAnnouncementSchema, AdminAnnoun
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt,get_jwt_identity
 from src.models import Section, Announcement
-from src.services.access import find_teacher_section, get_student_announcement_ids, get_teacher_announcement_ids, filter_response_by_ids
+from src.services.access import find_teacher_section, get_student_announcement_ids, get_teacher_announcement_ids, filter_response_by_ids, teacher_is_incharge
 
 
 def teacher_owns_announcement(teacher_id, announcement_title):
@@ -46,12 +46,21 @@ def create_announce():
             "status": "failed"      
         }), 400
 
+    # A class announcement: only for the section this teacher leads as class incharge
+    as_incharge = data.get("as_incharge", False)
+    if as_incharge and not teacher_is_incharge(teacher_id, section.id):
+        return jsonify({
+            "message": f"Only the class incharge of {section.full_name()} can post class announcements for it",
+            "status": "failed"
+        }), 403
+
     result = add_announcement(
         title=title,
         content=content,
         target_audience=target_audience,
         section_id=section.id,
-        teacher_id=teacher_id
+        teacher_id=teacher_id,
+        from_incharge=as_incharge
     )
     return result
 
@@ -125,6 +134,13 @@ def edit_announce():
                 "message": "Section not found among your sections",
                 "status": "failed"
             }), 400
+        # A class announcement stays in a section this teacher leads
+        announcement = Announcement.query.filter_by(title=announcement_title).first()
+        if announcement.from_incharge and not teacher_is_incharge(teacher_id, section.id):
+            return jsonify({
+                "message": "A class announcement can only be for the section you lead as class incharge",
+                "status": "failed"
+            }), 403
         data['section_id'] = section.id
         data.pop('section_name', None)
 

@@ -57,6 +57,7 @@ interface Notification {
   type: 'announcement' | 'event' | 'timetable';
   time: string;
   creatorId?: number | string;
+  fromIncharge?: boolean;   // a class announcement from the class incharge (shown in amber)
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -115,7 +116,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               title: a.title,
               type: 'announcement' as const,
               time: 'Recently',
-              creatorId: a.teacher_id
+              creatorId: a.teacher_id,
+              fromIncharge: a.from_incharge === true
             })) : []),
           ...(Array.isArray(events) ? events
             .filter((e: any) => !(userRole === 'admin' && e.admin_id === currentUserId))
@@ -163,6 +165,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       return () => clearInterval(interval);
     }
   }, [user, userRole]);
+
+  // The icon colour in the bell: class incharge announcements in amber, like on the pages
+  const notificationColour = (n: Notification): string => {
+    if (n.type === 'announcement' && n.fromIncharge) {
+      return 'bg-amber-50 text-amber-600';
+    }
+    if (n.type === 'announcement') {
+      return 'bg-blue-50 text-blue-600';
+    }
+    if (n.type === 'timetable') {
+      return 'bg-green-50 text-green-600';
+    }
+    return 'bg-purple-50 text-purple-600';
+  };
 
   // Remember the newest timetable as seen, so the bell stays quiet until the next one
   const markTimetableSeen = () => {
@@ -452,7 +468,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                               }}
                             >
                               <div className="flex items-start gap-3">
-                                <div className={`mt-1 p-1.5 rounded-lg ${n.type === 'announcement' ? 'bg-blue-50 text-blue-600' : n.type === 'timetable' ? 'bg-green-50 text-green-600' : 'bg-purple-50 text-purple-600'}`}>
+                                <div className={`mt-1 p-1.5 rounded-lg ${notificationColour(n)}`}>
                                   {n.type === 'announcement' ? <Bell size={14} /> : n.type === 'timetable' ? <CalendarDays size={14} /> : <Calendar size={14} />}
                                 </div>
                                 <div>

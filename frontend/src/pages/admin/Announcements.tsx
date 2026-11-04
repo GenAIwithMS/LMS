@@ -5,6 +5,7 @@ import { getAnnouncements, getSchoolClasses, createAdminAnnouncement, updateAdmi
 import type { Announcement, SchoolClassSummary } from '../../types';
 import { Modal } from '../../components/Modal';
 import { showError, showSuccess } from '../../utils/errorHandler';
+import { announcementLook } from '../../utils/announcementLook';
 
 type Where = 'school' | 'class' | 'section';
 
@@ -219,7 +220,11 @@ const AdminAnnouncements: React.FC = () => {
   for (const announcement of announcements) {
     const text = (announcement.title + ' ' + announcement.content + ' ' + (announcement.author_name || '')).toLowerCase();
     if (searchTerm.trim() !== '' && !text.includes(searchTerm.trim().toLowerCase())) continue;
-    if (filterAuthor !== 'all' && announcement.author_role !== filterAuthor) continue;
+    if (filterAuthor === 'incharge') {
+      if (!announcement.from_incharge) continue;
+    } else if (filterAuthor !== 'all' && announcement.author_role !== filterAuthor) {
+      continue;
+    }
     if (filterAudience === 'everyone' && announcement.target_audience !== 'all') continue;
     if (filterAudience === 'teachers' && announcement.target_audience !== 'teachers') continue;
     if (filterAudience === 'students' && announcement.target_audience !== 'students') continue;
@@ -253,6 +258,7 @@ const AdminAnnouncements: React.FC = () => {
           <option value="all">From anyone</option>
           <option value="admin">From the school (admin)</option>
           <option value="teacher">From teachers</option>
+          <option value="incharge">From class incharges</option>
         </select>
         <select value={filterAudience} onChange={(e) => setFilterAudience(e.target.value)} className="input max-w-[12rem]">
           <option value="all">Any audience</option>
@@ -269,12 +275,17 @@ const AdminAnnouncements: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {shown.map((announcement) => (
-            <div key={announcement.id} className="card">
+            <div key={announcement.id} className={`card ${announcementLook(announcement).cardClass}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 break-words">{announcement.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900 break-words">{announcement.title}</h3>
+                    {announcementLook(announcement).badgeText && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${announcementLook(announcement).badgeClass}`}>{announcementLook(announcement).badgeText}</span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500">
-                    {announcement.author_name || 'Unknown'} · {announcement.author_role === 'admin' ? 'Admin' : 'Teacher'} · {postedText(announcement.created_at)}
+                    {announcement.author_text || announcement.author_name || 'Unknown'} · {postedText(announcement.created_at)}
                   </p>
                 </div>
                 <div className="flex shrink-0">

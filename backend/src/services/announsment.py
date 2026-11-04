@@ -2,7 +2,7 @@ from src.models import Announcement, Section, SchoolClass
 from flask import jsonify
 from src.db import db
   
-def add_announcement(title, content, teacher_id, section_id,target_audience='all', created_at=None):
+def add_announcement(title, content, teacher_id, section_id,target_audience='all', created_at=None, from_incharge=False):
     existing_announcement = Announcement.query.filter_by(title=title).first()
     if existing_announcement:
         return jsonify({
@@ -15,7 +15,8 @@ def add_announcement(title, content, teacher_id, section_id,target_audience='all
         content=content,
         target_audience=target_audience,
         section_id=section_id,
-        teacher_id=teacher_id
+        teacher_id=teacher_id,
+        from_incharge=from_incharge
     )
     if created_at:
         new_announcement.created_at = created_at
@@ -72,8 +73,21 @@ def announcement_data(announcement):
         "teacher_name": announcement.teacher.name if announcement.teacher else None,
         "admin_id": announcement.admin_id,
         "author_role": author_role,
-        "author_name": author_name
+        "author_name": author_name,
+        # A class announcement from the section's class incharge
+        "from_incharge": announcement.from_incharge,
+        "author_text": author_text(announcement, author_role, author_name, section)
     }
+
+
+def author_text(announcement, author_role, author_name, section):
+    """Who posted it, for pages: "Principal (Admin)", "Sara Ahmed (Class incharge of Class 5 - A)" or "Omar Malik (Teacher)"."""
+    name = author_name or "Unknown"
+    if author_role == "admin":
+        return name + " (Admin)"
+    if announcement.from_incharge and section:
+        return name + " (Class incharge of " + section.full_name() + ")"
+    return name + " (Teacher)"
 
 
 def get_all_announcements():
