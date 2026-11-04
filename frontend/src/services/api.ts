@@ -645,7 +645,8 @@ export const getSectionTimetable = async (sectionId: number) => {
   return response.data;
 };
 
-export const setTimetableSlot = async (sectionId: number, data: { day: number; period: number; subject_id: number | null }) => {
+// teacher_id (optional): who teaches it; a different teacher becomes the section's teacher of that subject
+export const setTimetableSlot = async (sectionId: number, data: { day: number; period: number; subject_id: number | null; teacher_id?: number | null }) => {
   const response = await api.put(`/school/sections/${sectionId}/timetable`, data);
   return response.data;
 };
@@ -899,5 +900,23 @@ export const publishTimetable = async () => {
 
 export const getPublishedTimetableInfo = async () => {
   const response = await api.get('/timetable/published-info');
+  return response.data;
+};
+
+
+// ---------------- The subjects each teacher teaches (before giving them any class)
+
+export const getTeacherSubjects = async () => {
+  const response = await api.get('/school/teacher-subjects');
+  return response.data;
+};
+
+export const addTeacherSubject = async (teacherId: number, name: string) => {
+  const response = await api.post(`/school/teachers/${teacherId}/subjects`, { name });
+  return response.data;
+};
+
+export const removeTeacherSubject = async (teacherId: number, name: string) => {
+  const response = await api.delete(`/school/teachers/${teacherId}/subjects`, { params: { name } });
   return response.data;
 };

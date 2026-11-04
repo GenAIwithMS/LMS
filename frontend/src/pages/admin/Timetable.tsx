@@ -101,10 +101,14 @@ const AdminTimetable: React.FC = () => {
     return null;
   };
 
-  const handleSlotChange = async (day: number, period: number, subjectId: number | null) => {
+  const handleSlotChange = async (day: number, period: number, subjectId: number | null, teacherId: number | null) => {
     if (selectedSectionId === null) return;
     try {
-      await setTimetableSlot(selectedSectionId, { day, period, subject_id: subjectId });
+      const data = await setTimetableSlot(selectedSectionId, { day, period, subject_id: subjectId, teacher_id: teacherId });
+      // Say so when a different teacher took over the subject in this section
+      if (data.message && data.message.includes('now teaches')) {
+        showSuccess(data.message);
+      }
       fetchDraft();
     } catch (error: any) {
       // For example: the teacher is already in another section at this time
@@ -335,10 +339,13 @@ const AdminTimetable: React.FC = () => {
                       choose their teachers on the <button onClick={() => navigate(`/admin/classes/${selectedSection.class_id}`)} className="underline font-medium">{selectedSection.class_name} page</button>.
                     </div>
                   )}
-                  <p className="no-print text-sm text-gray-500">Choose the subject for each period. A teacher who is busy in another section at that time is greyed out.</p>
+                  <p className="no-print text-sm text-gray-500">
+                    Choose the subject and teacher for each period. Every teacher who teaches the subject is offered;
+                    one who is busy in another section at that time is greyed out. Choosing a different teacher makes them this class's teacher of that subject.
+                  </p>
                   <TimetableGrid
                     timetable={{ days: draft.days, periods: draft.periods, slots: selectedSection.slots }}
-                    edit={{ subjects: selectedSection.subjects, busyIn: busyIn, onChange: handleSlotChange }}
+                    edit={{ subjects: selectedSection.subjects, teachers: draft.teachers, busyIn: busyIn, onChange: handleSlotChange }}
                   />
                 </>
               )}

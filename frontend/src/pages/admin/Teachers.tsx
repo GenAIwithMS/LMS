@@ -1,12 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Search, Settings, Activity, BookOpen } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Settings, Activity, BookOpen, X } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { DeleteConfirmation } from '../../components/DeleteConfirmation';
-import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getSchoolClasses, getSchoolClass, setSubjectTeacher } from '../../services/api';
-import type { Teacher, SchoolClassSummary, SchoolClassDetails } from '../../types';
+import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getSchoolClasses, getSchoolClass, setSubjectTeacher, getTeacherSubjects, addTeacherSubject, removeTeacherSubject } from '../../services/api';
+import type { Teacher, SchoolClassSummary, SchoolClassDetails, TeacherSkills } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import toast from 'react-hot-toast';
+
+// True if the teacher teaches this subject (names compared without capitals or spaces at the ends)
+const teachesSubject = (skills: string[], subjectName: string): boolean => {
+  for (const skill of skills) {
+    if (skill.trim().toLowerCase() === subjectName.trim().toLowerCase()) {
+      return true;
+    }
+  }
+  return false;
+};
 
 const AdminTeachers: React.FC = () => {
   const navigate = useNavigate();
@@ -31,6 +41,11 @@ const AdminTeachers: React.FC = () => {
   const [pickClassId, setPickClassId] = useState('');
   const [pickSectionId, setPickSectionId] = useState('');
   const [pickSubjectId, setPickSubjectId] = useState('');
+
+  // The subjects each teacher teaches (before any class), and every subject name in the school
+  const [teacherSkills, setTeacherSkills] = useState<TeacherSkills[]>([]);
+  const [subjectNames, setSubjectNames] = useState<string[]>([]);
+  const [newSkill, setNewSkill] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -40,7 +55,28 @@ const AdminTeachers: React.FC = () => {
 
   useEffect(() => {
     fetchTeachers();
+    fetchSkills();
   }, []);
+
+  const fetchSkills = async () => {
+    try {
+      const data = await getTeacherSubjects();
+      setTeacherSkills(Array.isArray(data.teachers) ? data.teachers : []);
+      setSubjectNames(Array.isArray(data.subject_names) ? data.subject_names : []);
+    } catch (error: any) {
+      showError(error, 'Failed to load the subjects teachers teach');
+    }
+  };
+
+  // The subjects one teacher teaches
+  const skillsOf = (teacherId: number): string[] => {
+    for (const row of teacherSkills) {
+      if (row.teacher_id === teacherId) {
+        return row.subjects;
+      }
+    }
+    return [];
+  };
 
   // Close options dropdown when clicking outside
   useEffect(() => {
@@ -59,16 +95,23 @@ const AdminTeachers: React.FC = () => {
     };
   }, [showOptions]);
 
-  const fetchTeachers = async () => {
+  // The spinner shows only on the first load. Returns the list, so a new teacher can be found in it.
+  const fetchTeachers = async (): Promise<Teacher[]> => {
+    let list: Teacher[] = [];
     try {
-      setLoading(true);
       const data = await getTeachers();
-      setTeachers(Array.isArray(data) ? data : data.teacher ? [data.teacher] : []);
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (data.teacher) {
+        list = [data.teacher];
+      }
+      setTeachers(list);
     } catch (error) {
       toast.error('Failed to fetch teachers');
     } finally {
       setLoading(false);
     }
+    return list;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,13 +120,30 @@ const AdminTeachers: React.FC = () => {
       if (editingTeacher) {
         await updateTeacher(editingTeacher.id, formData);
         showSuccess('Teacher updated successfully');
+        setIsModalOpen(false);
+        resetForm();
+        fetchTeachers();
       } else {
+        const newUsername = formData.username.trim();
         await addTeacher(formData);
         showSuccess('Teacher added successfully');
+        setIsModalOpen(false);
+        resetForm();
+        const list = await fetchTeachers();
+        await fetchSkills();
+        // Open the new teacher's Subjects window straight away, so their subjects can be added now
+        let newTeacher: Teacher | null = null;
+        for (const teacher of list) {
+          if (teacher.username === newUsername) {
+            newTeacher = teacher;
+          }
+        }
+        if (newTeacher) {
+          openSubjects(newTeacher);
+        } else {
+          toast.success('Now add their subjects with the Subjects button');
+        }
       }
-      setIsModalOpen(false);
-      resetForm();
-      fetchTeachers();
     } catch (error: any) {
       showError(error, 'Failed to save teacher');
     }
@@ -188,6 +248,7 @@ const AdminTeachers: React.FC = () => {
 
   const openSubjects = (teacher: Teacher) => {
     setSubjectsTeacher(teacher);
+    setNewSkill('');
     setPickClassId('');
     setPickSectionId('');
     setPickSubjectId('');
@@ -241,6 +302,7 @@ const AdminTeachers: React.FC = () => {
       const data = await setSubjectTeacher(sectionId, subjectId, null);
       showSuccess(data.message || 'Subject removed');
       loadSubjectData();
+      fetchSkills();
     } catch (error: any) {
       showError(error, 'Failed to remove the subject');
     }
@@ -258,9 +320,40 @@ const AdminTeachers: React.FC = () => {
       showSuccess(data.message || 'Subject assigned');
       setPickSubjectId('');
       loadSubjectData();
+      // Teaching it in a section adds it to their subjects too
+      fetchSkills();
     } catch (error: any) {
       // For example: the teacher is busy in another section in one of this subject's periods
       showError(error, 'Failed to assign the subject');
+    }
+  };
+
+  const handleAddSkill = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subjectsTeacher) return;
+    if (newSkill.trim() === '') {
+      toast.error('Write or choose a subject, for example Urdu');
+      return;
+    }
+    try {
+      const data = await addTeacherSubject(subjectsTeacher.id, newSkill.trim());
+      showSuccess(data.message || 'Subject added');
+      setNewSkill('');
+      fetchSkills();
+    } catch (error: any) {
+      showError(error, 'Failed to add the subject');
+    }
+  };
+
+  const handleRemoveSkill = async (name: string) => {
+    if (!subjectsTeacher) return;
+    try {
+      const data = await removeTeacherSubject(subjectsTeacher.id, name);
+      showSuccess(data.message || 'Subject removed');
+      fetchSkills();
+    } catch (error: any) {
+      // For example: they still teach it in a section
+      showError(error, 'Failed to remove the subject');
     }
   };
 
@@ -279,6 +372,18 @@ const AdminTeachers: React.FC = () => {
       }
     }
     return null;
+  };
+
+  // A subject option, with who teaches it in the chosen section now: "Maths (now: Sara)"
+  const subjectLabel = (subjectId: number, subjectName: string): string => {
+    if (!pickSectionId || !pickClassId) {
+      return subjectName;
+    }
+    const now = currentTeacherName(classDetails[Number(pickClassId)], Number(pickSectionId), subjectId);
+    if (now) {
+      return `${subjectName} (now: ${now})`;
+    }
+    return subjectName;
   };
 
   if (loading) {
@@ -387,7 +492,17 @@ const AdminTeachers: React.FC = () => {
                   <td>{teacher.name}</td>
                   <td>{teacher.username}</td>
                   <td>{teacher.email}</td>
-                  <td>{teacher.subjects?.join(', ') || 'N/A'}</td>
+                  <td>
+                    {skillsOf(teacher.id).length === 0 ? (
+                      <span className="text-gray-400">-</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {skillsOf(teacher.id).map((name) => (
+                          <span key={name} className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">{name}</span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
                   <td>
                     <div className="flex items-center space-x-2">
                       {/* The subjects this teacher teaches, and giving them more */}
@@ -500,13 +615,50 @@ const AdminTeachers: React.FC = () => {
           <p className="text-sm text-gray-400">Loading...</p>
         ) : (
           <div className="space-y-5">
-            <div className="text-sm">
-              <span className="text-gray-500">Class incharge of: </span>
-              <span className="font-semibold">{getInchargeOf() || 'none'}</span>
+            {/* A. The subjects this teacher can teach (no class needed) */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-1">Subjects {subjectsTeacher?.name} teaches</h4>
+              <p className="text-xs text-gray-500 mb-2">Add the subjects this teacher can teach. You can give them classes now or later.</p>
+              {subjectsTeacher && skillsOf(subjectsTeacher.id).length === 0 ? (
+                <p className="text-sm text-gray-500 mb-2">No subjects yet.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {subjectsTeacher && skillsOf(subjectsTeacher.id).map((name) => (
+                    <span key={name} className="flex items-center gap-1 px-2 py-1 rounded-full bg-purple-50 text-purple-700 text-sm font-medium">
+                      {name}
+                      <button type="button" onClick={() => handleRemoveSkill(name)} className="text-purple-400 hover:text-red-600" title={`Remove ${name}`}>
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <form onSubmit={handleAddSkill} className="flex gap-2">
+                <input
+                  type="text"
+                  list="school-subject-names"
+                  value={newSkill}
+                  onChange={(e) => setNewSkill(e.target.value)}
+                  placeholder="e.g. Urdu"
+                  className="input"
+                />
+                <datalist id="school-subject-names">
+                  {subjectNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+                <button type="submit" className="btn btn-primary flex items-center gap-1"><Plus size={16} /> Add</button>
+              </form>
             </div>
 
-            <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Teaches now</h4>
+            {/* B. Sections they teach in (optional, can be done later) */}
+            <div className="border-t border-gray-100 pt-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Classes (optional, can be done later)</h4>
+              <div className="text-sm mb-3">
+                <span className="text-gray-500">Class incharge of: </span>
+                <span className="font-semibold">{getInchargeOf() || 'none'}</span>
+              </div>
+              <h5 className="text-xs font-semibold text-gray-500 uppercase mb-2">Teaches now</h5>
               {getTeaching().length === 0 ? (
                 <p className="text-sm text-gray-500">No subjects yet.</p>
               ) : (
@@ -523,8 +675,8 @@ const AdminTeachers: React.FC = () => {
               )}
             </div>
 
-            <form onSubmit={handleAssignSubject} className="space-y-3 border-t border-gray-100 pt-4">
-              <h4 className="text-sm font-semibold text-gray-700">Give a subject</h4>
+            <form onSubmit={handleAssignSubject} className="space-y-3">
+              <h5 className="text-xs font-semibold text-gray-500 uppercase">Give a class</h5>
               {Object.keys(classDetails).length === 0 ? (
                 <p className="text-sm text-gray-500">No class has sections yet. Add sections on the Classes page first.</p>
               ) : (
@@ -549,16 +701,20 @@ const AdminTeachers: React.FC = () => {
                         </select>
                         <select value={pickSubjectId} onChange={(e) => setPickSubjectId(e.target.value)} className="input" disabled={!pickSectionId}>
                           <option value="">Choose a subject</option>
-                          {classDetails[Number(pickClassId)].subjects.map((subject) => {
-                            let label = subject.name;
-                            if (pickSectionId) {
-                              const now = currentTeacherName(classDetails[Number(pickClassId)], Number(pickSectionId), subject.id);
-                              if (now) {
-                                label = `${subject.name} (now: ${now})`;
-                              }
-                            }
-                            return <option key={subject.id} value={subject.id}>{label}</option>;
-                          })}
+                          <optgroup label="Teaches">
+                            {classDetails[Number(pickClassId)].subjects
+                              .filter((subject) => subjectsTeacher !== null && teachesSubject(skillsOf(subjectsTeacher.id), subject.name))
+                              .map((subject) => (
+                                <option key={subject.id} value={subject.id}>{subjectLabel(subject.id, subject.name)}</option>
+                              ))}
+                          </optgroup>
+                          <optgroup label="Other subjects">
+                            {classDetails[Number(pickClassId)].subjects
+                              .filter((subject) => subjectsTeacher === null || !teachesSubject(skillsOf(subjectsTeacher.id), subject.name))
+                              .map((subject) => (
+                                <option key={subject.id} value={subject.id}>{subjectLabel(subject.id, subject.name)}</option>
+                              ))}
+                          </optgroup>
                         </select>
                         <div className="flex justify-end">
                           <button type="submit" className="btn btn-primary flex items-center gap-1"><Plus size={16} /> Assign</button>

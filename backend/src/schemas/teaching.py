@@ -62,6 +62,8 @@ class TimetableSlotSchema(Schema):
     day = fields.Integer(required=True, validate=validate.Range(min=1, max=7))
     period = fields.Integer(required=True, validate=validate.Range(min=1, max=12))
     subject_id = fields.Integer(required=True, allow_none=True)   # null empties the period
+    # Optional: who teaches it. A different teacher becomes the section's teacher of that subject.
+    teacher_id = fields.Integer(required=False, allow_none=True)
 
 
 class BellPeriodSchema(Schema):

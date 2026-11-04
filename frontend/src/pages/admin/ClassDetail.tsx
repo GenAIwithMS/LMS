@@ -5,14 +5,25 @@ import {
   getSchoolClass, getSchoolClasses, addClassSection, updateClassSection, deleteClassSection,
   addClassSubject, renameClassSubject, deleteClassSubject,
   getSubjectChapters, addSubjectChapter, updateSubjectChapter, deleteSubjectChapter, getTeachers, setSubjectTeacher,
+  getTeacherSubjects,
 } from '../../services/api';
-import type { SchoolClassDetails, SchoolClassSummary, ClassSubject, SyllabusChapter, Teacher } from '../../types';
+import type { SchoolClassDetails, SchoolClassSummary, ClassSubject, SyllabusChapter, Teacher, TeacherSkills } from '../../types';
 import { Modal } from '../../components/Modal';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
 // One class (for example Class 5), set up in steps:
 // 1. sections and their class incharge, 2. the subjects the class studies,
 // 3. who teaches each subject in each section, 4. a link to the timetable.
+// True if the teacher teaches this subject (names compared without capitals or spaces at the ends)
+const teachesSubject = (skills: string[], subjectName: string): boolean => {
+  for (const skill of skills) {
+    if (skill.trim().toLowerCase() === subjectName.trim().toLowerCase()) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const AdminClassDetail: React.FC = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
@@ -30,10 +41,33 @@ const AdminClassDetail: React.FC = () => {
   const [chapters, setChapters] = useState<SyllabusChapter[]>([]);
   const [newChapterTitle, setNewChapterTitle] = useState('');
 
+  // The subjects each teacher teaches, so the teacher lists show them first
+  const [teacherSkills, setTeacherSkills] = useState<TeacherSkills[]>([]);
+
   useEffect(() => {
     fetchClass();
     fetchTeachers();
+    fetchSkills();
   }, [classId]);
+
+  const fetchSkills = async () => {
+    try {
+      const data = await getTeacherSubjects();
+      setTeacherSkills(Array.isArray(data.teachers) ? data.teachers : []);
+    } catch (error: any) {
+      showError(error, 'Failed to load the subjects teachers teach');
+    }
+  };
+
+  // Does this teacher teach this subject?
+  const teacherTeaches = (teacherId: number, subjectName: string): boolean => {
+    for (const row of teacherSkills) {
+      if (row.teacher_id === teacherId) {
+        return teachesSubject(row.subjects, subjectName);
+      }
+    }
+    return false;
+  };
 
   // The spinner shows only on the first load, so the page doesn't blank out after each save.
   const fetchClass = async () => {
@@ -166,6 +200,8 @@ const AdminClassDetail: React.FC = () => {
       const data = await setSubjectTeacher(sectionId, subjectId, teacherId ? Number(teacherId) : null);
       showSuccess(data.message || 'Subject teacher updated');
       fetchClass();
+      // Teaching it in a section adds it to the teacher's subjects
+      fetchSkills();
     } catch (error: any) {
       // For example: the teacher is busy in another section in one of this subject's periods
       showError(error, 'Failed to change the subject teacher');
@@ -372,9 +408,16 @@ const AdminClassDetail: React.FC = () => {
                           className="input py-1 min-w-[10rem]"
                         >
                           <option value="">No teacher yet</option>
-                          {teachers.map((teacher) => (
-                            <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
-                          ))}
+                          <optgroup label={`Teaches ${subject.name}`}>
+                            {teachers.filter((teacher) => teacherTeaches(teacher.id, subject.name)).map((teacher) => (
+                              <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Other teachers">
+                            {teachers.filter((teacher) => !teacherTeaches(teacher.id, subject.name)).map((teacher) => (
+                              <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                            ))}
+                          </optgroup>
                         </select>
                       </td>
                     ))}

@@ -146,5 +146,56 @@ check("the admin can empty a section's timetable", r.status_code == 200 and clie
 check("then publishing works", client.post("/api/timetable/publish", headers=H["root"]).status_code == 200)
 check("Bilal can't see 5-A's timetable", client.get(f"/api/school/sections/{A}/timetable", headers=H["bilal"]).status_code == 403)
 
+print("--- The subjects each teacher teaches (before any class)")
+with app.app_context():
+    db.session.add_all([make(Teacher, "Zara", "zara"), make(Teacher, "Kamran", "kamran"), make(Teacher, "Temp", "temp")])
+    db.session.commit()
+    ZARA = Teacher.query.filter_by(username="zara").first().id
+    KAMRAN = Teacher.query.filter_by(username="kamran").first().id
+    TEMP = Teacher.query.filter_by(username="temp").first().id
+r = client.post(f"/api/school/teachers/{ZARA}/subjects", json={"name": " maths "}, headers=H["root"])
+check("a new teacher gets a subject with no class yet (spelling follows the school's Maths)", r.status_code == 201 and "teaches Maths" in r.get_json()["message"], r.get_json())
+check("the same subject twice is refused", client.post(f"/api/school/teachers/{ZARA}/subjects", json={"name": "MATHS"}, headers=H["root"]).status_code == 409)
+check("a subject no class has yet is fine too", client.post(f"/api/school/teachers/{ZARA}/subjects", json={"name": "Computer"}, headers=H["root"]).status_code == 201)
+check("teachers can't change this", client.post(f"/api/school/teachers/{ZARA}/subjects", json={"name": "Art"}, headers=H["sara"]).status_code == 403)
+listing = client.get("/api/school/teacher-subjects", headers=H["root"]).get_json()
+skills = {t["teacher_name"]: t["subjects"] for t in listing["teachers"]}
+check("the list shows each teacher's subjects (Sara's come from what she already teaches)",
+      skills["Zara"] == ["Computer", "Maths"] and "Maths" in skills["Sara"] and skills["Kamran"] == [], skills)
+check("all subject names, for the picker", "Computer" in listing["subject_names"] and "Science" in listing["subject_names"])
+client.put(f"/api/school/sections/{B}/teachers", json={"subject_id": S["Science"], "teacher_id": KAMRAN}, headers=H["root"])
+skills = {t["teacher_name"]: t["subjects"] for t in client.get("/api/school/teacher-subjects", headers=H["root"]).get_json()["teachers"]}
+check("giving a teacher a subject in a section adds it to their subjects", skills["Kamran"] == ["Science"], skills["Kamran"])
+draft = client.get("/api/timetable/draft", headers=H["root"]).get_json()
+check("the timetable draft lists every teacher with their subjects", {t["teacher_name"]: t["subjects"] for t in draft["teachers"]}["Zara"] == ["Computer", "Maths"])
+
+print("--- Choosing the teacher in a period")
+def set_slot_teacher(section, day, period, subject, teacher):
+    return client.put(f"/api/school/sections/{section}/timetable", json={"day": day, "period": period, "subject_id": subject, "teacher_id": teacher}, headers=H["root"])
+set_slot(A, 4, 1, S["Maths"])                      # Sara: 5-A Maths, Thursday period 1
+set_slot(B, 1, 3, S["Maths"])                      # Omar: 5-B Maths, Monday period 3
+r = set_slot(B, 4, 1, S["Maths"])
+check("5-B Maths (Omar) in Thursday period 1 works (Omar is free)", r.status_code == 200)
+set_slot(B, 4, 1, None)
+r = set_slot_teacher(B, 4, 1, S["Maths"], SARA)
+check("Sara is busy in 5-A then, so she can't take 5-B Maths in that period", r.status_code == 409 and "Sara already teaches Maths in Class 5 - A" in r.get_json()["message"], r.get_json())
+r = set_slot_teacher(B, 4, 1, S["Maths"], ZARA)
+check("Zara (teaches Maths, free) takes the period and becomes 5-B's Maths teacher",
+      r.status_code == 200 and "Zara now teaches Maths in Class 5 - B" in r.get_json()["message"], r.get_json())
+slots_b = client.get(f"/api/school/sections/{B}/timetable", headers=H["root"]).get_json()["slots"]
+check("all of 5-B's Maths periods are Zara's now", sorted((s["day"], s["period"], s["teacher_name"]) for s in slots_b if s["subject_name"] == "Maths") == [(1, 3, "Zara"), (4, 1, "Zara")], slots_b)
+set_slot(B, 2, 3, S["Maths"])                      # Zara: 5-B Maths, Tuesday period 3 (5-A has English then)
+r = set_slot_teacher(A, 5, 1, S["English"], ZARA)
+check("Zara can't take over 5-A English: she's in 5-B during its Tuesday period", r.status_code == 409 and "can't take over English" in r.get_json()["message"], r.get_json())
+check("nothing changed after the refusal", [s for s in client.get(f"/api/school/sections/{A}/timetable", headers=H["root"]).get_json()["slots"] if s["day"] == 5] == [])
+check("the period's teacher must exist", set_slot_teacher(A, 5, 1, S["Maths"], 99999).status_code == 400)
+
+print("--- Removing a teacher's subject, deleting a teacher")
+r = client.delete(f"/api/school/teachers/{ZARA}/subjects?name=Maths", headers=H["root"])
+check("a subject they still teach in a section can't be removed", r.status_code == 409 and "Class 5 - B" in r.get_json()["message"], r.get_json())
+check("one they don't teach anywhere can", client.delete(f"/api/school/teachers/{ZARA}/subjects?name=computer", headers=H["root"]).status_code == 200)
+client.post(f"/api/school/teachers/{TEMP}/subjects", json={"name": "Art"}, headers=H["root"])
+check("a teacher with subjects (but no classes) can still be deleted", client.delete(f"/api/delete/teacher?id={TEMP}", headers=H["root"]).status_code == 200)
+
 print("\nFAILED:" if fails else "\nALL PASSED", fails if fails else "")
 sys.exit(1 if fails else 0)

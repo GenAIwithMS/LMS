@@ -1,5 +1,5 @@
 import React from 'react';
-import type { BellPeriod, PeriodSubject, TimetableSlot } from '../types';
+import type { BellPeriod, PeriodSubject, TimetableSlot, TeacherSkills } from '../types';
 
 interface TimetableGridProps {
   timetable: {
@@ -11,10 +11,13 @@ interface TimetableGridProps {
   showSection?: boolean;
   // Give this to let the admin choose the subject of each period
   edit?: {
+    // The section's subjects, each with its current teacher in this section
     subjects: PeriodSubject[];
+    // Every teacher with the subjects they teach, so other free teachers of a subject can be offered
+    teachers: TeacherSkills[];
     // Where this teacher already is at this time (another section's name), or null when free
     busyIn: (day: number, period: number, teacherId: number) => string | null;
-    onChange: (day: number, period: number, subjectId: number | null) => void;
+    onChange: (day: number, period: number, subjectId: number | null, teacherId: number | null) => void;
   };
 }
 
@@ -39,6 +42,16 @@ const subjectColour = (subjectId: number | null): string => {
   return SUBJECT_COLOURS[subjectId % SUBJECT_COLOURS.length];
 };
 
+// True if the teacher's list of subjects has this subject (capitals and spaces don't matter)
+const teachesSubject = (teacher: TeacherSkills, subjectName: string): boolean => {
+  for (const name of teacher.subjects) {
+    if (name.trim().toLowerCase() === subjectName.trim().toLowerCase()) {
+      return true;
+    }
+  }
+  return false;
+};
+
 // The weekly timetable like a college timetable: days down the side, the periods
 // (with their times) across the top, and breaks as a shaded column.
 export const TimetableGrid: React.FC<TimetableGridProps> = ({ timetable, showSection, edit }) => {
@@ -46,35 +59,80 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ timetable, showSec
     return timetable.slots.find((slot) => slot.day === day && slot.period === period);
   };
 
+  // A choice in a period is "subject:teacher", or "subject:none" for a subject with no teacher yet
+  const choiceValue = (subjectId: number, teacherId: number | null): string => {
+    if (teacherId === null) {
+      return `${subjectId}:none`;
+    }
+    return `${subjectId}:${teacherId}`;
+  };
+
+  const handleChoice = (day: number, period: number, value: string) => {
+    if (!edit) return;
+    if (value === '') {
+      edit.onChange(day, period, null, null);
+      return;
+    }
+    const parts = value.split(':');
+    const subjectId = Number(parts[0]);
+    let teacherId: number | null = null;
+    if (parts[1] !== 'none') {
+      teacherId = Number(parts[1]);
+    }
+    edit.onChange(day, period, subjectId, teacherId);
+  };
+
   const renderEditCell = (day: number, period: number) => {
     if (!edit) return null;
     const slot = findSlot(day, period);
+    let currentValue = '';
+    if (slot) {
+      currentValue = choiceValue(slot.subject_id, slot.teacher_id);
+    }
     return (
       <div className={`rounded-lg border p-1 ${slot ? subjectColour(slot.subject_id) : 'border-dashed border-gray-300'}`}>
         <select
-          value={slot ? String(slot.subject_id) : ''}
-          onChange={(e) => edit.onChange(day, period, e.target.value ? Number(e.target.value) : null)}
+          value={currentValue}
+          onChange={(e) => handleChoice(day, period, e.target.value)}
           className="w-full bg-transparent text-xs font-semibold text-gray-900 focus:outline-none cursor-pointer"
-          title="Choose the subject for this period"
+          title="Choose the subject and teacher for this period"
         >
           <option value="">Free</option>
           {edit.subjects.map((subject) => {
-            // A teacher who is in another section at this time can't be chosen
-            let busySection: string | null = null;
-            if (subject.teacher_id !== null && (!slot || slot.subject_id !== subject.subject_id)) {
-              busySection = edit.busyIn(day, period, subject.teacher_id);
+            // The section's own teacher of the subject first, then every other teacher who teaches it
+            const candidates: { teacherId: number; teacherName: string; isCurrent: boolean }[] = [];
+            if (subject.teacher_id !== null && subject.teacher_name !== null) {
+              candidates.push({ teacherId: subject.teacher_id, teacherName: subject.teacher_name, isCurrent: true });
             }
-            let label = subject.subject_name;
-            if (subject.teacher_name) {
-              label = label + ' - ' + subject.teacher_name;
-            } else {
-              label = label + ' (no teacher yet)';
+            for (const teacher of edit.teachers) {
+              if (teacher.teacher_id !== subject.teacher_id && teachesSubject(teacher, subject.subject_name)) {
+                candidates.push({ teacherId: teacher.teacher_id, teacherName: teacher.teacher_name, isCurrent: false });
+              }
             }
-            if (busySection) {
-              label = label + ` (busy in ${busySection})`;
-            }
+
             return (
-              <option key={subject.subject_id} value={subject.subject_id} disabled={busySection !== null}>{label}</option>
+              <optgroup key={subject.subject_id} label={subject.subject_name}>
+                {candidates.map((candidate) => {
+                  const value = choiceValue(subject.subject_id, candidate.teacherId);
+                  // Busy in another section at this time (unless it's already this period's choice)
+                  let busySection: string | null = null;
+                  if (value !== currentValue) {
+                    busySection = edit.busyIn(day, period, candidate.teacherId);
+                  }
+                  let label = `${subject.subject_name} - ${candidate.teacherName}`;
+                  if (busySection) {
+                    label = label + ` (busy in ${busySection})`;
+                  } else if (!candidate.isCurrent && subject.teacher_id !== null) {
+                    label = label + ' (becomes this class\'s teacher)';
+                  }
+                  return (
+                    <option key={value} value={value} disabled={busySection !== null}>{label}</option>
+                  );
+                })}
+                {subject.teacher_id === null && (
+                  <option value={choiceValue(subject.subject_id, null)}>{subject.subject_name} (no teacher yet)</option>
+                )}
+              </optgroup>
             );
           })}
         </select>

@@ -417,8 +417,22 @@ export interface DraftSection {
   slots: TimetableSlot[];
 }
 
+// A teacher with the subjects they teach (by name, like "Urdu")
+export interface TeacherSkills {
+  teacher_id: number;
+  teacher_name: string;
+  username?: string;
+  subjects: string[];
+}
+
+export interface TeacherSubjectList {
+  subject_names: string[];
+  teachers: TeacherSkills[];
+}
+
 export interface SchoolTimetableDraft extends TimetableSettings {
   sections: DraftSection[];
+  teachers: TeacherSkills[];
   teacher_load: { teacher_id: number; teacher_name: string; periods: number }[];
   status: PublishStatus;
 }

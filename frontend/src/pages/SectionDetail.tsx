@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserCheck, BookOpen, Users, CalendarDays, ListChecks, PenSquare, ClipboardCheck, Plus } from 'lucide-react';
-import { getClassSection, setSubjectTeacher, getTeachers, getSectionTimetable, getSectionAttendance, addClassSubject } from '../services/api';
-import type { SectionDetails, Teacher, Timetable, AttendanceRegister } from '../types';
+import { getClassSection, setSubjectTeacher, getTeachers, getSectionTimetable, getSectionAttendance, addClassSubject, getTeacherSubjects } from '../services/api';
+import type { SectionDetails, Teacher, Timetable, AttendanceRegister, TeacherSkills } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { TimetableGrid } from '../components/TimetableGrid';
 import { ProgressView } from '../components/ProgressView';
 import { DiaryView } from '../components/DiaryView';
 import { showError, showSuccess } from '../utils/errorHandler';
 import { todayText } from '../utils/date';
+
+// True if the teacher teaches this subject (names compared without capitals or spaces at the ends)
+const teachesSubject = (skills: string[], subjectName: string): boolean => {
+  for (const skill of skills) {
+    if (skill.trim().toLowerCase() === subjectName.trim().toLowerCase()) {
+      return true;
+    }
+  }
+  return false;
+};
 
 type Tab = 'overview' | 'timetable' | 'progress' | 'diary' | 'attendance';
 
@@ -33,6 +43,8 @@ const SectionDetail: React.FC = () => {
 
   const [section, setSection] = useState<SectionDetails | null>(null);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  // The subjects each teacher teaches, so the teacher lists show them first
+  const [teacherSkills, setTeacherSkills] = useState<TeacherSkills[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('overview');
 
@@ -46,6 +58,7 @@ const SectionDetail: React.FC = () => {
     fetchSection();
     if (isAdmin) {
       fetchTeachers();
+      fetchSkills();
     }
   }, [sectionId]);
 
@@ -79,6 +92,25 @@ const SectionDetail: React.FC = () => {
     }
   };
 
+  const fetchSkills = async () => {
+    try {
+      const data = await getTeacherSubjects();
+      setTeacherSkills(Array.isArray(data.teachers) ? data.teachers : []);
+    } catch (error: any) {
+      showError(error, 'Failed to load the subjects teachers teach');
+    }
+  };
+
+  // Does this teacher teach this subject?
+  const teacherTeaches = (teacherId: number, subjectName: string): boolean => {
+    for (const row of teacherSkills) {
+      if (row.teacher_id === teacherId) {
+        return teachesSubject(row.subjects, subjectName);
+      }
+    }
+    return false;
+  };
+
   const fetchTimetable = async () => {
     try {
       const data = await getSectionTimetable(Number(sectionId));
@@ -102,6 +134,8 @@ const SectionDetail: React.FC = () => {
       const data = await setSubjectTeacher(Number(sectionId), subjectId, teacherId ? Number(teacherId) : null);
       showSuccess(data.message || 'Subject teacher updated');
       fetchSection();
+      // Teaching it in a section adds it to the teacher's subjects
+      fetchSkills();
     } catch (error: any) {
       // For example: the new teacher is busy in another section in one of this subject's periods
       showError(error, 'Failed to change the subject teacher');
@@ -223,9 +257,16 @@ const SectionDetail: React.FC = () => {
                           {isAdmin ? (
                             <select value={item.teacher_id ? String(item.teacher_id) : ''} onChange={(e) => handleTeacherChange(item.subject_id, e.target.value)} className="input py-1">
                               <option value="">No teacher yet</option>
-                              {teachers.map((teacher) => (
-                                <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
-                              ))}
+                              <optgroup label={`Teaches ${item.subject_name}`}>
+                                {teachers.filter((teacher) => teacherTeaches(teacher.id, item.subject_name)).map((teacher) => (
+                                  <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
+                                ))}
+                              </optgroup>
+                              <optgroup label="Other teachers">
+                                {teachers.filter((teacher) => !teacherTeaches(teacher.id, item.subject_name)).map((teacher) => (
+                                  <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
+                                ))}
+                              </optgroup>
                             </select>
                           ) : (
                             <span>{item.teacher_name || <span className="text-gray-400">No teacher yet</span>}</span>

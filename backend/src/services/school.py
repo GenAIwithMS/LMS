@@ -2,9 +2,10 @@ from flask import jsonify
 from src.db import db
 from src.models import (AcademicSession, SchoolClass, Section, Subject, SyllabusChapter, TeachingAssignment,
                         Teacher, Student, Assignment, Result, Attendance, DailyAttendance, ChapterProgress,
-                        DiaryEntry, ClassTest, TimetablePeriod, ExamPaper, ExamMark)
+                        DiaryEntry, ClassTest, TimetablePeriod, ExamPaper, ExamMark, TeacherSubject)
 from src.services.timetable import check_new_subject_teacher
 from src.services.access import incharge_clash_message
+from src.services.teacher_skills import same_name, name_in_list, teacher_skill_names, add_skill_if_missing, neat_subject_name
 
 
 # ---------------- Classes 1 to 10
@@ -244,6 +245,8 @@ def set_subject_teacher(section_id, subject_id, teacher_id):
         teaching.teacher_id = teacher.id
     else:
         db.session.add(TeachingAssignment(section_id=section_id, subject_id=subject_id, teacher_id=teacher.id))
+    # Teaching it in a section means they teach this subject
+    add_skill_if_missing(teacher.id, subject.name)
     db.session.commit()
     return jsonify({"message": f"{teacher.name} now teaches {subject.name} in {section.full_name()}", "status": "success"})
 
@@ -494,3 +497,69 @@ def get_student_class(student_id):
         "roll_number": student.roll_number,
         "subjects": subject_list
     })
+
+
+# ---------------- The subjects each teacher can teach (before any class)
+
+def get_teacher_subject_list():
+    """Every teacher with the subjects they teach, and every subject name used in the school."""
+    names = []
+    for subject in Subject.query.filter(Subject.class_id.isnot(None)).all():
+        if not name_in_list(subject.name, names):
+            names.append(subject.name)
+    for skill in TeacherSubject.query.all():
+        if not name_in_list(skill.subject_name, names):
+            names.append(skill.subject_name)
+    names.sort()
+
+    teacher_list = []
+    for teacher in Teacher.query.order_by(Teacher.name).all():
+        teacher_list.append({
+            "teacher_id": teacher.id,
+            "teacher_name": teacher.name,
+            "username": teacher.username,
+            "subjects": teacher_skill_names(teacher.id)
+        })
+
+    return jsonify({"subject_names": names, "teachers": teacher_list})
+
+
+def add_teacher_subject(teacher_id, name):
+    teacher = Teacher.query.get(teacher_id)
+    if not teacher:
+        return jsonify({"message": "Teacher not found", "status": "failed"}), 404
+    if name.strip() == "":
+        return jsonify({"message": "Write the subject's name", "status": "failed"}), 400
+
+    for existing in teacher_skill_names(teacher_id):
+        if same_name(existing, name):
+            return jsonify({"message": f"{teacher.name} already teaches {existing}", "status": "failed"}), 409
+
+    neat_name = neat_subject_name(name)
+    db.session.add(TeacherSubject(teacher_id=teacher_id, subject_name=neat_name))
+    db.session.commit()
+    return jsonify({"message": f"{teacher.name} teaches {neat_name}", "status": "success"}), 201
+
+
+def remove_teacher_subject(teacher_id, name):
+    teacher = Teacher.query.get(teacher_id)
+    if not teacher:
+        return jsonify({"message": "Teacher not found", "status": "failed"}), 404
+
+    # Not while they still teach it in a section
+    sections = []
+    for teaching in TeachingAssignment.query.filter_by(teacher_id=teacher_id).all():
+        if same_name(teaching.subject.name, name):
+            sections.append(teaching.section.full_name())
+    if len(sections) > 0:
+        return jsonify({"message": f"{teacher.name} still teaches {name} in {', '.join(sections)}. Give those to another teacher first.", "status": "failed"}), 409
+
+    removed = False
+    for skill in TeacherSubject.query.filter_by(teacher_id=teacher_id).all():
+        if same_name(skill.subject_name, name):
+            db.session.delete(skill)
+            removed = True
+    if not removed:
+        return jsonify({"message": f"{teacher.name} doesn't have {name} in their subjects", "status": "failed"}), 404
+    db.session.commit()
+    return jsonify({"message": f"{name} removed from {teacher.name}'s subjects", "status": "success"})

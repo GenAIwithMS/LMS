@@ -5,6 +5,7 @@ from flask import jsonify
 from src.db import db, pakistan_time
 from src.models import (TimetablePeriod, Section, Subject, TeachingAssignment, Teacher, Student, SchoolPeriod,
                         SchoolSetting, TimetableVersion, PublishedPeriod)
+from src.services.teacher_skills import teacher_skill_names, add_skill_if_missing
 
 
 # The school timetable.
@@ -266,8 +267,13 @@ def get_section_timetable(section_id):
     return jsonify(data)
 
 
-def set_timetable_slot(section_id, day, period, subject_id):
-    """Put a subject in a period of the section's week. subject_id None empties the period."""
+def set_timetable_slot(section_id, day, period, subject_id, teacher_id=None):
+    """Put a subject in a period of the section's week. subject_id None empties the period.
+
+    teacher_id (optional) chooses who teaches it. If that's not the section's current teacher
+    of the subject, they become its teacher (for all its periods in this section), as long as
+    they are free in every one of those periods.
+    """
     section = Section.query.get(section_id)
     if not section:
         return jsonify({"message": "Section not found", "status": "failed"}), 404
@@ -291,10 +297,37 @@ def set_timetable_slot(section_id, day, period, subject_id):
         return jsonify({"message": "This subject is not part of this section's class", "status": "failed"}), 400
 
     teacher = get_period_teacher(section_id, subject_id)
+    new_teacher = None
+    if teacher_id is not None and (teacher is None or teacher.id != teacher_id):
+        new_teacher = Teacher.query.get(teacher_id)
+        if not new_teacher:
+            return jsonify({"message": "Teacher not found", "status": "failed"}), 400
+        teacher = new_teacher
+
+    # The teacher must be free in this period
     if teacher:
         clash = find_teacher_clash(teacher.id, day, period, section_id)
         if clash:
             return jsonify({"message": clash_message(teacher.name, clash), "status": "failed"}), 409
+
+    message = f"{subject.name} set for period {period} on {DAY_NAMES[day]}"
+
+    # A new teacher for this subject in this section: free in all its other periods too
+    if new_teacher:
+        for other in TimetablePeriod.query.filter_by(section_id=section_id, subject_id=subject_id).all():
+            if other.day == day and other.period == period:
+                continue
+            clash = find_teacher_clash(new_teacher.id, other.day, other.period, section_id)
+            if clash:
+                return jsonify({"message": f"{new_teacher.name} can't take over {subject.name} in {section.full_name()}: "
+                                           + clash_message(new_teacher.name, clash), "status": "failed"}), 409
+        teaching = TeachingAssignment.query.filter_by(section_id=section_id, subject_id=subject_id).first()
+        if teaching:
+            teaching.teacher_id = new_teacher.id
+        else:
+            db.session.add(TeachingAssignment(section_id=section_id, subject_id=subject_id, teacher_id=new_teacher.id))
+        add_skill_if_missing(new_teacher.id, subject.name)
+        message = message + f". {new_teacher.name} now teaches {subject.name} in {section.full_name()}"
 
     if existing:
         existing.subject_id = subject_id
@@ -302,7 +335,7 @@ def set_timetable_slot(section_id, day, period, subject_id):
         db.session.add(TimetablePeriod(section_id=section_id, day=day, period=period, subject_id=subject_id))
     db.session.commit()
 
-    return jsonify({"message": f"{subject.name} set for period {period} on {DAY_NAMES[day]}", "status": "success"})
+    return jsonify({"message": message, "status": "success"})
 
 
 def clear_section_timetable(section_id):
@@ -363,8 +396,18 @@ def get_school_draft():
         load_list.append(teacher_load[teacher_id])
     load_list.sort(key=lambda item: item["teacher_name"])
 
+    # Every teacher with the subjects they teach, so a period can offer each free teacher of a subject
+    teacher_list = []
+    for teacher in Teacher.query.order_by(Teacher.name).all():
+        teacher_list.append({
+            "teacher_id": teacher.id,
+            "teacher_name": teacher.name,
+            "subjects": teacher_skill_names(teacher.id)
+        })
+
     data = layout_data()
     data["sections"] = section_list
+    data["teachers"] = teacher_list
     data["teacher_load"] = load_list
     data["status"] = publish_status()
     return jsonify(data)

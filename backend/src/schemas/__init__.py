@@ -11,7 +11,7 @@ from .section import SectionSchema,UpdateSectionSchema
 from .subject import subjectSchema,UpdateSubjectSchema
 
 __all__ = ["AnnouncementSchema","UpdateAnnouncementSchema","AssignmentSubmissionSchema","UpdateAssignmentSubmissionSchema","assignmentSchema","UpdateAssignmentSchema","AttendanceSchema","UpdateAttendanceSchema", "RegisterAdminSchema","RegisterTeacherSchema","RegisterStudentSchema","UpdateTeacherSchema","UpdateStudentSchema","loginSchema","UpdateMyUsernameSchema","ChangeMyPasswordSchema","CourseSchema","UpdateCourseSchema","EnrollmentSchema","UpdateEnrollmentSchema","EventSchema","UpdateEventSchema","ResultSchema","UpdateResultSchema","SectionSchema","UpdateSectionSchema", "subjectSchema","UpdateSubjectSchema"]
-from .school import ClassSectionSchema, UpdateClassSectionSchema, SubjectTeacherSchema, ClassSubjectSchema, ChapterSchema, UpdateChapterSchema, AcademicSessionSchema
+from .school import ClassSectionSchema, UpdateClassSectionSchema, SubjectTeacherSchema, ClassSubjectSchema, ChapterSchema, UpdateChapterSchema, AcademicSessionSchema, TeacherSubjectSchema
 from .teaching import (DailyAttendanceSchema, ChapterProgressSchema, DiaryEntrySchema, ClassTestSchema,
                        UpdateClassTestSchema, ClassTestMarksSchema, TimetableSlotSchema, TimetableSettingsSchema)
 from .exam import (ExamTermSchema, UpdateExamTermSchema, ClassPapersSchema, UpdatePaperSchema, PaperReviewSchema,

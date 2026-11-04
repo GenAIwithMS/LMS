@@ -29,6 +29,8 @@ ENDPOINT_LABELS = {
     "school.update_section": ("update", "school", "Changed a section (name or class incharge)"),
     "school.delete_section": ("delete", "school", "Deleted a section"),
     "school.choose_subject_teacher": ("update", "school", "Changed a subject teacher"),
+    "school.give_teacher_subject": ("create", "teachers", "Added a subject a teacher teaches"),
+    "school.take_teacher_subject": ("delete", "teachers", "Removed a subject a teacher teaches"),
     "school.create_subject": ("create", "school", "Added a subject"),
     "school.update_subject": ("update", "school", "Renamed a subject"),
     "school.delete_subject": ("delete", "school", "Deleted a subject"),

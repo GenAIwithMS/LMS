@@ -48,3 +48,18 @@ class TeachingAssignment(db.Model):
     section = db.relationship('Section', backref='teaching_assignments', lazy=True)
     subject = db.relationship('Subject', backref='teaching_assignments', lazy=True)
     teacher = db.relationship('Teacher', backref='teaching_assignments', lazy=True)
+
+
+class TeacherSubject(db.Model):
+    """A subject a teacher can teach, like "Urdu", before (or without) any class.
+
+    Stored by subject name, because "Urdu" is a subject of many classes. The admin
+    adds these right after adding a teacher; sections come later.
+    """
+    __tablename__ = 'teacher_subjects'
+    __table_args__ = (db.UniqueConstraint('teacher_id', 'subject_name', name='uq_teacher_subject_name'),)
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    teacher_id = db.Column(db.BigInteger, db.ForeignKey('teachers.id'), nullable=False)
+    subject_name = db.Column(db.String(100), nullable=False)
+
+    teacher = db.relationship('Teacher', backref='subject_skills', lazy=True)

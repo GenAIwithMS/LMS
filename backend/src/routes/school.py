@@ -2,12 +2,13 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from marshmallow import ValidationError
 from src.schemas import (ClassSectionSchema, UpdateClassSectionSchema, SubjectTeacherSchema, ClassSubjectSchema,
-                         ChapterSchema, UpdateChapterSchema, AcademicSessionSchema)
+                         ChapterSchema, UpdateChapterSchema, AcademicSessionSchema, TeacherSubjectSchema)
 from src.services.school import (get_all_classes, get_class_details, add_class_section, edit_class_section,
                                  remove_class_section, get_section_details, set_subject_teacher, add_class_subject,
                                  rename_class_subject, remove_class_subject, get_subject_chapters, add_subject_chapter,
                                  edit_subject_chapter, remove_subject_chapter, get_all_sessions, add_session,
-                                 set_current_session, get_teacher_classes, get_student_class)
+                                 set_current_session, get_teacher_classes, get_student_class, get_teacher_subject_list,
+                                 add_teacher_subject, remove_teacher_subject)
 from src.services.access import get_teacher_section_ids, get_teacher_subject_ids
 from src.models import Subject, Student
 
@@ -238,3 +239,39 @@ def my_class():
     if get_jwt().get("role") != "student":
         return jsonify({"message": "Only students have a class", "status": "failed"}), 403
     return get_student_class(int(get_jwt_identity()))
+
+
+# ---------------- The subjects each teacher can teach (set before giving them any class)
+
+@school_bp.route("/api/school/teacher-subjects", methods=["GET"])
+@jwt_required()
+def teacher_subjects():
+    error = only_admin()
+    if error:
+        return error
+    return get_teacher_subject_list()
+
+
+@school_bp.route("/api/school/teachers/<int:teacher_id>/subjects", methods=["POST"])
+@jwt_required()
+def give_teacher_subject(teacher_id):
+    error = only_admin()
+    if error:
+        return error
+    try:
+        data = TeacherSubjectSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    return add_teacher_subject(teacher_id, data["name"])
+
+
+@school_bp.route("/api/school/teachers/<int:teacher_id>/subjects", methods=["DELETE"])
+@jwt_required()
+def take_teacher_subject(teacher_id):
+    error = only_admin()
+    if error:
+        return error
+    name = request.args.get("name", "")
+    if name.strip() == "":
+        return jsonify({"message": "Say which subject to remove (?name=Urdu)", "status": "failed"}), 400
+    return remove_teacher_subject(teacher_id, name)

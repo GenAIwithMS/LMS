@@ -331,7 +331,7 @@ def change_timetable(section_id):
         data = TimetableSlotSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
-    return set_timetable_slot(section_id, data["day"], data["period"], data["subject_id"])
+    return set_timetable_slot(section_id, data["day"], data["period"], data["subject_id"], data.get("teacher_id"))
 
 
 @teaching_bp.route("/api/school/sections/<int:section_id>/timetable", methods=["DELETE"])
