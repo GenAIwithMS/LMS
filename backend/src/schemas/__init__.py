@@ -14,3 +14,5 @@ __all__ = ["AnnouncementSchema","UpdateAnnouncementSchema","AssignmentSubmission
 from .school import ClassSectionSchema, UpdateClassSectionSchema, SubjectTeacherSchema, ClassSubjectSchema, ChapterSchema, UpdateChapterSchema, AcademicSessionSchema
 from .teaching import (DailyAttendanceSchema, ChapterProgressSchema, DiaryEntrySchema, ClassTestSchema,
                        UpdateClassTestSchema, ClassTestMarksSchema, TimetableSlotSchema)
+from .exam import (ExamTermSchema, UpdateExamTermSchema, ClassPapersSchema, UpdatePaperSchema, PaperReviewSchema,
+                   PaperMarksSchema, ReportRemarksSchema, PromotionSchema)

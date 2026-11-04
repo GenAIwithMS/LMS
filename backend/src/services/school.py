@@ -2,7 +2,7 @@ from flask import jsonify
 from src.db import db
 from src.models import (AcademicSession, SchoolClass, Section, Subject, SyllabusChapter, TeachingAssignment,
                         Teacher, Student, Assignment, Result, Attendance, DailyAttendance, ChapterProgress,
-                        DiaryEntry, ClassTest, TimetablePeriod)
+                        DiaryEntry, ClassTest, TimetablePeriod, ExamPaper, ExamMark)
 from src.services.timetable import check_new_subject_teacher
 
 
@@ -138,9 +138,10 @@ def remove_class_section(section_id):
     in_use = (DiaryEntry.query.filter_by(section_id=section_id).count()
               + ClassTest.query.filter_by(section_id=section_id).count()
               + Assignment.query.filter_by(section_id=section_id).count()
-              + DailyAttendance.query.filter_by(section_id=section_id).count())
+              + DailyAttendance.query.filter_by(section_id=section_id).count()
+              + ExamMark.query.filter_by(section_id=section_id).count())
     if in_use > 0:
-        return jsonify({"message": "This section already has diary entries, tests, assignments or attendance, so it can't be deleted", "status": "failed"}), 409
+        return jsonify({"message": "This section already has diary entries, tests, assignments, attendance or exam marks, so it can't be deleted", "status": "failed"}), 409
 
     # The timetable and syllabus progress belong only to this section
     TimetablePeriod.query.filter_by(section_id=section_id).delete()
@@ -263,9 +264,10 @@ def remove_class_subject(subject_id):
               + Result.query.filter_by(subject_id=subject_id).count()
               + Attendance.query.filter_by(subject_id=subject_id).count()
               + DiaryEntry.query.filter_by(subject_id=subject_id).count()
-              + ClassTest.query.filter_by(subject_id=subject_id).count())
+              + ClassTest.query.filter_by(subject_id=subject_id).count()
+              + ExamPaper.query.filter_by(subject_id=subject_id).count())
     if in_use > 0:
-        return jsonify({"message": "This subject already has assignments, results, attendance, diary entries or tests, so it can't be deleted", "status": "failed"}), 409
+        return jsonify({"message": "This subject already has assignments, results, attendance, diary entries, tests or exam papers, so it can't be deleted", "status": "failed"}), 409
 
     TimetablePeriod.query.filter_by(subject_id=subject_id).delete()
     TeachingAssignment.query.filter_by(subject_id=subject_id).delete()
