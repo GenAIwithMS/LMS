@@ -293,12 +293,12 @@ const Dashboard: React.FC = () => {
                     </div>
                     <ArrowRight size={18} className="text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
                   </button>
-                  <button onClick={() => navigate('/teacher/results')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border-2 border-rose-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <button onClick={() => navigate('/teacher/exams')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border-2 border-rose-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
                         <Award size={22} className="text-rose-600" />
                       </div>
-                      <span className="font-bold text-gray-800">Manage Results</span>
+                      <span className="font-bold text-gray-800">Exam Marks</span>
                     </div>
                     <ArrowRight size={18} className="text-rose-400 group-hover:text-rose-600 group-hover:translate-x-1 transition-all" />
                   </button>
@@ -324,12 +324,12 @@ const Dashboard: React.FC = () => {
                     </div>
                     <ArrowRight size={18} className="text-amber-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
                   </button>
-                  <button onClick={() => navigate('/student/results')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border-2 border-rose-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <button onClick={() => navigate('/student/report-card')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border-2 border-rose-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                     <div className="flex items-center gap-4">
                       <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
                         <Award size={22} className="text-rose-600" />
                       </div>
-                      <span className="font-bold text-gray-800">View Results</span>
+                      <span className="font-bold text-gray-800">Report Card</span>
                     </div>
                     <ArrowRight size={18} className="text-rose-400 group-hover:text-rose-600 group-hover:translate-x-1 transition-all" />
                   </button>

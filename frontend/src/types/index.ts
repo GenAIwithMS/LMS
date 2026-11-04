@@ -371,3 +371,137 @@ export interface Timetable {
   periods_per_day: number;
   slots: TimetableSlot[];
 }
+
+// ---------------- Exams
+
+export interface ExamTerm {
+  id: number;
+  session_id: number;
+  session_name: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  marks_deadline: string | null;
+  is_locked: boolean;
+  is_closed: boolean;          // locked, or the marks deadline has passed
+  is_published: boolean;
+  paper_count: number;
+}
+
+export type QuestionStatus = 'none' | 'submitted' | 'approved' | 'returned';
+
+export interface ExamPaper {
+  id: number;
+  term_id: number;
+  term_name: string;
+  class_id: number;
+  class_name: string;
+  subject_id: number;
+  subject_name: string;
+  total_marks: string;
+  passing_marks: string;
+  exam_date: string | null;
+  has_question_file: boolean;
+  question_status: QuestionStatus;
+  review_note: string | null;
+  uploaded_by: string | null;
+  marks_entered: number;
+}
+
+// A paper as a teacher sees it: one row per section they mark
+export interface TeacherPaper extends ExamPaper {
+  section_id: number;
+  section_name: string;
+  student_count: number;
+}
+
+export interface PaperMarksSheet extends ExamPaper {
+  section_id: number;
+  section_name: string;
+  is_closed: boolean;
+  students: { student_id: number; name: string; roll_number: string | null; obtained_marks: string | null; is_absent: boolean }[];
+}
+
+export interface SubjectResult {
+  paper_id: number;
+  subject_id: number;
+  subject_name: string;
+  total_marks: string;
+  passing_marks: string;
+  obtained_marks: string | null;
+  is_absent: boolean;
+  percentage: number | null;
+  grade: string | null;
+  passed: boolean | null;      // null: marks not entered yet
+}
+
+export type TermResultStatus = 'Pass' | 'Fail' | 'Incomplete';
+
+export interface StudentTermResult {
+  student_id: number;
+  name: string;
+  roll_number: string | null;
+  subjects: SubjectResult[];
+  total_marks: string;
+  total_obtained: string;
+  percentage: number | null;
+  grade: string | null;
+  result: TermResultStatus;
+  position: number | null;
+}
+
+export interface SectionResultSheet {
+  term: ExamTerm;
+  section_id: number;
+  section_name: string;
+  incharge_name: string | null;
+  subjects: { paper_id: number; subject_name: string; total_marks: string }[];
+  students: StudentTermResult[];
+  passed_count: number;
+}
+
+export interface ReportCard extends StudentTermResult {
+  term: ExamTerm;
+  section_id: number;
+  section_name: string;
+  class_strength: number;
+  incharge_name: string | null;
+  admission_number: string | null;
+  guardian_name: string | null;
+  attendance: AttendanceCounts;
+  remarks: string | null;
+}
+
+export interface TermAnalysis {
+  term: ExamTerm;
+  sections: {
+    section_id: number;
+    section_name: string;
+    student_count: number;
+    passed_count: number;
+    subjects: {
+      subject_name: string;
+      teacher_name: string | null;
+      marked_count: number;
+      average_percentage: number | null;
+      pass_percentage: number | null;
+      highest_marks: string | null;
+      total_marks: string;
+    }[];
+    top_students: { name: string; position: number; percentage: number | null }[];
+  }[];
+  teachers: {
+    teacher_name: string;
+    subjects: { section_name: string; subject_name: string; average_percentage: number | null; pass_percentage: number | null }[];
+  }[];
+}
+
+export interface PromotionList {
+  section_id: number;
+  section_name: string;
+  class_name: string;
+  next_class_name: string | null;
+  is_last_class: boolean;
+  target_sections: ClassSection[];
+  students: { student_id: number; name: string; roll_number: string | null; result: TermResultStatus | null; percentage: number | null; suggest_promote: boolean }[];
+}

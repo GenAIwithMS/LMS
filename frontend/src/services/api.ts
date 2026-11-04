@@ -654,3 +654,133 @@ export const getMyTimetable = async () => {
   const response = await api.get('/school/my-timetable');
   return response.data;
 };
+
+// ---------------- Exams (terms, papers, marks, report cards, analysis, promotion)
+
+export const getExamTerms = async (sessionId?: number) => {
+  const response = await api.get('/exams/terms', { params: { session_id: sessionId } });
+  return response.data;
+};
+
+export const getExamTerm = async (termId: number) => {
+  const response = await api.get(`/exams/terms/${termId}`);
+  return response.data;
+};
+
+export const addExamTerm = async (data: { session_id: number; name: string; start_date: string; end_date: string; marks_deadline?: string | null }) => {
+  const response = await api.post('/exams/terms', data);
+  return response.data;
+};
+
+export const updateExamTerm = async (termId: number, data: { name?: string; start_date?: string; end_date?: string; marks_deadline?: string | null; is_locked?: boolean; is_published?: boolean }) => {
+  const response = await api.put(`/exams/terms/${termId}`, data);
+  return response.data;
+};
+
+export const deleteExamTerm = async (termId: number) => {
+  const response = await api.delete(`/exams/terms/${termId}`);
+  return response.data;
+};
+
+export const getTermPapers = async (termId: number, classId?: number) => {
+  const response = await api.get(`/exams/terms/${termId}/papers`, { params: { class_id: classId } });
+  return response.data;
+};
+
+export const setUpClassPapers = async (termId: number, data: { class_id: number; total_marks?: number; passing_marks?: number }) => {
+  const response = await api.post(`/exams/terms/${termId}/papers`, data);
+  return response.data;
+};
+
+export const updateExamPaper = async (paperId: number, data: { total_marks?: number; passing_marks?: number; exam_date?: string | null }) => {
+  const response = await api.put(`/exams/papers/${paperId}`, data);
+  return response.data;
+};
+
+export const deleteExamPaper = async (paperId: number) => {
+  const response = await api.delete(`/exams/papers/${paperId}`);
+  return response.data;
+};
+
+// The papers a teacher marks in a term (one row per section)
+export const getMyPapers = async (termId: number) => {
+  const response = await api.get(`/exams/terms/${termId}/my-papers`);
+  return response.data;
+};
+
+export const uploadQuestionPaper = async (paperId: number, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(`/exams/papers/${paperId}/question-paper`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const downloadQuestionPaper = async (paperId: number) => {
+  const response = await api.get(`/exams/papers/${paperId}/question-paper`, { responseType: 'blob' });
+
+  // Read the original file name from the server's "Content-Disposition" header
+  let fileName = 'question-paper.pdf';
+  const disposition = response.headers['content-disposition'];
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match) {
+      fileName = match[1];
+    }
+  }
+
+  const fileUrl = window.URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = fileUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(fileUrl);
+};
+
+export const reviewQuestionPaper = async (paperId: number, approve: boolean, note?: string) => {
+  const response = await api.put(`/exams/papers/${paperId}/review`, { approve, note });
+  return response.data;
+};
+
+export const getPaperMarks = async (paperId: number, sectionId: number) => {
+  const response = await api.get(`/exams/papers/${paperId}/sections/${sectionId}/marks`);
+  return response.data;
+};
+
+export const savePaperMarks = async (paperId: number, sectionId: number, marks: { student_id: number; obtained_marks: number | null; is_absent: boolean }[]) => {
+  const response = await api.put(`/exams/papers/${paperId}/sections/${sectionId}/marks`, { marks });
+  return response.data;
+};
+
+export const getSectionResults = async (termId: number, sectionId: number) => {
+  const response = await api.get(`/exams/terms/${termId}/sections/${sectionId}/results`);
+  return response.data;
+};
+
+export const getReportCard = async (termId: number, studentId: number) => {
+  const response = await api.get(`/exams/terms/${termId}/students/${studentId}/report-card`);
+  return response.data;
+};
+
+export const saveReportRemarks = async (termId: number, studentId: number, remarks: string) => {
+  const response = await api.put(`/exams/terms/${termId}/students/${studentId}/remarks`, { remarks });
+  return response.data;
+};
+
+export const getTermAnalysis = async (termId: number, classId?: number) => {
+  const response = await api.get(`/exams/terms/${termId}/analysis`, { params: { class_id: classId } });
+  return response.data;
+};
+
+export const getPromotionList = async (sectionId: number, termId?: number) => {
+  const response = await api.get(`/exams/promotion/sections/${sectionId}`, { params: { term_id: termId } });
+  return response.data;
+};
+
+export const promoteStudents = async (sectionId: number, data: { target_section_id: number; student_ids: number[] }) => {
+  const response = await api.post(`/exams/promotion/sections/${sectionId}`, data);
+  return response.data;
+};

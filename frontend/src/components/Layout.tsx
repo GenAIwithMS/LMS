@@ -20,6 +20,7 @@ import {
   Clock,
   PanelLeft,
   ClipboardCheck,
+  TrendingUp,
 } from 'lucide-react';
 import { getAnnouncements, getEvents } from '../services/api';
 import toast from 'react-hot-toast';
@@ -166,6 +167,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path === '/admin/classes' && location.pathname.startsWith('/admin/')) {
       return location.pathname.startsWith('/admin/classes/') || location.pathname.startsWith('/admin/sections/');
     }
+    // A term's page belongs to "Exams"
+    if (path === '/admin/exams') {
+      return location.pathname.startsWith('/admin/exams/');
+    }
     if (path === '/teacher/classes') {
       return location.pathname.startsWith('/teacher/sections/');
     }
@@ -177,6 +182,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/admin/classes', label: 'Classes', icon: BookOpen },
     { path: '/admin/students', label: 'Students', icon: Users },
     { path: '/admin/teachers', label: 'Teachers', icon: GraduationCap },
+    { path: '/admin/exams', label: 'Exams', icon: Award },
+    { path: '/admin/promotion', label: 'Promotion', icon: TrendingUp },
     { path: '/admin/events', label: 'Events', icon: Calendar },
   ];
 
@@ -185,7 +192,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/teacher/classes', label: 'My Classes', icon: BookOpen },
     { path: '/teacher/assignments', label: 'Assignments', icon: FileText },
     { path: '/teacher/attendance', label: 'Attendance', icon: Clock },
-    { path: '/teacher/results', label: 'Results', icon: Award },
+    { path: '/teacher/exams', label: 'Exams', icon: Award },
     { path: '/teacher/class-tests', label: 'Class Tests', icon: ClipboardCheck },
     { path: '/teacher/announcements', label: 'Announcements', icon: Bell },
     { path: '/teacher/submissions', label: 'Submissions', icon: ClipboardList },
@@ -195,7 +202,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/student/class', label: 'My Class', icon: BookOpen },
     { path: '/student/assignments', label: 'Assignments', icon: FileText },
-    { path: '/student/results', label: 'Results', icon: Award },
+    { path: '/student/report-card', label: 'Report Card', icon: Award },
     { path: '/student/class-tests', label: 'Class Tests', icon: ClipboardCheck },
     { path: '/student/attendance', label: 'Attendance', icon: Clock },
     { path: '/student/announcements', label: 'Announcements', icon: Bell },
