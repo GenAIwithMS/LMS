@@ -1,75 +1,132 @@
 import React from 'react';
-import type { Timetable, TimetableSlot } from '../types';
+import type { BellPeriod, PeriodSubject, TimetableSlot } from '../types';
 
 interface TimetableGridProps {
-  timetable: Timetable;
-  // Give these two to let the admin choose the subject of each period
-  subjects?: { subject_id: number; subject_name: string }[];
-  onChange?: (day: number, period: number, subjectId: number | null) => void;
+  timetable: {
+    days: { day: number; name: string }[];
+    periods: BellPeriod[];
+    slots: TimetableSlot[];
+  };
   // A teacher's own week shows the section of each period instead of the teacher
   showSection?: boolean;
+  // Give this to let the admin choose the subject of each period
+  edit?: {
+    subjects: PeriodSubject[];
+    // Where this teacher already is at this time (another section's name), or null when free
+    busyIn: (day: number, period: number, teacherId: number) => string | null;
+    onChange: (day: number, period: number, subjectId: number | null) => void;
+  };
 }
 
-// The weekly timetable: periods down the side, Monday to Saturday across the top.
-export const TimetableGrid: React.FC<TimetableGridProps> = ({ timetable, subjects, onChange, showSection }) => {
-  const canEdit = subjects !== undefined && onChange !== undefined;
+// Soft colours so each subject is easy to spot across the week
+const SUBJECT_COLOURS = [
+  'bg-blue-50 border-blue-200',
+  'bg-green-50 border-green-200',
+  'bg-yellow-50 border-yellow-200',
+  'bg-purple-50 border-purple-200',
+  'bg-pink-50 border-pink-200',
+  'bg-orange-50 border-orange-200',
+  'bg-teal-50 border-teal-200',
+  'bg-indigo-50 border-indigo-200',
+  'bg-lime-50 border-lime-200',
+  'bg-rose-50 border-rose-200',
+];
 
+const subjectColour = (subjectId: number | null): string => {
+  if (subjectId === null) {
+    return 'bg-gray-50 border-gray-200';
+  }
+  return SUBJECT_COLOURS[subjectId % SUBJECT_COLOURS.length];
+};
+
+// The weekly timetable like a college timetable: days down the side, the periods
+// (with their times) across the top, and breaks as a shaded column.
+export const TimetableGrid: React.FC<TimetableGridProps> = ({ timetable, showSection, edit }) => {
   const findSlot = (day: number, period: number): TimetableSlot | undefined => {
     return timetable.slots.find((slot) => slot.day === day && slot.period === period);
   };
 
-  const periodNumbers: number[] = [];
-  for (let period = 1; period <= timetable.periods_per_day; period++) {
-    periodNumbers.push(period);
-  }
+  const renderEditCell = (day: number, period: number) => {
+    if (!edit) return null;
+    const slot = findSlot(day, period);
+    return (
+      <div className={`rounded-lg border p-1 ${slot ? subjectColour(slot.subject_id) : 'border-dashed border-gray-300'}`}>
+        <select
+          value={slot ? String(slot.subject_id) : ''}
+          onChange={(e) => edit.onChange(day, period, e.target.value ? Number(e.target.value) : null)}
+          className="w-full bg-transparent text-xs font-semibold text-gray-900 focus:outline-none cursor-pointer"
+          title="Choose the subject for this period"
+        >
+          <option value="">Free</option>
+          {edit.subjects.map((subject) => {
+            // A teacher who is in another section at this time can't be chosen
+            let busySection: string | null = null;
+            if (subject.teacher_id !== null && (!slot || slot.subject_id !== subject.subject_id)) {
+              busySection = edit.busyIn(day, period, subject.teacher_id);
+            }
+            let label = subject.subject_name;
+            if (subject.teacher_name) {
+              label = label + ' - ' + subject.teacher_name;
+            } else {
+              label = label + ' (no teacher yet)';
+            }
+            if (busySection) {
+              label = label + ` (busy in ${busySection})`;
+            }
+            return (
+              <option key={subject.subject_id} value={subject.subject_id} disabled={busySection !== null}>{label}</option>
+            );
+          })}
+        </select>
+        {slot && (
+          <div className="text-[11px] text-gray-600 px-1 truncate">{slot.teacher_name || 'No teacher yet'}</div>
+        )}
+      </div>
+    );
+  };
+
+  const renderViewCell = (day: number, period: number) => {
+    const slot = findSlot(day, period);
+    if (!slot) {
+      return <div className="text-center text-gray-300 text-xs py-2">-</div>;
+    }
+    let secondLine = slot.teacher_name || 'No teacher yet';
+    if (showSection) {
+      secondLine = slot.section_name;
+    }
+    return (
+      <div className={`rounded-lg border px-2 py-1 ${subjectColour(slot.subject_id)}`}>
+        <div className="text-xs font-semibold text-gray-900 truncate">{slot.subject_name}</div>
+        <div className="text-[11px] text-gray-600 truncate">{secondLine}</div>
+      </div>
+    );
+  };
 
   return (
     <div className="overflow-x-auto">
-      <table className="table text-sm">
+      <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            <th>Period</th>
-            {timetable.days.map((day) => (
-              <th key={day.day}>{day.name}</th>
+            <th className="sticky left-0 bg-white z-10 border border-gray-200 px-2 py-2 text-left text-xs text-gray-500">Day</th>
+            {timetable.periods.map((period, index) => (
+              <th key={index} className={`border border-gray-200 px-2 py-2 text-center ${period.is_break ? 'bg-gray-100 w-12' : 'min-w-[8.5rem]'}`}>
+                <div className="text-xs font-semibold text-gray-700">{period.is_break ? period.name : `Period ${period.number}`}</div>
+                <div className="text-[11px] font-normal text-gray-500">{period.start_time}-{period.end_time}</div>
+              </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {periodNumbers.map((period) => (
-            <tr key={period}>
-              <td className="font-semibold">{period}</td>
-              {timetable.days.map((day) => {
-                const slot = findSlot(day.day, period);
-
-                if (canEdit) {
-                  return (
-                    <td key={day.day} className="min-w-[8rem]">
-                      <select
-                        value={slot ? String(slot.subject_id) : ''}
-                        onChange={(e) => onChange(day.day, period, e.target.value ? Number(e.target.value) : null)}
-                        className="input py-1 text-sm"
-                      >
-                        <option value="">Free</option>
-                        {subjects.map((subject) => (
-                          <option key={subject.subject_id} value={subject.subject_id}>{subject.subject_name}</option>
-                        ))}
-                      </select>
-                      {slot && (
-                        <div className="text-xs text-gray-500 mt-1">{slot.teacher_name || 'No teacher yet'}</div>
-                      )}
-                    </td>
-                  );
-                }
-
-                if (!slot) {
-                  return <td key={day.day} className="text-gray-300 min-w-[7rem]">-</td>;
+          {timetable.days.map((day) => (
+            <tr key={day.day}>
+              <td className="sticky left-0 bg-white z-10 border border-gray-200 px-2 py-2 font-semibold text-gray-800">{day.name}</td>
+              {timetable.periods.map((period, index) => {
+                if (period.is_break || period.number === null) {
+                  return <td key={index} className="border border-gray-200 bg-gray-100"></td>;
                 }
                 return (
-                  <td key={day.day} className="min-w-[7rem]">
-                    <div className="font-semibold text-gray-900">{slot.subject_name}</div>
-                    <div className="text-xs text-gray-500">
-                      {showSection ? slot.section_name : (slot.teacher_name || 'No teacher yet')}
-                    </div>
+                  <td key={index} className="border border-gray-200 p-1 align-top">
+                    {edit ? renderEditCell(day.day, period.number) : renderViewCell(day.day, period.number)}
                   </td>
                 );
               })}

@@ -5,14 +5,16 @@ from marshmallow import ValidationError
 from src.db import pakistan_time
 from src.models import Student, SyllabusChapter, DiaryEntry, ClassTest
 from src.schemas import (DailyAttendanceSchema, ChapterProgressSchema, DiaryEntrySchema, ClassTestSchema,
-                         UpdateClassTestSchema, ClassTestMarksSchema, TimetableSlotSchema)
+                         UpdateClassTestSchema, ClassTestMarksSchema, TimetableSlotSchema, TimetableSettingsSchema)
 from src.services.access import teacher_teaches, teacher_is_incharge, user_can_view_section, get_teacher_teaching
 from src.services.daily_attendance import get_section_register, save_section_register, get_section_month_summary, get_student_daily_attendance
 from src.services.syllabus_progress import get_subject_progress, get_section_progress, update_chapter_progress
 from src.services.diary import get_section_diary, save_diary_entry, delete_diary_entry
 from src.services.class_test import (add_class_test, get_class_tests, get_class_test_marks, save_class_test_marks,
                                      edit_class_test, delete_class_test, get_student_class_tests, test_data)
-from src.services.timetable import get_section_timetable, set_timetable_slot, get_teacher_timetable
+from src.services.timetable import (get_section_timetable, set_timetable_slot, clear_section_timetable, get_school_draft,
+                                    get_timetable_settings, save_timetable_settings, publish_timetable, get_publish_check,
+                                    get_published_section_timetable, get_published_teacher_timetable, get_published_info)
 
 # Teaching, day to day:
 # - daily attendance, marked by the section's class incharge
@@ -312,15 +314,19 @@ def section_timetable(section_id):
     error = cannot_view_section(section_id)
     if error:
         return error
-    return get_section_timetable(section_id)
+    # The admin works on the draft; everyone else sees the published timetable
+    role, user_id = current_user()
+    if role == "admin":
+        return get_section_timetable(section_id)
+    return get_published_section_timetable(section_id)
 
 
 @teaching_bp.route("/api/school/sections/<int:section_id>/timetable", methods=["PUT"])
 @jwt_required()
 def change_timetable(section_id):
-    role, user_id = current_user()
-    if role != "admin":
-        return jsonify({"message": "Only the admin can change the timetable", "status": "failed"}), 403
+    error = only_admin_timetable()
+    if error:
+        return error
     try:
         data = TimetableSlotSchema().load(request.get_json())
     except ValidationError as e:
@@ -328,15 +334,87 @@ def change_timetable(section_id):
     return set_timetable_slot(section_id, data["day"], data["period"], data["subject_id"])
 
 
+@teaching_bp.route("/api/school/sections/<int:section_id>/timetable", methods=["DELETE"])
+@jwt_required()
+def empty_timetable(section_id):
+    error = only_admin_timetable()
+    if error:
+        return error
+    return clear_section_timetable(section_id)
+
+
 @teaching_bp.route("/api/school/my-timetable", methods=["GET"])
 @jwt_required()
 def my_timetable():
+    """The published timetable: a teacher's own week, or a student's section."""
     role, user_id = current_user()
     if role == "teacher":
-        return get_teacher_timetable(user_id)
+        return get_published_teacher_timetable(user_id)
     if role == "student":
         student = Student.query.get(user_id)
         if not student:
             return jsonify({"message": "Student not found", "status": "failed"}), 404
-        return get_section_timetable(student.section_id)
-    return jsonify({"message": "Open a section to see its timetable", "status": "failed"}), 400
+        return get_published_section_timetable(student.section_id)
+    return jsonify({"message": "Open the Timetable page to see every section", "status": "failed"}), 400
+
+
+# ---------------- The whole school's timetable (admin), and publishing it
+
+def only_admin_timetable():
+    """An error answer if the user is not the admin, otherwise None."""
+    role, user_id = current_user()
+    if role != "admin":
+        return jsonify({"message": "Only the admin can change the timetable", "status": "failed"}), 403
+    return None
+
+
+@teaching_bp.route("/api/timetable/settings", methods=["GET"])
+@jwt_required()
+def timetable_settings():
+    return get_timetable_settings()
+
+
+@teaching_bp.route("/api/timetable/settings", methods=["PUT"])
+@jwt_required()
+def change_timetable_settings():
+    error = only_admin_timetable()
+    if error:
+        return error
+    try:
+        data = TimetableSettingsSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    return save_timetable_settings(data["days"], data["periods"])
+
+
+@teaching_bp.route("/api/timetable/draft", methods=["GET"])
+@jwt_required()
+def timetable_draft():
+    error = only_admin_timetable()
+    if error:
+        return error
+    return get_school_draft()
+
+
+@teaching_bp.route("/api/timetable/publish-check", methods=["GET"])
+@jwt_required()
+def timetable_publish_check():
+    error = only_admin_timetable()
+    if error:
+        return error
+    return get_publish_check()
+
+
+@teaching_bp.route("/api/timetable/publish", methods=["POST"])
+@jwt_required()
+def timetable_publish():
+    error = only_admin_timetable()
+    if error:
+        return error
+    return publish_timetable(get_jwt().get("name"))
+
+
+@teaching_bp.route("/api/timetable/published-info", methods=["GET"])
+@jwt_required()
+def timetable_published_info():
+    return get_published_info()

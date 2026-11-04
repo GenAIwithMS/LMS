@@ -184,6 +184,7 @@ export interface SchoolClassDetails {
   level: number;
   sections: ClassSection[];
   subjects: ClassSubject[];
+  subject_teachers: { section_id: number; subject_id: number; teacher_id: number; teacher_name: string }[];
 }
 
 export interface SectionSubjectTeacher {
@@ -364,12 +365,62 @@ export interface TimetableSlot {
   teacher_name: string | null;
 }
 
+// One slot of the school day: a class period (numbered) or a break (no number)
+export interface BellPeriod {
+  number: number | null;
+  name: string;
+  start_time: string;          // "08:00"
+  end_time: string;
+  is_break: boolean;
+}
+
 export interface Timetable {
   section_id?: number;
-  section_name?: string;
+  section_name?: string | null;
   days: { day: number; name: string }[];
+  periods: BellPeriod[];
   periods_per_day: number;
   slots: TimetableSlot[];
+  is_published?: boolean;      // for teachers and students: has the admin published one yet?
+  published_at?: string | null;
+}
+
+export interface TimetableSettings {
+  days: { day: number; name: string }[];
+  periods: BellPeriod[];
+  periods_per_day: number;
+}
+
+// A subject that can go in a section's period, with its teacher there
+export interface PeriodSubject {
+  subject_id: number;
+  subject_name: string;
+  teacher_id: number | null;
+  teacher_name: string | null;
+}
+
+export interface PublishStatus {
+  is_published: boolean;
+  published_at: string | null;
+  published_by: string | null;
+  has_unpublished_changes: boolean;
+}
+
+export interface DraftSection {
+  section_id: number;
+  section_name: string;
+  class_id: number;
+  class_name: string;
+  incharge_name: string | null;
+  student_count: number;
+  subjects: PeriodSubject[];
+  slots: TimetableSlot[];
+}
+
+export interface SchoolTimetableDraft extends TimetableSettings {
+  sections: DraftSection[];
+  teacher_load: { teacher_id: number; teacher_name: string; periods: number }[];
+  status: PublishStatus;
 }
 
 // ---------------- Exams

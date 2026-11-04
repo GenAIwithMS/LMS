@@ -75,12 +75,24 @@ def get_class_details(class_id):
             "chapter_count": SyllabusChapter.query.filter_by(subject_id=subject.id).count()
         })
 
+    # Who teaches each subject in each section of the class
+    teacher_list = []
+    for section in sections:
+        for teaching in TeachingAssignment.query.filter_by(section_id=section.id).all():
+            teacher_list.append({
+                "section_id": section.id,
+                "subject_id": teaching.subject_id,
+                "teacher_id": teaching.teacher_id,
+                "teacher_name": teaching.teacher.name
+            })
+
     return jsonify({
         "id": school_class.id,
         "name": school_class.name,
         "level": school_class.level,
         "sections": section_list,
-        "subjects": subject_list
+        "subjects": subject_list,
+        "subject_teachers": teacher_list
     })
 
 

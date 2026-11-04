@@ -59,6 +59,18 @@ class ClassTestMarksSchema(Schema):
 # ---------------- Timetable
 
 class TimetableSlotSchema(Schema):
-    day = fields.Integer(required=True, validate=validate.Range(min=1, max=6))
-    period = fields.Integer(required=True, validate=validate.Range(min=1, max=8))
+    day = fields.Integer(required=True, validate=validate.Range(min=1, max=7))
+    period = fields.Integer(required=True, validate=validate.Range(min=1, max=12))
     subject_id = fields.Integer(required=True, allow_none=True)   # null empties the period
+
+
+class BellPeriodSchema(Schema):
+    name = fields.String(required=True, validate=validate.Length(min=1, max=50))
+    start_time = fields.String(required=True)    # "08:00"
+    end_time = fields.String(required=True)
+    is_break = fields.Boolean(required=False, load_default=False)
+
+
+class TimetableSettingsSchema(Schema):
+    days = fields.List(fields.Integer(), required=True)                  # 1 = Monday ... 7 = Sunday
+    periods = fields.List(fields.Nested(BellPeriodSchema), required=True, validate=validate.Length(max=20))

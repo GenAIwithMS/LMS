@@ -142,8 +142,8 @@ const StudentMyClass: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Weekly Timetable</h2>
           {!timetable ? (
             <p className="text-sm text-gray-400">Loading the timetable...</p>
-          ) : timetable.slots.length === 0 ? (
-            <p className="text-sm text-gray-500">Your timetable hasn't been set yet.</p>
+          ) : !timetable.is_published || timetable.slots.length === 0 ? (
+            <p className="text-sm text-gray-500">The school hasn't published your timetable yet.</p>
           ) : (
             <TimetableGrid timetable={timetable} />
           )}

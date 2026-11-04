@@ -864,3 +864,40 @@ export const downloadReport = async (name: string, params?: Record<string, strin
   link.remove();
   window.URL.revokeObjectURL(fileUrl);
 };
+
+// ---------------- The school timetable (bell schedule, draft, publishing)
+
+export const getTimetableSettings = async () => {
+  const response = await api.get('/timetable/settings');
+  return response.data;
+};
+
+export const saveTimetableSettings = async (data: { days: number[]; periods: { name: string; start_time: string; end_time: string; is_break: boolean }[] }) => {
+  const response = await api.put('/timetable/settings', data);
+  return response.data;
+};
+
+export const getTimetableDraft = async () => {
+  const response = await api.get('/timetable/draft');
+  return response.data;
+};
+
+export const clearSectionTimetable = async (sectionId: number) => {
+  const response = await api.delete(`/school/sections/${sectionId}/timetable`);
+  return response.data;
+};
+
+export const getPublishCheck = async () => {
+  const response = await api.get('/timetable/publish-check');
+  return response.data;
+};
+
+export const publishTimetable = async () => {
+  const response = await api.post('/timetable/publish');
+  return response.data;
+};
+
+export const getPublishedTimetableInfo = async () => {
+  const response = await api.get('/timetable/published-info');
+  return response.data;
+};

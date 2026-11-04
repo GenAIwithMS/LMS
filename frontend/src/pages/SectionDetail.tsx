@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, UserCheck, BookOpen, Users, CalendarDays, ListChecks, PenSquare, ClipboardCheck } from 'lucide-react';
-import { getClassSection, setSubjectTeacher, getTeachers, getSectionTimetable, setTimetableSlot, getSectionAttendance } from '../services/api';
+import { ArrowLeft, UserCheck, BookOpen, Users, CalendarDays, ListChecks, PenSquare, ClipboardCheck, Plus } from 'lucide-react';
+import { getClassSection, setSubjectTeacher, getTeachers, getSectionTimetable, getSectionAttendance, addClassSubject } from '../services/api';
 import type { SectionDetails, Teacher, Timetable, AttendanceRegister } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { TimetableGrid } from '../components/TimetableGrid';
@@ -21,7 +21,7 @@ const STATUS_COLOURS: Record<string, string> = {
 
 // One section (for example Class 5 - A), in tabs:
 // - Overview: class incharge, who teaches each subject, and the students
-// - Timetable: the weekly periods (the admin fills it in)
+// - Timetable: the weekly periods (the admin makes it on the Timetable page)
 // - Syllabus progress: how far each subject has got (subject teachers update theirs)
 // - Diary: classwork and homework by day (subject teachers write theirs)
 // - Attendance: the day's register (the class incharge marks it on the Attendance page)
@@ -37,6 +37,7 @@ const SectionDetail: React.FC = () => {
   const [tab, setTab] = useState<Tab>('overview');
 
   const [timetable, setTimetable] = useState<Timetable | null>(null);
+  const [newSubjectName, setNewSubjectName] = useState('');
 
   const [attendanceDate, setAttendanceDate] = useState(todayText());
   const [register, setRegister] = useState<AttendanceRegister | null>(null);
@@ -107,14 +108,17 @@ const SectionDetail: React.FC = () => {
     }
   };
 
-  const handleTimetableChange = async (day: number, period: number, subjectId: number | null) => {
+  // The admin can add a subject to this section's class straight from here
+  const handleAddSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!section || !section.class_id || !newSubjectName.trim()) return;
     try {
-      const data = await setTimetableSlot(Number(sectionId), { day, period, subject_id: subjectId });
-      showSuccess(data.message || 'Timetable updated');
-      fetchTimetable();
+      await addClassSubject(section.class_id, newSubjectName.trim());
+      showSuccess(`${newSubjectName.trim()} added to ${section.class_name || 'the class'}`);
+      setNewSubjectName('');
+      fetchSection();
     } catch (error: any) {
-      // For example: the subject's teacher is already in another section in this period
-      showError(error, 'Failed to change the timetable');
+      showError(error, 'Failed to add the subject');
     }
   };
 
@@ -145,7 +149,13 @@ const SectionDetail: React.FC = () => {
   const mySubjectIds = mySubjects.map((subject) => subject.subject_id);
   const isIncharge = userRole === 'teacher' && user !== null && section.incharge_id === user.id;
 
-  const allSubjects = section.subjects.map((item) => ({ subject_id: item.subject_id, subject_name: item.subject_name }));
+  // The admin's form to add a subject to the class (every section of the class gets it)
+  const addSubjectForm = (
+    <form onSubmit={handleAddSubject} className="flex gap-2 mt-4">
+      <input type="text" placeholder="New subject, e.g. Maths" value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} className="input max-w-xs" />
+      <button type="submit" className="btn btn-primary flex items-center gap-1"><Plus size={16} /> Add Subject</button>
+    </form>
+  );
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'overview', label: 'Overview', icon: <Users size={16} /> },
@@ -188,7 +198,14 @@ const SectionDetail: React.FC = () => {
               <h2 className="text-lg font-semibold text-gray-900">Subject Teachers</h2>
             </div>
             {section.subjects.length === 0 ? (
-              <p className="text-sm text-gray-500">This class has no subjects yet. The admin adds them on the class page.</p>
+              isAdmin ? (
+                <div>
+                  <p className="text-sm text-gray-500">This class has no subjects yet. Add the subjects it studies, e.g. English, Urdu, Maths.</p>
+                  {addSubjectForm}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">This class has no subjects yet. The admin adds them.</p>
+              )
             ) : (
               <div className="overflow-x-auto">
                 <table className="table">
@@ -218,6 +235,12 @@ const SectionDetail: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
+                {isAdmin && (
+                  <div>
+                    <p className="text-sm text-gray-500 mt-4">Add another subject to the class:</p>
+                    {addSubjectForm}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -258,16 +281,25 @@ const SectionDetail: React.FC = () => {
 
       {tab === 'timetable' && (
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Weekly Timetable</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            {isAdmin
-              ? 'Choose the subject for each period. A teacher can\'t be in two sections in the same period.'
-              : 'Monday to Saturday, with the teacher of each period.'}
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Weekly Timetable</h2>
+              <p className="text-sm text-gray-500">
+                {isAdmin
+                  ? 'This is the draft. Changes are seen by teachers and students after you publish.'
+                  : 'Every day of the week, with the teacher of each period.'}
+              </p>
+            </div>
+            {isAdmin && (
+              <button onClick={() => navigate(`/admin/timetable?section=${section.id}`)} className="btn btn-primary flex items-center gap-1">
+                <CalendarDays size={16} /> Edit in Timetable builder
+              </button>
+            )}
+          </div>
           {!timetable ? (
             <p className="text-sm text-gray-400">Loading the timetable...</p>
-          ) : isAdmin ? (
-            <TimetableGrid timetable={timetable} subjects={allSubjects} onChange={handleTimetableChange} />
+          ) : !isAdmin && timetable.is_published === false ? (
+            <p className="text-sm text-gray-500">The timetable hasn't been published yet.</p>
           ) : (
             <TimetableGrid timetable={timetable} />
           )}

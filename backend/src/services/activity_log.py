@@ -46,6 +46,9 @@ ENDPOINT_LABELS = {
     "teaching.enter_class_test_marks": ("update", "class test", "Entered class test marks"),
     "teaching.remove_class_test": ("delete", "class test", "Deleted a class test"),
     "teaching.change_timetable": ("update", "timetable", "Changed the timetable"),
+    "teaching.empty_timetable": ("delete", "timetable", "Emptied a section's timetable"),
+    "teaching.change_timetable_settings": ("update", "timetable", "Changed the bell schedule or school days"),
+    "teaching.timetable_publish": ("update", "timetable", "Published the timetable"),
 
     # Exams
     "exam.create_term": ("create", "exams", "Added an exam term"),

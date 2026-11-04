@@ -19,6 +19,8 @@ import AdminExamTerm from './pages/admin/ExamTerm';
 import AdminPromotion from './pages/admin/Promotion';
 import AdminGradingScale from './pages/admin/GradingScale';
 import AdminOversight from './pages/admin/Oversight';
+import AdminTimetable from './pages/admin/Timetable';
+import MyTimetable from './pages/MyTimetable';
 import AdminTeacherActivity from './pages/admin/TeacherActivity';
 import AdminActivityLog from './pages/admin/ActivityLog';
 import AdminReports from './pages/admin/Reports';
@@ -169,6 +171,36 @@ function App() {
             <ProtectedRoute allowedRoles={['admin']}>
               <Layout>
                 <AdminExamTerm />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/timetable"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Layout>
+                <AdminTimetable />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/timetable"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <Layout>
+                <MyTimetable />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/student/timetable"
+          element={
+            <ProtectedRoute allowedRoles={['student']}>
+              <Layout>
+                <MyTimetable />
               </Layout>
             </ProtectedRoute>
           }

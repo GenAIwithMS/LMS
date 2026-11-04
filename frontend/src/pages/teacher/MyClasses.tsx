@@ -54,8 +54,10 @@ const TeacherMyClasses: React.FC = () => {
           <CalendarDays size={20} className="text-primary-600" />
           <h2 className="text-lg font-semibold text-gray-900">My Timetable</h2>
         </div>
-        {!timetable || timetable.slots.length === 0 ? (
-          <p className="text-sm text-gray-500">No periods yet. The admin sets the timetable for each section.</p>
+        {!timetable || !timetable.is_published ? (
+          <p className="text-sm text-gray-500">The school hasn't published the timetable yet.</p>
+        ) : timetable.slots.length === 0 ? (
+          <p className="text-sm text-gray-500">You have no periods in the published timetable.</p>
         ) : (
           <TimetableGrid timetable={timetable} showSection={true} />
         )}

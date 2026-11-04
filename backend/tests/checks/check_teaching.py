@@ -210,6 +210,8 @@ r = client.put(f"/api/school/sections/{A}/timetable", json={"day": 7, "period": 
 check("only Monday to Saturday", r.status_code == 400)
 r = client.put(f"/api/school/sections/{A}/timetable", json={"day": 2, "period": 1, "subject_id": MATHS}, headers=H["sara"])
 check("teachers can't change the timetable", r.status_code == 403)
+check("before publishing, students see no timetable", client.get(f"/api/school/sections/{A}/timetable", headers=H["ali"]).get_json()["slots"] == [])
+client.post("/api/timetable/publish", headers=H["root"])
 table = client.get(f"/api/school/sections/{A}/timetable", headers=H["ali"]).get_json()
 check("Ali sees 5-A's week with teachers", [(s["period"], s["subject_name"], s["teacher_name"]) for s in table["slots"]] == [(1, "Science", "Omar"), (2, "Maths", "Sara"), (3, "English", None)], table["slots"])
 omar_week = client.get("/api/school/my-timetable", headers=H["omar"]).get_json()

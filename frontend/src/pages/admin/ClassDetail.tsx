@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Edit, BookOpen, Users, ListOrdered, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit, BookOpen, Users, ListOrdered, ChevronRight, UserCheck, CalendarDays } from 'lucide-react';
 import {
   getSchoolClass, getSchoolClasses, addClassSection, updateClassSection, deleteClassSection,
   addClassSubject, renameClassSubject, deleteClassSubject,
-  getSubjectChapters, addSubjectChapter, updateSubjectChapter, deleteSubjectChapter, getTeachers,
+  getSubjectChapters, addSubjectChapter, updateSubjectChapter, deleteSubjectChapter, getTeachers, setSubjectTeacher,
 } from '../../services/api';
 import type { SchoolClassDetails, SchoolClassSummary, ClassSubject, SyllabusChapter, Teacher } from '../../types';
 import { Modal } from '../../components/Modal';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
-// One class (for example Class 5): its sections with class incharges, and its syllabus.
+// One class (for example Class 5), set up in steps:
+// 1. sections and their class incharge, 2. the subjects the class studies,
+// 3. who teaches each subject in each section, 4. a link to the timetable.
 const AdminClassDetail: React.FC = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
@@ -146,6 +148,30 @@ const AdminClassDetail: React.FC = () => {
     }
   };
 
+  // ---------------- Subject teachers
+
+  // The teacher of a subject in a section, as text for the dropdown ("" when nobody)
+  const findSubjectTeacher = (sectionId: number, subjectId: number): string => {
+    if (!schoolClass) return '';
+    for (const row of schoolClass.subject_teachers) {
+      if (row.section_id === sectionId && row.subject_id === subjectId) {
+        return String(row.teacher_id);
+      }
+    }
+    return '';
+  };
+
+  const handleSubjectTeacherChange = async (sectionId: number, subjectId: number, teacherId: string) => {
+    try {
+      const data = await setSubjectTeacher(sectionId, subjectId, teacherId ? Number(teacherId) : null);
+      showSuccess(data.message || 'Subject teacher updated');
+      fetchClass();
+    } catch (error: any) {
+      // For example: the teacher is busy in another section in one of this subject's periods
+      showError(error, 'Failed to change the subject teacher');
+    }
+  };
+
   // ---------------- Chapters
 
   const openChapters = async (subject: ClassSubject) => {
@@ -213,14 +239,14 @@ const AdminClassDetail: React.FC = () => {
           <ArrowLeft size={16} /> All classes
         </button>
         <h1 className="text-3xl font-bold text-gray-900">{schoolClass.name}</h1>
-        <p className="text-gray-600 mt-2">Sections with their class incharge, and the syllabus every section of this class follows</p>
+        <p className="text-gray-600 mt-2">Set up the class in order: sections, subjects, subject teachers, then the timetable</p>
       </div>
 
-      {/* Sections */}
+      {/* 1. Sections */}
       <div className="card">
         <div className="flex items-center gap-2 mb-4">
           <Users size={20} className="text-primary-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Sections</h2>
+          <h2 className="text-lg font-semibold text-gray-900">1. Sections &amp; Class Incharge</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="table">
@@ -258,7 +284,7 @@ const AdminClassDetail: React.FC = () => {
                     <td>
                       <div className="flex items-center gap-1">
                         <button onClick={() => navigate(`/admin/sections/${section.id}`)} className="btn btn-secondary text-sm px-3 py-1 flex items-center gap-1">
-                          Subject teachers <ChevronRight size={14} />
+                          Open section <ChevronRight size={14} />
                         </button>
                         <button onClick={() => handleDeleteSection(section.id, section.full_name)} className="p-2 text-red-600 hover:bg-red-50 rounded" title="Delete section">
                           <Trash2 size={16} />
@@ -277,35 +303,101 @@ const AdminClassDetail: React.FC = () => {
         </form>
       </div>
 
-      {/* Syllabus */}
+      {/* 2. Subjects */}
       <div className="card">
         <div className="flex items-center gap-2 mb-4">
           <BookOpen size={20} className="text-primary-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Syllabus ({schoolClass.subjects.length} subjects)</h2>
+          <h2 className="text-lg font-semibold text-gray-900">2. Subjects ({schoolClass.subjects.length})</h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {schoolClass.subjects.map((subject) => (
-            <div key={subject.id} className="border border-gray-200 rounded-xl p-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="font-semibold text-gray-900">{subject.name}</div>
-                  <div className="text-xs text-gray-500">{subject.chapter_count} chapters</div>
-                </div>
-                <div className="flex">
-                  <button onClick={() => handleRenameSubject(subject)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Rename"><Edit size={14} /></button>
-                  <button onClick={() => handleDeleteSubject(subject)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete"><Trash2 size={14} /></button>
-                </div>
-              </div>
-              <button onClick={() => openChapters(subject)} className="mt-2 text-sm text-primary-600 hover:underline flex items-center gap-1">
-                <ListOrdered size={14} /> Chapters
-              </button>
-            </div>
-          ))}
-        </div>
-        <form onSubmit={handleAddSubject} className="flex gap-2 mt-4">
+        <form onSubmit={handleAddSubject} className="flex gap-2 mb-4">
           <input type="text" placeholder="New subject, e.g. Maths" value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} className="input max-w-xs" />
           <button type="submit" className="btn btn-primary flex items-center gap-1"><Plus size={16} /> Add Subject</button>
         </form>
+        {schoolClass.subjects.length === 0 ? (
+          <p className="text-sm text-gray-500">No subjects yet. Add the subjects this class studies, e.g. English, Urdu, Maths.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {schoolClass.subjects.map((subject) => (
+              <div key={subject.id} className="border border-gray-200 rounded-xl p-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-semibold text-gray-900">{subject.name}</div>
+                    <div className="text-xs text-gray-500">{subject.chapter_count} chapters</div>
+                  </div>
+                  <div className="flex">
+                    <button onClick={() => handleRenameSubject(subject)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Rename"><Edit size={14} /></button>
+                    <button onClick={() => handleDeleteSubject(subject)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+                <button onClick={() => openChapters(subject)} className="mt-2 text-sm text-primary-600 hover:underline flex items-center gap-1">
+                  <ListOrdered size={14} /> Chapters
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Subject teachers: who teaches each subject in each section */}
+      <div className="card">
+        <div className="flex items-center gap-2 mb-1">
+          <UserCheck size={20} className="text-primary-600" />
+          <h2 className="text-lg font-semibold text-gray-900">3. Subject Teachers</h2>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">Choose who teaches each subject in each section.</p>
+        {schoolClass.sections.length === 0 ? (
+          <p className="text-sm text-gray-500">Add a section first (step 1).</p>
+        ) : schoolClass.subjects.length === 0 ? (
+          <p className="text-sm text-gray-500">Add subjects first (step 2).</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  {schoolClass.sections.map((section) => (
+                    <th key={section.id}>{section.full_name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {schoolClass.subjects.map((subject) => (
+                  <tr key={subject.id}>
+                    <td className="font-semibold">{subject.name}</td>
+                    {schoolClass.sections.map((section) => (
+                      <td key={section.id}>
+                        <select
+                          value={findSubjectTeacher(section.id, subject.id)}
+                          onChange={(e) => handleSubjectTeacherChange(section.id, subject.id, e.target.value)}
+                          className="input py-1 min-w-[10rem]"
+                        >
+                          <option value="">No teacher yet</option>
+                          {teachers.map((teacher) => (
+                            <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                          ))}
+                        </select>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Timetable */}
+      <div className="card flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <CalendarDays size={20} className="text-primary-600" />
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">4. Timetable</h2>
+            <p className="text-sm text-gray-500">Make each section's weekly timetable on the Timetable page</p>
+          </div>
+        </div>
+        <button onClick={() => navigate('/admin/timetable')} className="btn btn-primary flex items-center gap-1">
+          Open Timetable <ChevronRight size={16} />
+        </button>
       </div>
 
       <Modal isOpen={chapterSubject !== null} onClose={() => setChapterSubject(null)} title={chapterSubject ? `${chapterSubject.name}: chapters` : ''}>
