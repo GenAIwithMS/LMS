@@ -18,5 +18,6 @@ from .school import AcademicSession, SchoolClass, SyllabusChapter, TeachingAssig
 from .teaching import DailyAttendance, ChapterProgress, DiaryEntry, ClassTest, ClassTestMark, TimetablePeriod
 from .exam import ExamTerm, ExamPaper, ExamMark, ReportRemark
 from .grading import GradeBand
+from .activity import ActivityLog
 
-__all__ = ["Student", "Teacher", "Admin", "Assignment", "Attendance","Result","Subject","Course","Announcement","AssignmentSubmission","Enrollment","Event","Message","Section","ChatMessage","PendingAction","RevokedToken","AcademicSession","SchoolClass","SyllabusChapter","TeachingAssignment","DailyAttendance","ChapterProgress","DiaryEntry","ClassTest","ClassTestMark","TimetablePeriod","ExamTerm","ExamPaper","ExamMark","ReportRemark","GradeBand"]
+__all__ = ["Student", "Teacher", "Admin", "Assignment", "Attendance","Result","Subject","Course","Announcement","AssignmentSubmission","Enrollment","Event","Message","Section","ChatMessage","PendingAction","RevokedToken","AcademicSession","SchoolClass","SyllabusChapter","TeachingAssignment","DailyAttendance","ChapterProgress","DiaryEntry","ClassTest","ClassTestMark","TimetablePeriod","ExamTerm","ExamPaper","ExamMark","ReportRemark","GradeBand","ActivityLog"]

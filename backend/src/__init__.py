@@ -8,10 +8,11 @@ from datetime import timedelta
 from dotenv import load_dotenv
 from src.db import db, pakistan_time_naive
 from src.services.pagination import paginate_list_response
+from src.services.activity_log import record_activity
 from src.extention import bcrypt , jwt, limiter, migrate
 from src.models import Student, Teacher, Admin, Assignment, Attendance,Result,Subject,Course,Announcement,AssignmentSubmission,Enrollment,Event,Message,Section,RevokedToken
 
-from src.routes import home_bp,auth_bp,student_bp,teacher_bp,admin_bp,assignment_bp,subject_bp,result_bp,section_bp,assignment_submission_bp,announcement_bp,chatbot_bp,course_bp,enrollment_bp,event_bp,attendance_bp,school_bp,teaching_bp,exam_bp
+from src.routes import home_bp,auth_bp,student_bp,teacher_bp,admin_bp,assignment_bp,subject_bp,result_bp,section_bp,assignment_submission_bp,announcement_bp,chatbot_bp,course_bp,enrollment_bp,event_bp,attendance_bp,school_bp,teaching_bp,exam_bp,oversight_bp
 
 load_dotenv()
 
@@ -146,6 +147,9 @@ def create_app():
     # Any list can be split into pages with ?page=&per_page= (see services/pagination.py)
     app.after_request(paginate_list_response)
 
+    # Every change, login and logout goes into the activity log (see services/activity_log.py)
+    app.after_request(record_activity)
+
     # A token that was logged out can't be used again, even before it expires
     @jwt.token_in_blocklist_loader
     def is_token_revoked(jwt_header, jwt_payload):
@@ -179,6 +183,7 @@ def create_app():
     app.register_blueprint(school_bp)
     app.register_blueprint(teaching_bp)
     app.register_blueprint(exam_bp)
+    app.register_blueprint(oversight_bp)
 
 
     # Tables are created and updated with migrations, not db.create_all():
