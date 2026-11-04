@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { BarChart3, Download, Eye, Printer } from 'lucide-react';
+import { BarChart3, Download, Printer } from 'lucide-react';
 import {
   getSchoolClasses, getExamTerms, getSectionAttendanceSummary, getSectionResults,
   getOversightDashboard, getTeachersOverview, downloadReport,
@@ -37,8 +37,13 @@ const AdminReports: React.FC = () => {
   const [month, setMonth] = useState(todayText().slice(0, 7));
   const [termId, setTermId] = useState('');
 
-  // What "View" loaded (only the one for the chosen report is filled)
+  // The report shown below (only the one for the chosen report is filled). It loads by itself
+  // when the page opens and whenever the report or its options change.
   const [viewing, setViewing] = useState<ReportName | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportProblem, setReportProblem] = useState('');
+  // Counts the loads, so an older, slower answer can't replace a newer one
+  const loadNumber = useRef(0);
   const [viewHeading, setViewHeading] = useState('');
   const [attendanceRows, setAttendanceRows] = useState<StudentMonthSummary[]>([]);
   const [resultSheet, setResultSheet] = useState<SectionResultSheet | null>(null);
@@ -58,6 +63,15 @@ const AdminReports: React.FC = () => {
         if (termList.length > 0) {
           setTermId(String(termList[0].id));
         }
+        // Start with the first class that has sections, and its first section
+        const classList: SchoolClassSummary[] = Array.isArray(classData) ? classData : [];
+        for (const schoolClass of classList) {
+          if (schoolClass.sections.length > 0) {
+            setClassId(String(schoolClass.id));
+            setSectionId(String(schoolClass.sections[0].id));
+            break;
+          }
+        }
       } catch (error: any) {
         showError(error, 'Failed to load classes and exam terms');
       } finally {
@@ -67,14 +81,26 @@ const AdminReports: React.FC = () => {
     fetchLists();
   }, []);
 
+  // Show the chosen report as soon as the page is ready, and again whenever an option changes
+  useEffect(() => {
+    if (loading) return;
+    showReport();
+  }, [loading, report, sectionId, month, termId]);
+
   const chooseReport = (name: ReportName) => {
     setReport(name);
-    setViewing(null);
   };
 
+  // A new class starts with its first section chosen
   const changeClass = (value: string) => {
     setClassId(value);
-    setSectionId('');
+    let firstSection = '';
+    for (const schoolClass of classes) {
+      if (String(schoolClass.id) === value && schoolClass.sections.length > 0) {
+        firstSection = String(schoolClass.sections[0].id);
+      }
+    }
+    setSectionId(firstSection);
   };
 
   // The sections of the chosen class
@@ -126,12 +152,18 @@ const AdminReports: React.FC = () => {
     }
   };
 
-  const handleView = async () => {
+  const showReport = async () => {
+    loadNumber.current = loadNumber.current + 1;
+    const thisLoad = loadNumber.current;
+
     const problem = missingOption();
     if (problem) {
-      toast.error(problem);
+      setReportProblem(problem);
+      setViewing(null);
       return;
     }
+    setReportProblem('');
+    setReportLoading(true);
     try {
       if (report === 'attendance') {
         const data = await getSectionAttendanceSummary(Number(sectionId), month);
@@ -159,9 +191,16 @@ const AdminReports: React.FC = () => {
         setLowAttendancePercent(data.low_attendance_percent);
         setViewHeading(`Low Attendance · below ${data.low_attendance_percent}% this session`);
       }
-      setViewing(report);
+      // Only the newest load is shown
+      if (thisLoad === loadNumber.current) {
+        setViewing(report);
+      }
     } catch (error: any) {
       showError(error, 'Failed to load the report');
+    } finally {
+      if (thisLoad === loadNumber.current) {
+        setReportLoading(false);
+      }
     }
   };
 
@@ -177,7 +216,7 @@ const AdminReports: React.FC = () => {
     <div className="space-y-6">
       <div className="no-print">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2"><BarChart3 size={28} className="text-primary-600" /> Reports</h1>
-        <p className="text-gray-600 mt-2">Download a report as an Excel file, or view it here and print it (Print can also save it as a PDF).</p>
+        <p className="text-gray-600 mt-2">Each report shows below as soon as you choose it. Download it as an Excel file, or print it (Print can also save it as a PDF).</p>
       </div>
 
       {/* Report picker */}
@@ -240,12 +279,19 @@ const AdminReports: React.FC = () => {
         )}
         <div className="flex flex-wrap gap-2">
           <button onClick={handleDownload} className="btn btn-primary flex items-center gap-2"><Download size={16} /> Download Excel</button>
-          <button onClick={handleView} className="btn btn-secondary flex items-center gap-2"><Eye size={16} /> View</button>
           {viewing === report && (
             <button onClick={() => window.print()} className="btn btn-secondary flex items-center gap-2"><Printer size={16} /> Print / Save as PDF</button>
           )}
         </div>
       </div>
+
+      {/* What's missing before the report can be shown, or that it's loading */}
+      {reportProblem !== '' && (
+        <div className="no-print card text-sm text-gray-600">{reportProblem} to see this report.</div>
+      )}
+      {reportProblem === '' && reportLoading && viewing !== report && (
+        <div className="no-print card text-sm text-gray-400">Loading the report...</div>
+      )}
 
       {/* The printable view */}
       {viewing === report && (
