@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Bell, Calendar } from 'lucide-react';
 import { getAnnouncements } from '../../services/api';
 import type { Announcement } from '../../types';
+import { announcementLook } from '../../utils/announcementLook';
 import toast from 'react-hot-toast';
 
 const StudentAnnouncements: React.FC = () => {
@@ -23,12 +24,18 @@ const StudentAnnouncements: React.FC = () => {
       } else if (data.announcement) {
         list = [data.announcement];
       }
-      // The API sends section_name and teacher_name; the page shows section and teacher
-      const announcementsData = list.map((announcement: any) => ({
-        ...announcement,
-        section: announcement.section || announcement.section_name || '',
-        teacher: announcement.teacher || announcement.teacher_name || '',
-      }));
+      // The page shows who wrote it ("Principal (Admin)" for the admin) and where it goes
+      const announcementsData: Announcement[] = [];
+      for (const announcement of list) {
+        // "Principal (Admin)", "Sara Ahmed (Class incharge of Class 5 - A)" or "Omar Malik (Teacher)"
+        let author = announcement.author_text || announcement.author_name || announcement.teacher_name || '';
+        announcementsData.push({
+          ...announcement,
+          section: announcement.where || announcement.section_name || '',
+          section_id: announcement.section_id,
+          teacher: author,
+        });
+      }
       setAnnouncements(announcementsData);
     } catch (error) {
       toast.error('Failed to fetch announcements');
@@ -77,17 +84,20 @@ const StudentAnnouncements: React.FC = () => {
           <div className="col-span-full text-center py-8 text-gray-500">No announcements found</div>
         ) : (
           filteredAnnouncements.map((announcement) => (
-            <div key={announcement.id} className="card">
+            <div key={announcement.id} className={`card ${announcementLook(announcement).cardClass}`}>
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-2">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     <Bell className="text-primary-600" size={20} />
                     <h3 className="text-lg font-semibold text-gray-900">{announcement.title}</h3>
+                    {announcementLook(announcement).badgeText && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${announcementLook(announcement).badgeClass}`}>{announcementLook(announcement).badgeText}</span>
+                    )}
                   </div>
                   <p className="text-sm text-gray-500">{announcement.teacher} • {announcement.section}</p>
                 </div>
                 <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded-full text-xs">
-                  {announcement.target_audience}
+                  {announcement.audience_text || announcement.target_audience}
                 </span>
               </div>
               <p className="text-gray-600 mb-4">{announcement.content}</p>

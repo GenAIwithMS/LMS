@@ -1,12 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, Search, Settings } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Settings, Megaphone } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../../components/Modal';
 import { DeleteConfirmation } from '../../components/DeleteConfirmation';
-import { getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, getSections } from '../../services/api';
-import type { Announcement, Section } from '../../types';
+import { getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, getSections, getMyClasses } from '../../services/api';
+import { announcementLook } from '../../utils/announcementLook';
+import type { Announcement, Section, ClassSection } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
 
 const TeacherAnnouncements: React.FC = () => {
+  const { user } = useAuth();
+  // The section(s) this teacher leads as class incharge: they can post class announcements there
+  const [inchargeSections, setInchargeSections] = useState<ClassSection[]>([]);
+  // True while writing a class announcement (as class incharge)
+  const [postingAsIncharge, setPostingAsIncharge] = useState(false);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +40,28 @@ const TeacherAnnouncements: React.FC = () => {
   useEffect(() => {
     fetchAnnouncements();
     fetchSections();
+    fetchInchargeSections();
   }, []);
+
+  const fetchInchargeSections = async () => {
+    try {
+      const data = await getMyClasses();
+      setInchargeSections(Array.isArray(data.incharge_of) ? data.incharge_of : []);
+    } catch (error) {
+      // Not being an incharge is fine: the Class Announcement button just doesn't show
+      setInchargeSections([]);
+    }
+  };
+
+  // Write a class announcement for the section this teacher leads
+  const openClassAnnouncement = () => {
+    resetForm();
+    setPostingAsIncharge(true);
+    if (inchargeSections.length > 0) {
+      setFormData({ title: '', content: '', target_audience: 'all', section_id: String(inchargeSections[0].id), section_name: inchargeSections[0].name });
+    }
+    setIsModalOpen(true);
+  };
 
   // Close options dropdown when clicking outside
   useEffect(() => {
@@ -62,13 +90,18 @@ const TeacherAnnouncements: React.FC = () => {
       } else if (data.announcement) {
         list = [data.announcement];
       }
-      // The API sends section_name and teacher_name; the page shows section and teacher
-      const announcementsData = list.map((announcement: any) => ({
-        ...announcement,
-        section: announcement.section || announcement.section_name || '',
-        section_id: announcement.section_id,
-        teacher: announcement.teacher || announcement.teacher_name || '',
-      }));
+      // The page shows who wrote it ("Principal (Admin)" for the admin) and where it goes
+      const announcementsData: Announcement[] = [];
+      for (const announcement of list) {
+        // "Principal (Admin)", "Sara Ahmed (Class incharge of Class 5 - A)" or "Omar Malik (Teacher)"
+        let author = announcement.author_text || announcement.author_name || announcement.teacher_name || '';
+        announcementsData.push({
+          ...announcement,
+          section: announcement.where || announcement.section_name || '',
+          section_id: announcement.section_id,
+          teacher: author,
+        });
+      }
       setAnnouncements(announcementsData);
     } catch (error: any) {
       showError(error, 'Failed to fetch announcements');
@@ -100,10 +133,18 @@ const TeacherAnnouncements: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Send the ID: names can repeat, IDs can't
-    const submitData = { ...formData, section_id: formData.section_id ? Number(formData.section_id) : undefined };
+    const submitData = { ...formData, section_id: formData.section_id ? Number(formData.section_id) : undefined, as_incharge: postingAsIncharge };
     try {
       if (editingAnnouncement) {
-        await updateAnnouncement(editingAnnouncement.title, submitData);
+        // Whether it's a class announcement doesn't change when editing, so it isn't sent
+        const updateData = {
+          title: submitData.title,
+          content: submitData.content,
+          target_audience: submitData.target_audience,
+          section_id: submitData.section_id,
+          section_name: submitData.section_name,
+        };
+        await updateAnnouncement(editingAnnouncement.title, updateData);
         showSuccess('Announcement updated successfully');
       } else {
         await createAnnouncement(submitData);
@@ -119,6 +160,7 @@ const TeacherAnnouncements: React.FC = () => {
 
   const handleEdit = (announcement: Announcement) => {
     setEditingAnnouncement(announcement);
+    setPostingAsIncharge(announcement.from_incharge === true);
     setFormData({
       title: announcement.title,
       content: announcement.content,
@@ -151,9 +193,21 @@ const TeacherAnnouncements: React.FC = () => {
     }
   };
 
+  let modalTitle = 'Create Announcement';
+  if (postingAsIncharge) {
+    modalTitle = 'Class Announcement';
+  }
+  if (editingAnnouncement) {
+    modalTitle = 'Edit Announcement';
+    if (postingAsIncharge) {
+      modalTitle = 'Edit Class Announcement';
+    }
+  }
+
   const resetForm = () => {
     setFormData({ title: '', content: '', target_audience: 'all', section_id: '', section_name: '' });
     setEditingAnnouncement(null);
+    setPostingAsIncharge(false);
   };
 
   const filteredAnnouncements = announcements
@@ -294,6 +348,12 @@ const TeacherAnnouncements: React.FC = () => {
             )}
           </div>
 
+          {inchargeSections.length > 0 && (
+            <button onClick={openClassAnnouncement} className="btn flex items-center space-x-2 bg-amber-500 hover:bg-amber-600 text-white" title={`Post to ${inchargeSections[0].full_name} as its class incharge`}>
+              <Megaphone size={20} />
+              <span>Class Announcement</span>
+            </button>
+          )}
           <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="btn btn-primary flex items-center space-x-2">
             <Plus size={20} />
             <span>Create Announcement</span>
@@ -306,32 +366,40 @@ const TeacherAnnouncements: React.FC = () => {
           <div className="col-span-full text-center py-8 text-gray-500">No announcements found</div>
         ) : (
           filteredAnnouncements.map((announcement) => (
-            <div key={announcement.id} className="card">
+            <div key={announcement.id} className={`card ${announcementLook(announcement).cardClass}`}>
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{announcement.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900">{announcement.title}</h3>
+                    {announcementLook(announcement).badgeText && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${announcementLook(announcement).badgeClass}`}>{announcementLook(announcement).badgeText}</span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500 mt-1">{announcement.teacher} • {announcement.section}</p>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <button onClick={() => handleEdit(announcement)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
-                    <Edit size={18} />
-                  </button>
-                  <button onClick={() => handleDeleteClick(announcement)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                    <Trash2 size={18} />
-                  </button>
-                </div>
+                {/* Only the teacher's own announcements can be changed here */}
+                {user !== null && announcement.teacher_id === user.id && (
+                  <div className="flex items-center space-x-2">
+                    <button onClick={() => handleEdit(announcement)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
+                      <Edit size={18} />
+                    </button>
+                    <button onClick={() => handleDeleteClick(announcement)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                )}
               </div>
               <p className="text-gray-600 mb-4">{announcement.content}</p>
               <div className="flex items-center justify-between text-sm text-gray-500">
                 <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
-                <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded-full text-xs">{announcement.target_audience}</span>
+                <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded-full text-xs">{announcement.audience_text || announcement.target_audience}</span>
               </div>
             </div>
           ))
         )}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title={editingAnnouncement ? 'Edit Announcement' : 'Create Announcement'}>
+      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title={modalTitle}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
@@ -353,10 +421,21 @@ const TeacherAnnouncements: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
             <select required value={formData.section_id} onChange={(e) => handleSectionChange(e.target.value)} className="input">
               <option value="">Select a section</option>
-              {sections.map((section) => (
-                <option key={section.id} value={section.id}>{section.full_name || section.name}</option>
-              ))}
+              {postingAsIncharge ? (
+                inchargeSections.map((section) => (
+                  <option key={section.id} value={section.id}>{section.full_name}</option>
+                ))
+              ) : (
+                sections.map((section) => (
+                  <option key={section.id} value={section.id}>{section.full_name || section.name}</option>
+                ))
+              )}
             </select>
+            {postingAsIncharge && (
+              <p className="mt-2 text-xs text-amber-800 bg-amber-50 rounded p-2">
+                Posted as the class incharge, only for the section you lead. It shows in amber with a "Class Incharge" label.
+              </p>
+            )}
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <button type="button" onClick={() => { setIsModalOpen(false); resetForm(); }} className="btn btn-secondary">Cancel</button>

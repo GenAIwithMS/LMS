@@ -385,7 +385,8 @@ export const deleteResult = async (id: number) => {
 };
 
 // Announcement
-export const createAnnouncement = async (data: { title: string; content: string; target_audience: string; section_name: string }) => {
+// as_incharge: post as the section's class incharge (a class announcement for the section they lead)
+export const createAnnouncement = async (data: { title: string; content: string; target_audience: string; section_name?: string; section_id?: number; as_incharge?: boolean }) => {
   const response = await api.post('/create/announcement', data);
   return response.data;
 };
@@ -396,7 +397,7 @@ export const getAnnouncements = async (id?: number) => {
 };
 
 // The backend finds announcements by their title, not by id
-export const updateAnnouncement = async (title: string, data: { title?: string; content?: string; section_name?: string }) => {
+export const updateAnnouncement = async (title: string, data: { title?: string; content?: string; target_audience?: string; section_id?: number; section_name?: string }) => {
   const response = await api.put('/update/announcement', data, { params: { title } });
   return response.data;
 };
@@ -918,5 +919,23 @@ export const addTeacherSubject = async (teacherId: number, name: string) => {
 
 export const removeTeacherSubject = async (teacherId: number, name: string) => {
   const response = await api.delete(`/school/teachers/${teacherId}/subjects`, { params: { name } });
+  return response.data;
+};
+
+// ---------------- Announcements from the admin (whole school, a class or a section)
+
+export const createAdminAnnouncement = async (data: { title: string; content: string; target_audience: string; class_id?: number | null; section_id?: number | null }) => {
+  const response = await api.post('/admin/announcements', data);
+  return response.data;
+};
+
+export const updateAdminAnnouncement = async (id: number, data: { title?: string; content?: string; target_audience?: string; class_id?: number | null; section_id?: number | null }) => {
+  const response = await api.put(`/admin/announcements/${id}`, data);
+  return response.data;
+};
+
+// The admin can delete any announcement, a teacher's too
+export const deleteAnyAnnouncement = async (id: number) => {
+  const response = await api.delete(`/admin/announcements/${id}`);
   return response.data;
 };
