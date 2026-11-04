@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { CalendarDays, Send, Settings, Printer, Plus, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { getTimetableDraft, setTimetableSlot, clearSectionTimetable, getPublishCheck, publishTimetable, saveTimetableSettings } from '../../services/api';
 import type { SchoolTimetableDraft, DraftSection } from '../../types';
-import { TimetableGrid } from '../../components/TimetableGrid';
+import { TimetableGrid, subjectColour } from '../../components/TimetableGrid';
 import { PeriodPicker } from '../../components/PeriodPicker';
 import { Modal } from '../../components/Modal';
 import { showError, showSuccess } from '../../utils/errorHandler';
@@ -42,6 +42,8 @@ const AdminTimetable: React.FC = () => {
   const [schoolDay, setSchoolDay] = useState<number>(1);
   // The period being changed (its picker shows next to the grid)
   const [selectedCell, setSelectedCell] = useState<{ day: number; period: number } | null>(null);
+  // The period being changed on the Whole School tab: a section and period on the chosen day
+  const [schoolCell, setSchoolCell] = useState<{ sectionId: number; period: number } | null>(null);
 
   // Publishing
   const [isPublishOpen, setIsPublishOpen] = useState(false);
@@ -96,10 +98,16 @@ const AdminTimetable: React.FC = () => {
     setSelectedCell(null);
   };
 
+  // Change one period of the section chosen on the By Class tab
   const handleSlotChange = async (day: number, period: number, subjectId: number | null, teacherId: number | null) => {
     if (selectedSectionId === null) return;
+    await changeSectionPeriod(selectedSectionId, day, period, subjectId, teacherId);
+  };
+
+  // Change one period of any section (used by both tabs)
+  const changeSectionPeriod = async (sectionId: number, day: number, period: number, subjectId: number | null, teacherId: number | null) => {
     try {
-      const data = await setTimetableSlot(selectedSectionId, { day, period, subject_id: subjectId, teacher_id: teacherId });
+      const data = await setTimetableSlot(sectionId, { day, period, subject_id: subjectId, teacher_id: teacherId });
       // Say so when a different teacher took over the subject in this section
       if (data.message && data.message.includes('now teaches')) {
         showSuccess(data.message);
@@ -262,6 +270,16 @@ const AdminTimetable: React.FC = () => {
     selectedDay = draft.days.find((one) => one.day === selectedCell.day);
   }
 
+  // The period chosen on the Whole School tab: its section, its times and its day
+  let schoolSection = undefined;
+  let schoolBellPeriod = undefined;
+  let schoolDayInfo = undefined;
+  if (schoolCell) {
+    schoolSection = draft.sections.find((one) => one.section_id === schoolCell.sectionId);
+    schoolBellPeriod = draft.periods.find((one) => one.number === schoolCell.period);
+    schoolDayInfo = draft.days.find((one) => one.day === schoolDay);
+  }
+
   return (
     <div className="space-y-6">
       {/* Title, status and the main buttons */}
@@ -385,7 +403,10 @@ const AdminTimetable: React.FC = () => {
               {draft.days.map((day) => (
                 <button
                   key={day.day}
-                  onClick={() => setSchoolDay(day.day)}
+                  onClick={() => {
+                    setSchoolDay(day.day);
+                    setSchoolCell(null);
+                  }}
                   className={`px-3 py-1 rounded-lg text-sm border ${day.day === schoolDay ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300'}`}
                 >
                   {day.name}
@@ -393,46 +414,85 @@ const AdminTimetable: React.FC = () => {
               ))}
             </div>
           </div>
-          <p className="text-sm text-gray-500">{ALL_DAYS.find((day) => day.day === schoolDay)?.name}: every section's periods.</p>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr>
-                  <th className="sticky left-0 bg-white z-10 border border-gray-200 px-2 py-2 text-left text-xs text-gray-500">Section</th>
-                  {draft.periods.map((period, index) => (
-                    <th key={index} className={`border border-gray-200 px-2 py-2 text-center ${period.is_break ? 'bg-gray-100 w-12' : 'min-w-[8rem]'}`}>
-                      <div className="text-xs font-semibold text-gray-700">{period.is_break ? period.name : `Period ${period.number}`}</div>
-                      <div className="text-[11px] font-normal text-gray-500">{period.start_time}-{period.end_time}</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {draft.sections.map((section) => (
-                  <tr key={section.section_id}>
-                    <td className="sticky left-0 bg-white z-10 border border-gray-200 px-2 py-2 font-semibold text-gray-800 whitespace-nowrap">{section.section_name}</td>
-                    {draft.periods.map((period, index) => {
-                      if (period.is_break || period.number === null) {
-                        return <td key={index} className="border border-gray-200 bg-gray-100"></td>;
-                      }
-                      const slot = section.slots.find((one) => one.day === schoolDay && one.period === period.number);
-                      return (
-                        <td key={index} className="border border-gray-200 px-2 py-1 align-top">
-                          {slot ? (
-                            <>
-                              <div className="text-xs font-semibold text-gray-900">{slot.subject_name}</div>
-                              <div className="text-[11px] text-gray-600">{slot.teacher_name || 'No teacher yet'}</div>
-                            </>
-                          ) : (
-                            <div className="text-center text-gray-300 text-xs">-</div>
-                          )}
-                        </td>
-                      );
-                    })}
+          <p className="text-sm text-gray-500">
+            {ALL_DAYS.find((day) => day.day === schoolDay)?.name}: every section's periods.
+            <span className="no-print"> Click a period to choose its subject and teacher.</span>
+          </p>
+          <div className="flex flex-col xl:flex-row gap-4 items-start">
+            <div className="w-full xl:flex-1 min-w-0 overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th className="sticky left-0 bg-white z-10 border border-gray-200 px-2 py-2 text-left text-xs text-gray-500">Section</th>
+                    {draft.periods.map((period, index) => (
+                      <th key={index} className={`border border-gray-200 px-2 py-2 text-center ${period.is_break ? 'bg-gray-100 w-12' : 'min-w-[8rem]'}`}>
+                        <div className="text-xs font-semibold text-gray-700">{period.is_break ? period.name : `Period ${period.number}`}</div>
+                        <div className="text-[11px] font-normal text-gray-500">{period.start_time}-{period.end_time}</div>
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {draft.sections.map((section) => (
+                    <tr key={section.section_id}>
+                      <td className="sticky left-0 bg-white z-10 border border-gray-200 px-2 py-2 font-semibold text-gray-800 whitespace-nowrap">{section.section_name}</td>
+                      {draft.periods.map((period, index) => {
+                        if (period.is_break || period.number === null) {
+                          return <td key={index} className="border border-gray-200 bg-gray-100"></td>;
+                        }
+                        const slot = section.slots.find((one) => one.day === schoolDay && one.period === period.number);
+                        const periodNumber = period.number;
+                        const isSelected = schoolCell !== null && schoolCell.sectionId === section.section_id && schoolCell.period === periodNumber;
+
+                        let look = 'border-dashed border-gray-300 bg-white hover:border-primary-400';
+                        if (slot) {
+                          look = subjectColour(slot.subject_id) + ' hover:shadow';
+                        }
+                        if (isSelected) {
+                          look = look + ' ring-2 ring-primary-500';
+                        }
+
+                        return (
+                          <td key={index} className="border border-gray-200 p-1 align-top">
+                            <button
+                              type="button"
+                              onClick={() => setSchoolCell({ sectionId: section.section_id, period: periodNumber })}
+                              className={`w-full min-h-[3rem] rounded-lg border px-2 py-1 text-left ${look}`}
+                              title="Click to choose the subject and teacher"
+                            >
+                              {slot ? (
+                                <>
+                                  <div className="text-xs font-semibold text-gray-900 leading-tight break-words">{slot.subject_name}</div>
+                                  <div className="text-[11px] text-gray-600 leading-tight break-words">{slot.teacher_name || 'No teacher yet'}</div>
+                                </>
+                              ) : (
+                                <div className="text-xs text-gray-400">Free</div>
+                              )}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {schoolSection && schoolBellPeriod && schoolDayInfo && schoolCell && (
+              <div className="no-print w-full xl:w-96 xl:sticky xl:top-4">
+                <PeriodPicker
+                  key={`school-${schoolSection.section_id}-${schoolDay}-${schoolCell.period}`}
+                  day={schoolDay}
+                  dayName={schoolDayInfo.name}
+                  period={schoolBellPeriod}
+                  section={schoolSection}
+                  sections={draft.sections}
+                  teachers={draft.teachers}
+                  onChoose={(subjectId, teacherId) => changeSectionPeriod(schoolCell.sectionId, schoolDay, schoolCell.period, subjectId, teacherId)}
+                  onClear={() => changeSectionPeriod(schoolCell.sectionId, schoolDay, schoolCell.period, null, null)}
+                  onClose={() => setSchoolCell(null)}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
