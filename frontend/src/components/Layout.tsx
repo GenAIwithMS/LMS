@@ -27,7 +27,7 @@ import {
   CalendarDays,
   Megaphone,
 } from 'lucide-react';
-import { getAnnouncements, getEvents, getPublishedTimetableInfo } from '../services/api';
+import { getLatestAnnouncements, getEvents, getPublishedTimetableInfo, getAssignments, getSubmissionsByStudent, getClassTests, getExamTerms } from '../services/api';
 import toast from 'react-hot-toast';
 
 // Manus Icon Component
@@ -54,36 +54,89 @@ interface LayoutProps {
 interface Notification {
   id: string | number;
   title: string;
-  type: 'announcement' | 'event' | 'timetable';
+  type: 'announcement' | 'event' | 'timetable' | 'assignment' | 'grade' | 'report';
   time: string;
   creatorId?: number | string;
   fromIncharge?: boolean;   // a class announcement from the class incharge (shown in amber)
+  path?: string;            // the page it opens
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "2026-11-05..." or "Thu, 05 Nov 2026 14:00:00 GMT" -> "5 Nov 2026" (read from the text,
+// so no time zone can move it to another day)
+const shortDate = (value: any): string => {
+  const text = String(value || '');
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    return `${Number(iso[3])} ${MONTHS[Number(iso[2]) - 1]} ${iso[1]}`;
+  }
+  const rfc = text.match(/(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})/);
+  if (rfc) {
+    return `${Number(rfc[1])} ${rfc[2]} ${rfc[3]}`;
+  }
+  return '';
+};
+
+// The ids of the notifications the user has already seen (saved in this browser)
+const readSeenIds = (): string[] => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('notificationsSeen') || '[]');
+    return Array.isArray(saved) ? saved : [];
+  } catch (error) {
+    return [];
+  }
+};
+
+// The list of a response: a plain list, or {"data": [...]}
+const listOf = (data: any): any[] => {
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (data && Array.isArray(data.data)) {
+    return data.data;
+  }
+  if (data && Array.isArray(data.assignments)) {
+    return data.assignments;
+  }
+  return [];
+};
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { logout, userRole, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    const saved = localStorage.getItem('sidebarOpen');
-    return saved !== null ? saved === 'true' : true;
-  });
+  // The slide-out menu (phones only; on a computer the menu is always shown).
+  // It starts closed on every page load, so it never covers the page by itself.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
     return saved !== null ? saved === 'true' : false;
   });
+  // Collapsing the menu to icons is only for wide screens. On a phone the menu slides out
+  // over the page, so it always shows the labels.
+  const [isWideScreen, setIsWideScreen] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)');
+    const handleChange = () => setIsWideScreen(query.matches);
+    query.addEventListener('change', handleChange);
+    return () => query.removeEventListener('change', handleChange);
+  }, []);
   const [chatbotOpen, setChatbotOpen] = useState(() => {
     const saved = localStorage.getItem('chatbotOpen');
     return saved !== null ? saved === 'true' : false;
   });
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // Moving to another page closes the notifications panel and the phone menu
+  useEffect(() => {
+    setShowNotifications(false);
+    setSidebarOpen(false);
+  }, [location.pathname]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [hasUnread, setHasUnread] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem('sidebarOpen', sidebarOpen.toString());
-  }, [sidebarOpen]);
 
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', sidebarCollapsed.toString());
@@ -98,7 +151,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const fetchNotifications = async () => {
       try {
         const [announcements, events] = await Promise.all([
-          getAnnouncements(),
+          // A few more than shown, since the user's own posts are left out below
+          getLatestAnnouncements(15),
           getEvents()
         ]);
         
@@ -115,22 +169,84 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               id: `a-${a.id}`,
               title: a.title,
               type: 'announcement' as const,
-              time: 'Recently',
+              time: shortDate(a.created_at) || 'Recently',
               creatorId: a.teacher_id,
               fromIncharge: a.from_incharge === true
             })) : []),
           ...(Array.isArray(events) ? events
             .filter((e: any) => !(userRole === 'admin' && e.admin_id === currentUserId))
+            // Only events from today onwards; past events are no longer news
+            .filter((e: any) => String(e.event_date || '').slice(0, 10) >= new Date().toLocaleDateString('en-CA'))
             .slice(0, 5)
             .map((e: any) => ({
               id: `e-${e.id}`,
               title: e.title,
               type: 'event' as const,
-              time: e.event_date || 'Upcoming',
+              time: shortDate(e.event_date) + (e.event_time ? ` · ${e.event_time}` : ''),
               creatorId: e.admin_id
             })) : [])
         ];
         
+        // For students: new work, marks and report cards
+        if (userRole === 'student') {
+          const today = new Date().toLocaleDateString('en-CA');
+          const [assignmentData, submissionData, testData, termData] = await Promise.all([
+            getAssignments().catch(() => []),
+            getSubmissionsByStudent().catch(() => []),
+            getClassTests().catch(() => []),
+            getExamTerms().catch(() => []),
+          ]);
+          const submissions = listOf(submissionData);
+
+          // Assignments still to hand in
+          for (const assignment of listOf(assignmentData)) {
+            const handedIn = submissions.some((sub: any) => sub.assignment_id === assignment.id);
+            if (!handedIn && String(assignment.due_date) >= today) {
+              combined.push({
+                id: `as-${assignment.id}`,
+                title: `New assignment: ${assignment.title} (${assignment.subject_name})`,
+                type: 'assignment',
+                time: `Due ${shortDate(assignment.due_date)}`,
+                path: '/student/assignments',
+              });
+            }
+          }
+          // Graded work
+          for (const sub of submissions) {
+            if (sub.marks !== null && sub.marks !== undefined) {
+              combined.push({
+                id: `gr-${sub.id}-${sub.marks}`,
+                title: `${sub.assignment} has been graded: ${Number(sub.marks)} marks`,
+                type: 'grade',
+                time: 'Assignment',
+                path: '/student/assignments',
+              });
+            }
+          }
+          // Class test marks
+          for (const test of listOf(testData)) {
+            if (test.my_marks !== null && test.my_marks !== undefined) {
+              combined.push({
+                id: `ct-${test.id}-${test.my_marks}`,
+                title: `${test.title}: ${test.my_marks} / ${Number(test.total_marks)}`,
+                type: 'grade',
+                time: 'Class test',
+                path: '/student/class-tests',
+              });
+            }
+          }
+          // Published report cards (students only get published terms)
+          for (const term of listOf(termData)) {
+            combined.push({
+              id: `rc-${term.id}`,
+              title: `Your ${term.name} report card is ready`,
+              type: 'report',
+              time: term.session_name || '',
+              path: '/student/report-card',
+            });
+          }
+        }
+
         // A newly published timetable, for teachers and students
         let newTimetable = false;
         if (userRole === 'teacher' || userRole === 'student') {
@@ -151,9 +267,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         }
 
         setNotifications(combined);
-        if ((combined.length > 0 && !localStorage.getItem('notificationsRead')) || newTimetable) {
-          setHasUnread(true);
-        }
+        // The red dot shows while there is anything the user hasn't seen yet
+        const seen = readSeenIds();
+        const somethingNew = combined.some((n) => n.type !== 'timetable' && !seen.includes(String(n.id)));
+        setHasUnread(somethingNew || newTimetable);
       } catch (error) {
         console.error('Failed to fetch notifications');
       }
@@ -177,6 +294,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (n.type === 'timetable') {
       return 'bg-green-50 text-green-600';
     }
+    if (n.type === 'assignment') {
+      return 'bg-orange-50 text-orange-600';
+    }
+    if (n.type === 'grade' || n.type === 'report') {
+      return 'bg-rose-50 text-rose-600';
+    }
     return 'bg-purple-50 text-purple-600';
   };
 
@@ -191,12 +314,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleMarkAllRead = () => {
     setHasUnread(false);
     markTimetableSeen();
-    localStorage.setItem('notificationsRead', 'true');
+    // Remember every notification shown now; only newer ones light up the bell again
+    const ids: string[] = [];
+    for (const n of notifications) {
+      ids.push(String(n.id));
+    }
+    localStorage.setItem('notificationsSeen', JSON.stringify(ids));
     toast.success('All notifications marked as read');
   };
 
   const handleViewAll = () => {
-    const path = userRole === 'admin' ? '/admin/events' : `/${userRole}/announcements`;
+    // Notifications are mostly announcements, so "View all" opens the announcements page
+    const path = `/${userRole}/announcements`;
     navigate(path);
     setShowNotifications(false);
     setHasUnread(false);
@@ -270,6 +399,47 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const menuItems = userRole === 'admin' ? adminMenuItems : userRole === 'teacher' ? teacherMenuItems : studentMenuItems;
 
+  // The title in the top bar: the menu item's name, or a readable name for pages inside one
+  // (no raw addresses or ID numbers)
+  const pageTitle = (): string => {
+    const path = location.pathname;
+    for (const item of menuItems) {
+      if (item.path === path) {
+        return item.label;
+      }
+    }
+    let match = path.match(/^\/admin\/classes\/(\d+)$/);
+    if (match) {
+      return `Classes / Class ${match[1]}`;
+    }
+    if (/^\/admin\/sections\/\d+$/.test(path)) {
+      return 'Classes / Section';
+    }
+    if (/^\/teacher\/sections\/\d+$/.test(path)) {
+      return 'My Classes / Section';
+    }
+    if (/^\/admin\/teachers\/\d+\/activity$/.test(path)) {
+      return 'Teachers / Teacher activity';
+    }
+    if (/^\/admin\/exams\/\d+$/.test(path)) {
+      return 'Exams / Exam term';
+    }
+    if (path === '/admin/grading') {
+      return 'Exams / Grading scale';
+    }
+    if (path.startsWith('/report-card/')) {
+      return 'Report card';
+    }
+    if (path === '/account') {
+      return 'My Account';
+    }
+    if (path === '/chatbot') {
+      return 'Assistant';
+    }
+    // Every real page is named above, so anything else is an unknown address
+    return 'Page not found';
+  };
+
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {
@@ -281,7 +451,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const sidebarWidth = sidebarCollapsed ? 'w-20' : 'w-64';
+  const collapsed = sidebarCollapsed && isWideScreen;
+  const sidebarWidth = collapsed ? 'w-20' : 'w-64';
 
   return (
     <div className="min-h-screen bg-gray-50 flex overflow-hidden">
@@ -301,7 +472,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       >
         {/* Logo Section */}
         <div className="h-16 flex items-center px-6 border-b border-gray-100 relative overflow-hidden bg-gradient-to-r from-primary-50/30 to-transparent">
-          {!sidebarCollapsed ? (
+          {!collapsed ? (
             <div className="flex items-center gap-3 shrink-0 w-full">
               <div className="w-9 h-9 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center text-white font-bold shrink-0 shadow-lg">
                 L
@@ -309,7 +480,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="ml-auto p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
+                className="hidden lg:block ml-auto p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
                 title="Collapse Sidebar"
               >
                 <PanelLeft size={18} />
@@ -329,6 +500,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           <button
             onClick={() => setSidebarOpen(false)}
+            title="Close menu"
+            aria-label="Close menu"
             className="lg:hidden ml-auto text-gray-400 hover:text-gray-600"
           >
             <X size={20} />
@@ -349,14 +522,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-200'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
-                title={sidebarCollapsed ? item.label : ''}
+                title={collapsed ? item.label : ''}
               >
                 {active && (
                   <div className="absolute inset-0 bg-white/10 animate-shimmer"></div>
                 )}
                 <Icon size={20} className={`relative z-10 ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                {!sidebarCollapsed && <span className="text-sm relative z-10">{item.label}</span>}
-                {active && !sidebarCollapsed && (
+                {!collapsed && <span className="text-sm relative z-10">{item.label}</span>}
+                {active && !collapsed && (
                   <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full relative z-10"></div>
                 )}
               </Link>
@@ -366,11 +539,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* User Profile Section */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-          <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : 'px-2 py-2'}`}>
+          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : 'px-2 py-2'}`}>
             <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl flex items-center justify-center text-primary-700 border-2 border-primary-300 shadow-md">
               <UserCircle size={24} />
             </div>
-            {!sidebarCollapsed && (
+            {!collapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-gray-900 truncate">{user?.name || 'User'}</p>
                 <p className="text-xs text-gray-500 capitalize font-medium">{userRole}</p>
@@ -381,19 +554,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             to="/account"
             className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-semibold shadow-sm hover:shadow-md ${
               isActive('/account') ? 'bg-primary-100 text-primary-700' : 'text-gray-700 bg-white hover:bg-gray-100'
-            } ${sidebarCollapsed ? 'justify-center' : ''}`}
-            title={sidebarCollapsed ? 'My Account' : ''}
+            } ${collapsed ? 'justify-center' : ''}`}
+            title={collapsed ? 'My Account' : ''}
           >
             <Settings size={18} />
-            {!sidebarCollapsed && <span className="text-sm">My Account</span>}
+            {!collapsed && <span className="text-sm">My Account</span>}
           </Link>
           <button
             onClick={handleLogout}
-            className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-all font-semibold shadow-sm hover:shadow-md ${sidebarCollapsed ? 'justify-center' : ''}`}
-            title={sidebarCollapsed ? 'Logout' : ''}
+            className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-all font-semibold shadow-sm hover:shadow-md ${collapsed ? 'justify-center' : ''}`}
+            title={collapsed ? 'Logout' : ''}
           >
             <LogOut size={18} />
-            {!sidebarCollapsed && <span className="text-sm">Logout</span>}
+            {!collapsed && <span className="text-sm">Logout</span>}
           </button>
         </div>
       </aside>
@@ -405,6 +578,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
+              title="Open menu"
+              aria-label="Open menu"
               className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
             >
               <Menu size={20} />
@@ -413,7 +588,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-primary-600 rounded-full"></div>
                 <h2 className="text-sm font-bold text-gray-800">
-                  {location.pathname.split('/').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' / ') || 'Dashboard'}
+                  {pageTitle()}
                 </h2>
               </div>
             </div>
@@ -424,6 +599,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="relative">
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
+                title="Notifications"
+                aria-label="Notifications"
                 className={`p-2.5 rounded-xl transition-all relative ${
                   showNotifications 
                     ? 'bg-primary-50 text-primary-600 shadow-md' 
@@ -456,20 +633,35 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           {notifications.map((n) => (
                             <div
                               key={n.id}
-                              className={`p-4 hover:bg-gray-50 transition-colors ${n.type === 'timetable' ? 'cursor-pointer' : ''}`}
+                              className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
                               onClick={() => {
+                                setShowNotifications(false);
+                                // This one is now seen
+                                const seen = readSeenIds();
+                                if (!seen.includes(String(n.id))) {
+                                  seen.push(String(n.id));
+                                  localStorage.setItem('notificationsSeen', JSON.stringify(seen));
+                                }
                                 // The timetable notice opens the Timetable page
                                 if (n.type === 'timetable') {
                                   markTimetableSeen();
                                   setHasUnread(false);
-                                  setShowNotifications(false);
                                   navigate(`/${userRole}/timetable`);
+                                } else if (n.path) {
+                                  navigate(n.path);
+                                } else if (n.type === 'announcement') {
+                                  navigate(`/${userRole}/announcements`);
+                                } else if (userRole === 'admin') {
+                                  navigate('/admin/events');
+                                } else {
+                                  // Teachers and students see the upcoming events on the dashboard
+                                  navigate('/dashboard');
                                 }
                               }}
                             >
                               <div className="flex items-start gap-3">
                                 <div className={`mt-1 p-1.5 rounded-lg ${notificationColour(n)}`}>
-                                  {n.type === 'announcement' ? <Bell size={14} /> : n.type === 'timetable' ? <CalendarDays size={14} /> : <Calendar size={14} />}
+                                  {n.type === 'announcement' ? <Bell size={14} /> : n.type === 'timetable' ? <CalendarDays size={14} /> : n.type === 'event' ? <Calendar size={14} /> : n.type === 'report' ? <Award size={14} /> : <FileText size={14} />}
                                 </div>
                                 <div>
                                   <p className="text-sm font-medium text-gray-900">{n.title}</p>
@@ -491,7 +683,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         onClick={handleViewAll}
                         className="text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-wider"
                       >
-                        View All Activity
+                        View All Announcements
                       </button>
                     </div>
                   </div>

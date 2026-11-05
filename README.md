@@ -260,11 +260,24 @@ python app.py
 
 The backend will run on `http://localhost:5000`
 
-On a real server use gunicorn instead of `python app.py`:
+On a real server use gunicorn instead of `python app.py` (run it in the `backend` folder):
 ```bash
-gunicorn -w 1 -b 0.0.0.0:5000 app:app
+gunicorn app:app
 ```
-(With more than one worker, set `RATELIMIT_STORAGE_URI` to a Redis address so the workers share their rate-limit counts.)
+It reads `backend/gunicorn.conf.py`: 4 worker processes with 8 threads each, so many people
+can use the site at the same moment. Settings in `.env`:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `WEB_WORKERS` / `WEB_THREADS` | 4 / 8 | Processes and threads answering requests |
+| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | 10 / 20 | Database connections per process (keep more than `WEB_THREADS`) |
+| `DB_POOL_TIMEOUT` | 30 | Seconds a request waits for a free database connection |
+| `LOGIN_MAX_FAILURES` / `LOGIN_LOCK_MINUTES` | 10 / 15 | Wrong passwords for one account before its login pauses, and for how long |
+| `LOGIN_RATE_LIMIT` | 120 per minute | Logins from one internet address (a whole school may share one) |
+| `RATELIMIT_STORAGE_URI` | memory:// | Set to a Redis address (`redis://...`) so all workers share the per-address limits |
+
+Make sure MySQL allows enough connections: workers x (DB_POOL_SIZE + DB_MAX_OVERFLOW) must stay
+below its `max_connections` (151 by default).
 
 #### Run the Tests
 

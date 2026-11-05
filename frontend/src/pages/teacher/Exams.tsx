@@ -248,6 +248,10 @@ const TeacherExams: React.FC = () => {
       const data = await saveReportRemarks(termId, remarksStudent.id, remarksText);
       showSuccess(data.message || 'Remarks saved');
       setRemarksStudent(null);
+      // Reload the class results so the list shows the new remarks
+      if (resultSectionId !== null) {
+        await fetchResults(termId, resultSectionId);
+      }
     } catch (error: any) {
       showError(error, 'Failed to save the remarks');
     }
@@ -395,7 +399,14 @@ const TeacherExams: React.FC = () => {
                     <div className="space-y-2">
                       {resultSheet.students.map((student) => (
                         <div key={student.student_id} className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2">
-                          <span className="text-sm">{student.roll_number ? `${student.roll_number}. ` : ''}{student.name}</span>
+                          <div className="text-sm min-w-0">
+                            <div>{student.roll_number ? `${student.roll_number}. ` : ''}{student.name}</div>
+                            {student.remarks ? (
+                              <div className="text-xs text-gray-600 mt-0.5">{student.remarks}</div>
+                            ) : (
+                              <div className="text-xs text-gray-400 mt-0.5">No remarks yet</div>
+                            )}
+                          </div>
                           <button onClick={() => openRemarks(student.student_id, student.name)} className="btn btn-secondary text-xs px-3 py-1 flex items-center gap-1">
                             <PenLine size={14} /> Edit remarks
                           </button>

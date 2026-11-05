@@ -5,6 +5,19 @@ import type { Announcement } from '../../types';
 import { announcementLook } from '../../utils/announcementLook';
 import toast from 'react-hot-toast';
 
+// "5 Nov 2026": the day first, as dates are read in Pakistan
+const dateText = (value: string | null | undefined): string => {
+  if (!value) {
+    return '-';
+  }
+  const date = new Date(value);
+  if (isNaN(date.getTime())) {
+    return value;
+  }
+  // The server's time is already Pakistan time (labelled GMT), so read its GMT parts as they are
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+};
+
 const StudentAnnouncements: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,21 +72,22 @@ const StudentAnnouncements: React.FC = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      {/* On a phone the title and the search box stack, so nothing is pushed off the screen */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Announcements</h1>
           <p className="text-gray-600 mt-2">Stay updated with latest announcements</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           {/* Search Bar */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-10 pr-10 py-2 text-sm w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="input pl-10 pr-10 py-2 text-sm w-full sm:w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
         </div>
@@ -103,7 +117,7 @@ const StudentAnnouncements: React.FC = () => {
               <p className="text-gray-600 mb-4">{announcement.content}</p>
               <div className="flex items-center space-x-2 text-sm text-gray-500">
                 <Calendar size={16} />
-                <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
+                <span>{dateText(announcement.created_at)}</span>
               </div>
             </div>
           ))

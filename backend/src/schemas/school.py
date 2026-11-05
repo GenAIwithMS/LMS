@@ -39,5 +39,11 @@ class AcademicSessionSchema(Schema):
     is_current = fields.Boolean(required=False)
 
 
+class UpdateAcademicSessionSchema(Schema):
+    name = fields.String(required=False, validate=validate.Length(min=4, max=20))
+    start_date = fields.Date(required=False)
+    end_date = fields.Date(required=False)
+
+
 class TeacherSubjectSchema(Schema):
     name = fields.String(required=True, validate=validate.Length(min=1, max=100))   # like "Urdu"

@@ -91,9 +91,17 @@ export const sendTabClosingSignal = (token: string) => {
   }
 };
 
-// The page was refreshed: cancel the block that the closing signal scheduled
+// The page was refreshed: cancel the block that the closing signal scheduled.
+// If it is asked again while the first request is still on its way (React can run start-up
+// code twice), the same request is reused. A later try (the one 4 seconds after) is sent again.
+let keepLoginRequest: Promise<unknown> | null = null;
 export const keepLoginAfterRefresh = async () => {
-  await api.post('/logout/stay');
+  if (keepLoginRequest === null) {
+    keepLoginRequest = api.post('/logout/stay').finally(() => {
+      keepLoginRequest = null;
+    });
+  }
+  await keepLoginRequest;
 };
 
 // My Account (any logged-in user)
@@ -135,8 +143,19 @@ export const updateStudent = async (id: number, data: { name?: string; email?: s
   return response.data;
 };
 
-export const deleteStudent = async (id: number) => {
-  const response = await api.delete('/delete/student', { params: { id } });
+// removeRecords: also delete the student's marks, attendance and submissions (after the admin saw the list)
+export const deleteStudent = async (id: number, removeRecords?: boolean) => {
+  const params: Record<string, string | number> = { id };
+  if (removeRecords) {
+    params.remove_records = 'true';
+  }
+  const response = await api.delete('/delete/student', { params });
+  return response.data;
+};
+
+// What a student still has (marks, attendance...), shown before deleting them
+export const getStudentDeleteCheck = async (id: number) => {
+  const response = await api.get(`/admin/students/${id}/delete-check`);
   return response.data;
 };
 
@@ -158,6 +177,12 @@ export const updateTeacher = async (id: number, data: { name?: string; email?: s
 
 export const deleteTeacher = async (id: number) => {
   const response = await api.delete('/delete/teacher', { params: { id } });
+  return response.data;
+};
+
+// What must change before a teacher can be deleted (classes they teach, things they wrote)
+export const getTeacherDeleteCheck = async (id: number) => {
+  const response = await api.get(`/admin/teachers/${id}/delete-check`);
   return response.data;
 };
 
@@ -396,6 +421,12 @@ export const getAnnouncements = async (id?: number) => {
   return response.data;
 };
 
+// Only the newest few announcements (for the notification bell, which checks every minute)
+export const getLatestAnnouncements = async (limit: number) => {
+  const response = await api.get('/get/announcements', { params: { limit } });
+  return response.data;
+};
+
 // The backend finds announcements by their title, not by id
 export const updateAnnouncement = async (title: string, data: { title?: string; content?: string; target_audience?: string; section_id?: number; section_name?: string }) => {
   const response = await api.put('/update/announcement', data, { params: { title } });
@@ -534,6 +565,17 @@ export const getAcademicSessions = async () => {
 
 export const addAcademicSession = async (data: { name: string; start_date: string; end_date: string; is_current?: boolean }) => {
   const response = await api.post('/school/sessions', data);
+  return response.data;
+};
+
+export const updateAcademicSession = async (sessionId: number, data: { name?: string; start_date?: string; end_date?: string }) => {
+  const response = await api.put(`/school/sessions/${sessionId}`, data);
+  return response.data;
+};
+
+// Only a session that isn't current and has no exam terms can be deleted
+export const deleteAcademicSession = async (sessionId: number) => {
+  const response = await api.delete(`/school/sessions/${sessionId}`);
   return response.data;
 };
 

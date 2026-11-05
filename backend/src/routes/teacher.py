@@ -1,3 +1,4 @@
+from src.services.delete_checks import get_teacher_delete_check
 from flask import Blueprint,jsonify,request
 from flask_jwt_extended import jwt_required,get_jwt
 from src.schemas import RegisterTeacherSchema,UpdateTeacherSchema
@@ -94,3 +95,12 @@ def del_teacher():
 
 
 
+
+
+@teacher_bp.route("/api/admin/teachers/<int:teacher_id>/delete-check", methods=["GET"])
+@jwt_required()
+def teacher_delete_check(teacher_id):
+    """What must change before the teacher can be deleted, shown before deleting them."""
+    if get_jwt()["role"] != "admin":
+        return jsonify({"message": "Only the admin can delete teachers", "status": "failed"}), 403
+    return get_teacher_delete_check(teacher_id)

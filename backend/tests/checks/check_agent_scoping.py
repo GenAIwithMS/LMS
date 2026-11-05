@@ -11,7 +11,7 @@ from sqlalchemy.ext.compiler import compiles
 def _bigint_sqlite(type_, compiler, **kw):
     return "INTEGER"
 
-from school_setup import give_teachers_their_subjects
+from school_setup import give_teachers_their_subjects, make_every_day_a_school_day
 from src import create_app
 from src.db import db
 from src.models import (Teacher, Course, Subject, Section, Student, Result, Assignment,
@@ -30,6 +30,7 @@ def user(name, uname, email, cls, **kw):
 
 with app.app_context():
     db.create_all()
+    make_every_day_a_school_day()   # attendance for "today" works on any day
     sara = user("Sara", "sara", "sara@x", Teacher); omar = user("Omar", "omar", "omar@x", Teacher)
     db.session.add_all([sara, omar]); db.session.commit()
     cs = Course(name="CS", course_code="CS1", teacher_id=sara.id); ph = Course(name="PH", course_code="PH1", teacher_id=omar.id)

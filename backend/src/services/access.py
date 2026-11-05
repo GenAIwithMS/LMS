@@ -1,5 +1,6 @@
 from flask import jsonify
-from src.models import Student, Subject, Section, Assignment, Announcement, TeachingAssignment
+from src.db import db
+from src.models import Student, Subject, Section, Assignment, Announcement, TeachingAssignment, AssignmentSubmission
 
 
 # Who can reach what. Used by both the website routes and the chatbot tools,
@@ -118,21 +119,30 @@ def get_teacher_assignment_ids(teacher_id):
     return assignment_ids
 
 
-def get_student_assignment_ids(student_id):
-    """IDs of the assignments a student can see and submit: ones for the student's
-    section, set by the teacher who teaches that subject there."""
+def get_student_assignment_ids(student_id, include_past=False):
+    """IDs of the assignments a student can submit: ones for the student's section,
+    set by the teacher who teaches that subject there.
+
+    include_past=True also gives the ones the student handed in earlier, in another
+    section (before being promoted), so their past work and marks stay visible.
+    They are only for seeing, not for submitting again."""
     assignment_ids = []
     student = Student.query.get(student_id)
     if not student:
         return assignment_ids
 
-    assignments = Assignment.query.all()
+    # Only this section's assignments (and old ones from before sections existed)
+    assignments = Assignment.query.filter(
+        (Assignment.section_id == student.section_id) | (Assignment.section_id.is_(None))
+    ).all()
     for assignment in assignments:
-        # An assignment for another section is not for this student
-        if assignment.section_id is not None and assignment.section_id != student.section_id:
-            continue
         if teacher_teaches(assignment.teacher_id, student.section_id, assignment.subject_id):
             assignment_ids.append(assignment.id)
+
+    if include_past:
+        for (assignment_id,) in db.session.query(AssignmentSubmission.assignment_id).filter_by(student_id=student_id).all():
+            if assignment_id not in assignment_ids:
+                assignment_ids.append(assignment_id)
 
     return assignment_ids
 

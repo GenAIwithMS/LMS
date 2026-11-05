@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from flask import jsonify
-from src.db import pakistan_time
+from sqlalchemy.orm import joinedload
+from src.db import db, pakistan_time
 from src.models import (ActivityLog, Teacher, Student, Section, SchoolClass, Subject, SyllabusChapter, ChapterProgress,
                         TeachingAssignment, DailyAttendance, DiaryEntry, Assignment, ClassTest, ExamTerm, ExamPaper,
                         TimetablePeriod, AcademicSession)
@@ -307,14 +308,44 @@ def get_teacher_activity(teacher_id):
 
 # ---------------- Dashboard
 
+# ---------------- Loading in bulk
+# The dashboard covers the whole school, so each kind of data is loaded once and then
+# looked up in memory, instead of one database query per section, subject or student.
+
+def students_by_section():
+    """{section_id: [student ids]} for every student."""
+    result = {}
+    for student_id, section_id in db.session.query(Student.id, Student.section_id).all():
+        if section_id not in result:
+            result[section_id] = []
+        result[section_id].append(student_id)
+    return result
+
+
+def teacher_names_by_teaching():
+    """{(section_id, subject_id): teacher name} for every subject teacher."""
+    result = {}
+    rows = db.session.query(TeachingAssignment.section_id, TeachingAssignment.subject_id, Teacher.name).join(
+        Teacher, Teacher.id == TeachingAssignment.teacher_id).all()
+    for section_id, subject_id, name in rows:
+        result[(section_id, subject_id)] = name
+    return result
+
+
 def attendance_today_rows():
     """Every section (in a class) with today's attendance numbers."""
     rows = []
-    sections = Section.query.filter(Section.class_id.isnot(None)).all()
+    sections = Section.query.options(joinedload(Section.school_class), joinedload(Section.teacher)).filter(Section.class_id.isnot(None)).all()
     sections.sort(key=lambda section: (section.school_class.level, section.name))
+    student_ids = students_by_section()
+    records_by_section = {}
+    for record in DailyAttendance.query.filter_by(date=today()).all():
+        if record.section_id not in records_by_section:
+            records_by_section[record.section_id] = []
+        records_by_section[record.section_id].append(record)
     for section in sections:
-        student_count = Student.query.filter_by(section_id=section.id).count()
-        records = DailyAttendance.query.filter_by(section_id=section.id, date=today()).all()
+        student_count = len(student_ids.get(section.id, []))
+        records = records_by_section.get(section.id, [])
         counts = count_statuses(records)
         rows.append({
             "section_id": section.id,
@@ -334,9 +365,22 @@ def attendance_today_rows():
 def syllabus_coverage_rows():
     """For each class: each section's coverage per subject, and the averages."""
     class_list = []
+    # Everything needed, loaded once
+    all_sections = Section.query.filter(Section.class_id.isnot(None)).order_by(Section.name).all()
+    all_subjects = Subject.query.filter(Subject.class_id.isnot(None)).order_by(Subject.name).all()
+    chapters_by_subject = {}
+    for chapter_id, subject_id in db.session.query(SyllabusChapter.id, SyllabusChapter.subject_id).all():
+        if subject_id not in chapters_by_subject:
+            chapters_by_subject[subject_id] = []
+        chapters_by_subject[subject_id].append(chapter_id)
+    done_chapters = set()
+    for section_id, chapter_id in db.session.query(ChapterProgress.section_id, ChapterProgress.chapter_id).filter(ChapterProgress.status == "done").all():
+        done_chapters.add((section_id, chapter_id))
+    teacher_names = teacher_names_by_teaching()
+
     for school_class in SchoolClass.query.order_by(SchoolClass.level).all():
-        sections = Section.query.filter_by(class_id=school_class.id).order_by(Section.name).all()
-        subjects = Subject.query.filter_by(class_id=school_class.id).order_by(Subject.name).all()
+        sections = [section for section in all_sections if section.class_id == school_class.id]
+        subjects = [subject for subject in all_subjects if subject.class_id == school_class.id]
         if len(sections) == 0 or len(subjects) == 0:
             continue
 
@@ -346,15 +390,19 @@ def syllabus_coverage_rows():
             subject_list = []
             section_percentages = []
             for subject in subjects:
-                done, total = chapter_coverage(section.id, subject.id)
+                chapter_ids = chapters_by_subject.get(subject.id, [])
+                total = len(chapter_ids)
                 if total == 0:
                     continue
+                done = 0
+                for chapter_id in chapter_ids:
+                    if (section.id, chapter_id) in done_chapters:
+                        done = done + 1
                 percentage = round(done * 100 / total)
                 section_percentages.append(percentage)
-                teaching = TeachingAssignment.query.filter_by(section_id=section.id, subject_id=subject.id).first()
                 subject_list.append({
                     "subject_name": subject.name,
-                    "teacher_name": teaching.teacher.name if teaching else None,
+                    "teacher_name": teacher_names.get((section.id, subject.id)),
                     "chapters_done": done,
                     "chapter_count": total,
                     "percentage": percentage
@@ -386,12 +434,16 @@ def syllabus_coverage_rows():
 def marks_entry_rows():
     """Every open paper in every section where marks are still missing."""
     rows = []
-    for term in open_terms():
+    terms = open_terms()
+    if len(terms) == 0:
+        return rows
+    students = students_by_section()
+    teacher_names = teacher_names_by_teaching()
+    all_sections = Section.query.filter(Section.class_id.isnot(None)).order_by(Section.name).all()
+    for term in terms:
         for paper in ExamPaper.query.filter_by(term_id=term.id).all():
-            for section in Section.query.filter_by(class_id=paper.class_id).order_by(Section.name).all():
-                student_ids = []
-                for student in Student.query.filter_by(section_id=section.id).all():
-                    student_ids.append(student.id)
+            for section in [section for section in all_sections if section.class_id == paper.class_id]:
+                student_ids = students.get(section.id, [])
                 if len(student_ids) == 0:
                     continue
                 entered = 0
@@ -400,12 +452,11 @@ def marks_entry_rows():
                         entered = entered + 1
                 if entered >= len(student_ids):
                     continue
-                teaching = TeachingAssignment.query.filter_by(section_id=section.id, subject_id=paper.subject_id).first()
                 rows.append({
                     "term_name": term.name,
                     "section_name": section.full_name(),
                     "subject_name": paper.subject.name,
-                    "teacher_name": teaching.teacher.name if teaching else None,
+                    "teacher_name": teacher_names.get((section.id, paper.subject_id)),
                     "entered": entered,
                     "student_count": len(student_ids)
                 })
@@ -416,12 +467,19 @@ def low_attendance_rows(threshold=LOW_ATTENDANCE_PERCENT):
     """Students whose attendance this session is below the threshold, lowest first."""
     session = AcademicSession.query.filter_by(is_current=True).first()
     rows = []
-    for student in Student.query.all():
-        records = []
-        for record in DailyAttendance.query.filter_by(student_id=student.id).all():
-            if session and (record.date < session.start_date or record.date > session.end_date):
-                continue
-            records.append(record)
+    # All of this session's attendance in one query, grouped by student
+    query = DailyAttendance.query
+    if session:
+        query = query.filter(DailyAttendance.date >= session.start_date, DailyAttendance.date <= session.end_date)
+    records_by_student = {}
+    for record in query.all():
+        if record.student_id not in records_by_student:
+            records_by_student[record.student_id] = []
+        records_by_student[record.student_id].append(record)
+
+    students = Student.query.options(joinedload(Student.section).joinedload(Section.school_class)).all()
+    for student in students:
+        records = records_by_student.get(student.id, [])
         counts = count_statuses(records)
         if counts["percentage"] is None or counts["percentage"] >= threshold:
             continue

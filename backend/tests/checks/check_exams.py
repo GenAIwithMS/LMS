@@ -4,6 +4,8 @@ import os, sys, io, shutil, tempfile
 os.environ.update(RATELIMIT_ENABLED="false", GROQ_API_KEY="dummy", JWT_SECRET_KEY="x" * 40,
                   DATABASE_URI="sqlite:///:memory:")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))   # the backend folder
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # for school_setup
+from school_setup import make_every_day_a_school_day
 
 from sqlalchemy import BigInteger
 from sqlalchemy.ext.compiler import compiles
@@ -35,6 +37,7 @@ def make(cls, name, uname, **kw):
 
 with app.app_context():
     db.create_all()
+    make_every_day_a_school_day()   # attendance for "today" works on any day
     db.session.add_all([make(Admin, "Principal", "root"), make(Teacher, "Sara", "sara"), make(Teacher, "Omar", "omar"), make(Teacher, "Zara", "zara")])
     db.session.commit()
     SARA = Teacher.query.filter_by(username="sara").first().id

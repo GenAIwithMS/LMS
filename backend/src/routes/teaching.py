@@ -1,5 +1,6 @@
 from datetime import date
 from flask import Blueprint, request, jsonify
+from src.services.save_retry import save_with_retry
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from marshmallow import ValidationError
 from src.db import pakistan_time
@@ -78,7 +79,7 @@ def mark_section_attendance(section_id):
         data = DailyAttendanceSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
-    return save_section_register(section_id, data["date"], data["records"], user_id)
+    return save_with_retry(lambda: save_section_register(section_id, data["date"], data["records"], user_id))
 
 
 @teaching_bp.route("/api/school/sections/<int:section_id>/attendance/summary", methods=["GET"])
@@ -148,7 +149,7 @@ def change_chapter_progress(section_id, chapter_id):
         data = ChapterProgressSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
-    return update_chapter_progress(section_id, chapter_id, data, user_id)
+    return save_with_retry(lambda: update_chapter_progress(section_id, chapter_id, data, user_id))
 
 
 # ---------------- Diary
@@ -179,7 +180,7 @@ def write_diary(section_id):
 
     classwork = data.get("classwork")
     homework = data.get("homework")
-    return save_diary_entry(section_id, data["subject_id"], data["date"], classwork, homework, user_id)
+    return save_with_retry(lambda: save_diary_entry(section_id, data["subject_id"], data["date"], classwork, homework, user_id))
 
 
 @teaching_bp.route("/api/school/diary/<int:entry_id>", methods=["DELETE"])
@@ -294,7 +295,7 @@ def enter_class_test_marks(test_id):
         data = ClassTestMarksSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
-    return save_class_test_marks(test_id, data["marks"])
+    return save_with_retry(lambda: save_class_test_marks(test_id, data["marks"]))
 
 
 @teaching_bp.route("/api/school/class-tests/<int:test_id>", methods=["DELETE"])
@@ -331,7 +332,7 @@ def change_timetable(section_id):
         data = TimetableSlotSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
-    return set_timetable_slot(section_id, data["day"], data["period"], data["subject_id"], data.get("teacher_id"))
+    return save_with_retry(lambda: set_timetable_slot(section_id, data["day"], data["period"], data["subject_id"], data.get("teacher_id")))
 
 
 @teaching_bp.route("/api/school/sections/<int:section_id>/timetable", methods=["DELETE"])

@@ -5,6 +5,7 @@ from src.models import ExamTerm, ExamPaper, ExamMark, ReportRemark, Section, Stu
 from src.services.exam import term_is_closed, marks_text, paper_data, term_data
 from src.services.daily_attendance import count_statuses
 from src.services.grading import grade_for, scale_data
+from src.services.wording import plural
 
 
 # Exam results: subject teachers enter marks for their sections, then the school
@@ -121,7 +122,7 @@ def save_section_paper_marks(paper_id, section_id, rows, teacher_id):
         saved = saved + 1
     db.session.commit()
 
-    return jsonify({"message": f"Marks saved for {saved} student(s)", "status": "success"})
+    return jsonify({"message": f"Marks saved for {plural(saved, 'student')}", "status": "success"})
 
 
 # ---------------- Report cards and result sheets
@@ -172,15 +173,18 @@ def student_term_result(student, papers):
             "passed": passed
         })
 
+    # The overall percentage and grade only once every paper is marked (or absent).
+    # Before that, a missing paper would count as 0 and the grade would be wrong.
     percentage = None
-    if len(papers) > 0 and missing < len(papers):
+    if len(papers) > 0 and missing == 0:
         percentage = percentage_of(total_obtained, total_marks)
 
-    # Pass only when every subject is marked and passed
-    if failed > 0:
-        result = "Fail"
-    elif missing > 0:
+    # While a mark is missing the result is "Incomplete", even if a subject is already failed.
+    # Pass only when every subject is marked and passed.
+    if missing > 0:
         result = "Incomplete"
+    elif failed > 0:
+        result = "Fail"
     else:
         result = "Pass"
 
@@ -199,10 +203,14 @@ def student_term_result(student, papers):
 
 
 def add_positions(results):
-    """Rank the students by total marks, highest first. Equal totals share a position (1, 2, 2, 4)."""
+    """Rank the students by total marks, highest first. Equal totals share a position (1, 2, 2, 4).
+
+    Only students whose marks are all in get a position; while marks are still missing
+    ("Incomplete") a position would be misleading.
+    """
     ranked = []
     for item in results:
-        if item["percentage"] is not None:
+        if item["percentage"] is not None and item["result"] != "Incomplete":
             ranked.append(item)
     ranked.sort(key=lambda item: Decimal(item["total_obtained"]), reverse=True)
 
@@ -223,7 +231,11 @@ def section_results(term, section):
 
     results = []
     for student in section_term_students(term, section):
-        results.append(student_term_result(student, papers))
+        item = student_term_result(student, papers)
+        # The class incharge's remarks, so the remarks list can show them
+        remark = ReportRemark.query.filter_by(term_id=term.id, student_id=student.id).first()
+        item["remarks"] = remark.remarks if remark else None
+        results.append(item)
     add_positions(results)
     return results, papers
 
@@ -354,11 +366,24 @@ def save_report_remarks(term_id, student_id, remarks, teacher_id):
 
 
 def get_student_report_cards(student_id):
-    """The published terms a student can open a report card for."""
+    """The published terms a student has a report card in: their class sat papers in the
+    term, or they have marks in it (for example from their class before a promotion)."""
     term_list = []
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify(term_list)
+    class_id = student.section.class_id if student.section else None
+
+    # Terms with this student's marks, loaded once
+    marked_term_ids = set()
+    for (term_id,) in db.session.query(ExamPaper.term_id).join(ExamMark, ExamMark.paper_id == ExamPaper.id).filter(ExamMark.student_id == student_id).all():
+        marked_term_ids.add(term_id)
+
     terms = ExamTerm.query.filter_by(is_published=True).order_by(ExamTerm.start_date.desc()).all()
     for term in terms:
-        term_list.append(term_data(term))
+        class_sat_it = class_id is not None and ExamPaper.query.filter_by(term_id=term.id, class_id=class_id).first() is not None
+        if class_sat_it or term.id in marked_term_ids:
+            term_list.append(term_data(term))
     return jsonify(term_list)
 
 

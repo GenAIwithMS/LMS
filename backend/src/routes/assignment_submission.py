@@ -1,5 +1,6 @@
 from src.services import submit_assignment,get_submissions_by_assignment,get_submissions_by_student,update_submission,delete_submission,get_submission_file_path
 from flask import Blueprint, request, jsonify, send_file
+from src.services.save_retry import save_with_retry
 from src.schemas import UpdateAssignmentSubmissionSchema
 from src.models import AssignmentSubmission
 from src.services.access import teacher_owns_assignment, get_teacher_assignment_ids, get_student_assignment_ids, filter_response_by_ids
@@ -43,7 +44,13 @@ def submit_assign():
     if assignment_id not in get_student_assignment_ids(student_id):
         return jsonify({"message": "Assignment not found", "status": "failed"}), 404
     
-    result = submit_assignment(student_id, assignment_id, submission_text, submission_file)
+    def submit_once():
+        # A retry reads the uploaded file again from the start
+        if submission_file:
+            submission_file.stream.seek(0)
+        return submit_assignment(student_id, assignment_id, submission_text, submission_file)
+
+    result = save_with_retry(submit_once)
     return result
 
 @assignment_submission_bp.route("/api/get/submissions/by/student", methods=["GET"])
@@ -127,6 +134,16 @@ def get_submissions_assignment():
             "data": []
         }), 500
 
+def format_number(value):
+    """10.00 -> "10", 7.50 -> "7.5"."""
+    if value is None:
+        return ""
+    text = str(value)
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
 @assignment_submission_bp.route("/api/update/submission", methods=["PUT"])
 @jwt_required()
 def update_subm():
@@ -166,11 +183,21 @@ def update_subm():
     # A teacher only grades: marks and feedback. The student's work stays as submitted.
     grading = {}
     if "marks" in data:
-        grading["marks"] = data["marks"]
+        # Marks go from 0 up to the assignment's total
+        marks = data["marks"]
+        total = submission.assignment.total_marks
+        if marks is not None:
+            if marks < 0 or (total is not None and marks > total):
+                total_text = format_number(total)
+                return jsonify({
+                    "message": f"Marks must be between 0 and {total_text}",
+                    "status": "failed"
+                }), 400
+        grading["marks"] = marks
     if "feedback" in data:
         grading["feedback"] = data["feedback"]
 
-    result = update_submission(submission_id, **grading)
+    result = save_with_retry(lambda: update_submission(submission_id, **grading))
     return result
 
 @assignment_submission_bp.route("/api/delete/submission", methods=["DELETE"])

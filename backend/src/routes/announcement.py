@@ -72,15 +72,17 @@ def fetch_all_announcements():
 
     announcement_title = request.args.get("title")
     if not announcement_title:
-        result = get_all_announcements()
-        # Students and teachers only see the announcements meant for them (the admin sees all)
+        # ?limit=5 gives only the newest few (the notification bell)
+        limit = request.args.get("limit", type=int)
+        if limit is not None and limit < 1:
+            limit = None
+        # Students and teachers only get the announcements meant for them (the admin sees all)
+        allowed_ids = None
         if user_role == "student":
-            student_id = int(get_jwt_identity())
-            result = filter_response_by_ids(result, get_student_announcement_ids(student_id))
+            allowed_ids = get_student_announcement_ids(int(get_jwt_identity()))
         if user_role == "teacher":
-            teacher_id = int(get_jwt_identity())
-            result = filter_response_by_ids(result, get_teacher_announcement_ids(teacher_id))
-        return result
+            allowed_ids = get_teacher_announcement_ids(int(get_jwt_identity()))
+        return get_all_announcements(allowed_ids, limit)
 
     if user_role == "student" or user_role == "teacher":
         user_id = int(get_jwt_identity())

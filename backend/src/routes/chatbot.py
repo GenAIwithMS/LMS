@@ -75,8 +75,13 @@ def chat():
 
     # Without an API key every message would fail; say why instead
     if not assistant_is_set_up():
+        # The admin gets the technical reason; teachers and students a plain one
+        if user_role == "admin":
+            message = "The assistant isn't set up yet. The admin needs to add a Groq API key (GROQ_API_KEY) to the server's .env file."
+        else:
+            message = "The assistant isn't available yet. The school admin needs to switch it on."
         return jsonify({
-            "message": "The assistant isn't set up yet. The admin needs to add a Groq API key (GROQ_API_KEY) to the server's .env file.",
+            "message": message,
             "status": "failed"
         }), 503
 

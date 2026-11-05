@@ -11,7 +11,7 @@ from sqlalchemy.ext.compiler import compiles
 def _bigint_sqlite(type_, compiler, **kw):  # let SQLite autoincrement BigInteger PKs
     return "INTEGER"
 
-from school_setup import give_teachers_their_subjects
+from school_setup import give_teachers_their_subjects, make_every_day_a_school_day
 from src import create_app
 from src.db import db
 from src.models import Admin, Teacher, Course, Subject, Section, Student, Assignment, AssignmentSubmission, Enrollment, Announcement
@@ -34,6 +34,7 @@ def make(cls, name, uname, **kw):
 today = datetime.date.today()
 with app.app_context():
     db.create_all()
+    make_every_day_a_school_day()   # attendance for "today" works on any day
     admin = make(Admin, "Root", "root"); sara = make(Teacher, "Sara", "sara")
     db.session.add_all([admin, sara]); db.session.commit()
     course = Course(name="CS", course_code="CS1", teacher_id=sara.id); sec = Section(name="A", teacher_id=sara.id)
@@ -95,7 +96,7 @@ r = submit(I["open"], "first try", b"%PDF first")
 check("first submission works", r.status_code == 201, r.get_json())
 first_files = os.listdir(UPLOADS)
 r = submit(I["open"], "second try", b"%PDF second")
-check("resubmitting before the due date replaces the earlier one", r.status_code == 200 and "replaced" in r.get_json()["message"], r.get_json())
+check("resubmitting before the due date replaces the earlier one", r.status_code == 200 and r.get_json()["message"] == "Your submission was updated", r.get_json())
 with app.app_context():
     rows = AssignmentSubmission.query.filter_by(student_id=I["ali"], assignment_id=I["open"]).all()
     check("still only one submission for that assignment", len(rows) == 1, len(rows))

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { School, Users, BookOpen, CalendarRange, Plus, CheckCircle2 } from 'lucide-react';
-import { getSchoolClasses, getAcademicSessions, addAcademicSession, makeSessionCurrent } from '../../services/api';
+import { School, Users, BookOpen, CalendarRange, Plus, CheckCircle2, Edit, Trash2 } from 'lucide-react';
+import { getSchoolClasses, getAcademicSessions, addAcademicSession, makeSessionCurrent, updateAcademicSession, deleteAcademicSession } from '../../services/api';
 import type { SchoolClassSummary, AcademicSession } from '../../types';
 import { Modal } from '../../components/Modal';
 import { showError, showSuccess } from '../../utils/errorHandler';
@@ -14,6 +14,10 @@ const AdminClasses: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isSessionModalOpen, setIsSessionModalOpen] = useState(false);
   const [sessionForm, setSessionForm] = useState({ name: '', start_date: '', end_date: '' });
+  // The session being changed, and the one about to be deleted
+  const [sessionToEdit, setSessionToEdit] = useState<AcademicSession | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', start_date: '', end_date: '' });
+  const [sessionToDelete, setSessionToDelete] = useState<AcademicSession | null>(null);
 
   useEffect(() => {
     fetchAll();
@@ -53,6 +57,39 @@ const AdminClasses: React.FC = () => {
       fetchAll();
     } catch (error: any) {
       showError(error, 'Failed to change the current session');
+    }
+  };
+
+  const openEditSession = (session: AcademicSession) => {
+    setSessionToEdit(session);
+    setEditForm({ name: session.name, start_date: session.start_date, end_date: session.end_date });
+  };
+
+  const handleEditSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sessionToEdit) return;
+    try {
+      await updateAcademicSession(sessionToEdit.id, editForm);
+      showSuccess(`Session ${editForm.name} saved`);
+      setSessionToEdit(null);
+      fetchAll();
+    } catch (error: any) {
+      // For example: the name is already used, or the end date is before the start
+      showError(error, 'Failed to save the session');
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    if (!sessionToDelete) return;
+    try {
+      await deleteAcademicSession(sessionToDelete.id);
+      showSuccess(`Session ${sessionToDelete.name} deleted`);
+      fetchAll();
+    } catch (error: any) {
+      // The current session, or one with exam terms, can't be deleted
+      showError(error, 'Failed to delete the session');
+    } finally {
+      setSessionToDelete(null);
     }
   };
 
@@ -101,7 +138,13 @@ const AdminClasses: React.FC = () => {
               <div key={session.id} className={`px-4 py-2 rounded-xl border text-sm ${session.is_current ? 'border-primary-300 bg-primary-50' : 'border-gray-200'}`}>
                 <div className="font-semibold text-gray-900 flex items-center gap-1">
                   {session.is_current && <CheckCircle2 size={14} className="text-primary-600" />}
-                  {session.name}
+                  <span>{session.name}</span>
+                  <button onClick={() => openEditSession(session)} className="ml-2 p-1 text-blue-600 hover:bg-blue-50 rounded" title={`Edit session ${session.name}`} aria-label={`Edit session ${session.name}`}>
+                    <Edit size={14} />
+                  </button>
+                  <button onClick={() => setSessionToDelete(session)} className="p-1 text-red-600 hover:bg-red-50 rounded" title={`Delete session ${session.name}`} aria-label={`Delete session ${session.name}`}>
+                    <Trash2 size={14} />
+                  </button>
                 </div>
                 <div className="text-gray-500">{session.start_date} to {session.end_date}</div>
                 {!session.is_current && (
@@ -173,6 +216,39 @@ const AdminClasses: React.FC = () => {
             <button type="submit" className="btn btn-primary">Add Session</button>
           </div>
         </form>
+      </Modal>
+
+      {/* Change a session */}
+      <Modal isOpen={sessionToEdit !== null} onClose={() => setSessionToEdit(null)} title="Edit Academic Session">
+        <form onSubmit={handleEditSession} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+            <input type="text" required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="input" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Starts</label>
+              <input type="date" required value={editForm.start_date} onChange={(e) => setEditForm({ ...editForm, start_date: e.target.value })} className="input" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ends</label>
+              <input type="date" required value={editForm.end_date} onChange={(e) => setEditForm({ ...editForm, end_date: e.target.value })} className="input" />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <button type="button" onClick={() => setSessionToEdit(null)} className="btn btn-secondary">Cancel</button>
+            <button type="submit" className="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete a session */}
+      <Modal isOpen={sessionToDelete !== null} onClose={() => setSessionToDelete(null)} title="Delete Academic Session">
+        <p className="text-sm text-gray-700">Delete session {sessionToDelete?.name}?</p>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={() => setSessionToDelete(null)} className="btn btn-secondary">Cancel</button>
+          <button onClick={handleDeleteSession} className="btn bg-red-600 hover:bg-red-700 text-white">Delete</button>
+        </div>
       </Modal>
     </div>
   );

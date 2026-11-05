@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit, Trash2, Search, Settings } from 'lucide-react';
 import { Modal } from '../../components/Modal';
-import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import {
   getStudents,
   addStudent,
   updateStudent,
   deleteStudent,
+  getStudentDeleteCheck,
   getSections,
 } from '../../services/api';
 import type { Student, Section } from '../../types';
@@ -26,6 +26,8 @@ const AdminStudents: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  // What the student still has (marks, attendance...), loaded when the delete window opens
+  const [deleteRecords, setDeleteRecords] = useState<{ label: string; count: number }[] | null>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -174,20 +176,41 @@ const AdminStudents: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeleteClick = (student: Student) => {
+  // Open the delete window and load what the student still has
+  const handleDeleteClick = async (student: Student) => {
     setDeletingStudent(student);
+    setDeleteRecords(null);
     setShowDeleteConfirm(true);
+    try {
+      const data = await getStudentDeleteCheck(student.id);
+      setDeleteRecords(Array.isArray(data.records) ? data.records : []);
+    } catch (error: any) {
+      showError(error, 'Failed to check the student\'s records');
+      setShowDeleteConfirm(false);
+      setDeletingStudent(null);
+    }
+  };
+
+  const closeDeleteWindow = () => {
+    setShowDeleteConfirm(false);
+    setDeletingStudent(null);
+    setDeleteRecords(null);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deletingStudent) return;
-    
+    if (!deletingStudent || deleteRecords === null) return;
+
+    // With records, the admin has seen the list and chose to delete them too
+    let removeRecords = false;
+    if (deleteRecords.length > 0) {
+      removeRecords = true;
+    }
+
     setIsDeleting(true);
     try {
-      await deleteStudent(deletingStudent.id);
+      await deleteStudent(deletingStudent.id, removeRecords);
       showSuccess('Student deleted successfully');
-      setShowDeleteConfirm(false);
-      setDeletingStudent(null);
+      closeDeleteWindow();
       fetchStudents();
     } catch (error: any) {
       showError(error, 'Failed to delete student');
@@ -201,16 +224,53 @@ const AdminStudents: React.FC = () => {
     setEditingStudent(null);
   };
 
+  // A roll number as a number, or null when it's empty or not a number
+  const rollAsNumber = (roll: string | null | undefined): number | null => {
+    if (!roll || roll.trim() === '') return null;
+    const value = Number(roll.trim());
+    if (isNaN(value)) return null;
+    return value;
+  };
+
+  // Sort by roll number: numbers in number order, students without a roll number last
+  const compareRoll = (a: Student, b: Student): number => {
+    const aRoll = a.roll_number || '';
+    const bRoll = b.roll_number || '';
+    if (aRoll === '' && bRoll === '') return 0;
+    if (aRoll === '') return 1;
+    if (bRoll === '') return -1;
+    const aNumber = rollAsNumber(aRoll);
+    const bNumber = rollAsNumber(bRoll);
+    let result = 0;
+    if (aNumber !== null && bNumber !== null) {
+      result = aNumber - bNumber;
+    } else {
+      result = aRoll.localeCompare(bRoll);
+    }
+    if (sortOrder === 'desc') {
+      result = -result;
+    }
+    return result;
+  };
+
   const filteredStudents = students
     .filter((student) => {
+      // Search the name, email, username, section (e.g. "6 - A") and roll number
+      const term = searchTerm.toLowerCase();
       const matchesSearch =
-        student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.username?.toLowerCase().includes(searchTerm.toLowerCase());
+        student.name?.toLowerCase().includes(term) ||
+        student.email?.toLowerCase().includes(term) ||
+        student.username?.toLowerCase().includes(term) ||
+        (student.section || '').toLowerCase().includes(term) ||
+        (student.roll_number || '').toLowerCase().includes(term);
       const matchesSection = filterSection === 'all' || student.section === filterSection;
       return matchesSearch && matchesSection;
     })
     .sort((a, b) => {
+      if (sortBy === 'roll') {
+        return compareRoll(a, b);
+      }
+
       let aValue: any;
       let bValue: any;
 
@@ -273,7 +333,8 @@ const AdminStudents: React.FC = () => {
               <button
                 onClick={() => setShowOptions(!showOptions)}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-all duration-200"
-                title="Sort & Filter Options"
+                title="Sort and filter"
+                aria-label="Sort and filter"
               >
                 <Settings size={16} />
               </button>
@@ -292,6 +353,7 @@ const AdminStudents: React.FC = () => {
                       className="input text-sm py-2 px-3 w-full transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                       <option value="id">ID</option>
+                      <option value="roll">Roll No.</option>
                       <option value="name">Name</option>
                       <option value="email">Email</option>
                       <option value="username">Username</option>
@@ -375,12 +437,16 @@ const AdminStudents: React.FC = () => {
                       <button
                         onClick={() => handleEdit(student)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                        title={`Edit ${student.name}`}
+                        aria-label={`Edit ${student.name}`}
                       >
                         <Edit size={18} />
                       </button>
                       <button
                         onClick={() => handleDeleteClick(student)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded"
+                        title={`Delete ${student.name}`}
+                        aria-label={`Delete ${student.name}`}
                       >
                         <Trash2 size={18} />
                       </button>
@@ -500,24 +566,38 @@ const AdminStudents: React.FC = () => {
         </form>
       </Modal>
 
-      <DeleteConfirmation
-        isOpen={showDeleteConfirm}
-        onClose={() => {
-          setShowDeleteConfirm(false);
-          setDeletingStudent(null);
-        }}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Student"
-        itemName={deletingStudent?.name || ''}
-        itemType="student"
-        effects={[
-          'All enrollments for this student',
-          'All assignment submissions by this student',
-          'All attendance records for this student',
-          'All results for this student',
-        ]}
-        loading={isDeleting}
-      />
+      {/* Delete: first shows what the student still has */}
+      <Modal isOpen={showDeleteConfirm} onClose={closeDeleteWindow} title="Delete student">
+        {deleteRecords === null ? (
+          <p className="text-sm text-gray-400">Checking the student's records...</p>
+        ) : deleteRecords.length === 0 ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">Delete {deletingStudent?.name}? This can't be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={closeDeleteWindow} className="btn btn-secondary">Cancel</button>
+              <button onClick={handleDeleteConfirm} disabled={isDeleting} className="btn btn-primary bg-red-600 hover:bg-red-700">
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">{deletingStudent?.name} still has:</p>
+            <ul className="list-disc ml-5 text-sm text-gray-700 space-y-1">
+              {deleteRecords.map((record) => (
+                <li key={record.label}>{record.label}</li>
+              ))}
+            </ul>
+            <p className="text-sm text-red-700">Deleting {deletingStudent?.name} also deletes these records. This can't be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={closeDeleteWindow} className="btn btn-secondary">Cancel</button>
+              <button onClick={handleDeleteConfirm} disabled={isDeleting} className="btn btn-primary bg-red-600 hover:bg-red-700">
+                {isDeleting ? 'Deleting...' : 'Delete student and these records'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -7,6 +7,60 @@ import type { Assignment, TeachingItem } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import { useNavigate } from 'react-router-dom';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// The due date as "2025-01-01", for the date box. The server may send "2025-01-01" or
+// "Wed, 01 Jan 2025 00:00:00 GMT". The date is read from the text itself, so it can't
+// move a day because of the time zone.
+const dateBoxValue = (text: string): string => {
+  if (!text) {
+    return '';
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    return text.slice(0, 10);
+  }
+  const match = text.match(/(\d{1,2}) ([A-Za-z]{3}) (\d{4})/);
+  if (!match) {
+    return '';
+  }
+  const monthIndex = MONTHS.indexOf(match[2]);
+  if (monthIndex === -1) {
+    return '';
+  }
+  const month = String(monthIndex + 1).padStart(2, '0');
+  const day = match[1].padStart(2, '0');
+  return `${match[3]}-${month}-${day}`;
+};
+
+// The due date in words, like "1 Jan 2025"
+const readableDate = (text: string): string => {
+  const value = dateBoxValue(text);
+  if (!value) {
+    return text || '-';
+  }
+  const year = value.slice(0, 4);
+  const monthIndex = parseInt(value.slice(5, 7)) - 1;
+  const day = parseInt(value.slice(8, 10));
+  return `${day} ${MONTHS[monthIndex]} ${year}`;
+};
+
+// Marks without needless decimals: "10" instead of "10.00", but "7.5" stays
+const marksText = (value: number | string): string => {
+  const number = Number(value);
+  if (isNaN(number)) {
+    return String(value);
+  }
+  return String(number);
+};
+
+// Today as "2026-11-05", in the user's own time zone
+const todayText = (): string => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+};
+
 // An assignment as shown on this page: it also knows which section it is for
 interface SectionAssignment extends Assignment {
   section_id: number | null;
@@ -183,11 +237,11 @@ const TeacherAssignments: React.FC = () => {
     setFormData({
       title: assignment.title,
       description: assignment.description,
-      due_date: assignment.due_date,
+      due_date: dateBoxValue(assignment.due_date),
       subject_id: assignment.subject_id ? String(assignment.subject_id) : '',
       subject_name: assignment.subject,
       section_id: assignment.section_id ? String(assignment.section_id) : '',
-      total_marks: assignment.total_marks,
+      total_marks: Number(assignment.total_marks),
     });
     setIsModalOpen(true);
   };
@@ -269,6 +323,13 @@ const TeacherAssignments: React.FC = () => {
     }
   }
 
+  // A new assignment can't be due in the past. When editing, an old due date can stay
+  // as it is; only a changed date has to be today or later.
+  let dueDateMin: string | undefined = todayText();
+  if (editingAssignment && formData.due_date === dateBoxValue(editingAssignment.due_date)) {
+    dueDateMin = undefined;
+  }
+
   // On the edit form, the picker shows the assignment's own section and subject
   let pickerKey = '';
   if (formData.section_id && formData.subject_id) {
@@ -285,14 +346,15 @@ const TeacherAssignments: React.FC = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      {/* On a phone the title, search box and buttons stack, so nothing is pushed off the screen */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Assignments</h1>
           <p className="text-gray-600 mt-2">Create and manage assignments</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Search Bar with Options Icon */}
-          <div className="relative" ref={optionsRef}>
+          <div className="relative w-full sm:w-auto" ref={optionsRef}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -300,7 +362,7 @@ const TeacherAssignments: React.FC = () => {
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input pl-10 pr-10 py-2 text-sm w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="input pl-10 pr-10 py-2 text-sm w-full sm:w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
               <button
                 onClick={() => setShowOptions(!showOptions)}
@@ -381,21 +443,21 @@ const TeacherAssignments: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <button onClick={() => navigate(`/teacher/submissions?assignmentId=${assignment.id}`)} className="p-2 text-green-600 hover:bg-green-50 rounded" title="View Submissions">
+                  <button onClick={() => navigate(`/teacher/submissions?assignmentId=${assignment.id}`)} className="p-2 text-green-600 hover:bg-green-50 rounded" title="View Submissions" aria-label={`View submissions for ${assignment.title}`}>
                     <Eye size={18} />
                   </button>
-                  <button onClick={() => handleEdit(assignment)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
+                  <button onClick={() => handleEdit(assignment)} className="p-2 text-blue-600 hover:bg-blue-50 rounded" title={`Edit ${assignment.title}`} aria-label={`Edit ${assignment.title}`}>
                     <Edit size={18} />
                   </button>
-                  <button onClick={() => handleDeleteClick(assignment)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                  <button onClick={() => handleDeleteClick(assignment)} className="p-2 text-red-600 hover:bg-red-50 rounded" title={`Delete ${assignment.title}`} aria-label={`Delete ${assignment.title}`}>
                     <Trash2 size={18} />
                   </button>
                 </div>
               </div>
               <p className="text-gray-600 mb-4 line-clamp-2">{assignment.description}</p>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Due: {assignment.due_date}</span>
-                <span className="font-medium text-gray-900">{assignment.total_marks} marks</span>
+                <span className="text-gray-500">Due: {readableDate(assignment.due_date)}</span>
+                <span className="font-medium text-gray-900">{marksText(assignment.total_marks)} marks</span>
               </div>
             </div>
           ))
@@ -432,7 +494,7 @@ const TeacherAssignments: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
-              <input type="date" required value={formData.due_date} onChange={(e) => setFormData({ ...formData, due_date: e.target.value })} className="input" />
+              <input type="date" required min={dueDateMin} value={formData.due_date} onChange={(e) => setFormData({ ...formData, due_date: e.target.value })} className="input" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Total Marks</label>

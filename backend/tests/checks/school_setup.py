@@ -18,3 +18,15 @@ def give_teachers_their_subjects():
             if not existing:
                 db.session.add(TeachingAssignment(section_id=section.id, subject_id=subject.id, teacher_id=subject.teacher_id))
     db.session.commit()
+
+
+def make_every_day_a_school_day():
+    """The check scripts mark attendance for "today". Attendance is only allowed on school
+    days, so the test database counts every day (Monday to Sunday) as a school day; then
+    the checks pass whatever day they are run on."""
+    from src.models import SchoolSetting
+    from src.services.timetable import make_sure_layout_exists
+    make_sure_layout_exists()
+    setting = SchoolSetting.query.filter_by(key="school_days").first()
+    setting.value = "1,2,3,4,5,6,7"
+    db.session.commit()

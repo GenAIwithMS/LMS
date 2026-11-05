@@ -1,6 +1,8 @@
 from flask import jsonify
 from src.db import db, pakistan_time
 from src.models import DailyAttendance, Section, Student
+from src.services.timetable import get_school_days, DAY_NAMES
+from src.services.save_retry import wait_for_section
 
 
 # Daily attendance: once a day, the class incharge marks every student of their
@@ -75,8 +77,15 @@ def save_section_register(section_id, day, records, teacher_id):
     if day > pakistan_time().date():
         return jsonify({"message": "Attendance can't be marked for a future date", "status": "failed"}), 400
 
+    # Only on school days (the days in the timetable settings, Monday = 1 ... Sunday = 7)
+    if day.isoweekday() not in get_school_days():
+        return jsonify({"message": f"{DAY_NAMES[day.isoweekday()]} is not a school day, so attendance can't be marked", "status": "failed"}), 400
+
     if len(records) == 0:
         return jsonify({"message": "No students were sent", "status": "failed"}), 400
+
+    # Another save of this register at the same moment waits for this one (and the other way round)
+    wait_for_section(section_id)
 
     # Check everything first, so nothing is saved if one row is wrong
     for row in records:

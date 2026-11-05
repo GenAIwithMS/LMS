@@ -34,6 +34,21 @@ def is_admission_number_taken(admission_number, current_student=None):
     return other is not None and other is not current_student
 
 
+def roll_number_clash(section_id, roll_number, current_student=None):
+    """A message if another student of the section already has this roll number, otherwise None.
+    Roll numbers only need to be different inside one section (5-A and 5-B can both have roll 1)."""
+    if not roll_number or not section_id:
+        return None
+    roll_number = str(roll_number).strip()
+    for other in Student.query.filter_by(section_id=section_id).all():
+        if other is current_student:
+            continue
+        if other.roll_number and other.roll_number.strip() == roll_number:
+            section_name = other.section.full_name() if other.section else "this section"
+            return f"Roll number {roll_number} is already used in {section_name} by {other.name}"
+    return None
+
+
 def add_students(name, username, section, password, email, roll_number=None, admission_number=None,
                  guardian_name=None, guardian_phone=None, date_of_birth=None):
     if is_email_taken(email):
@@ -50,6 +65,12 @@ def add_students(name, username, section, password, email, roll_number=None, adm
         return jsonify({
             "message":"Admission number already exists",
             "status":"failed"
+        }), 400
+    clash = roll_number_clash(section, roll_number)
+    if clash:
+        return jsonify({
+            "message": clash,
+            "status": "failed"
         }), 400
     
     new_student = Student(
@@ -122,6 +143,20 @@ def update_student(student_id, **kwargs):
             "status":"failed"
         }), 400
 
+    # The roll number must still be free in the (possibly new) section
+    new_section_id = student.section_id
+    if kwargs.get("section_id"):
+        new_section_id = kwargs["section_id"]
+    new_roll_number = student.roll_number
+    if kwargs.get("roll_number"):
+        new_roll_number = kwargs["roll_number"]
+    clash = roll_number_clash(new_section_id, new_roll_number, current_student=student)
+    if clash:
+        return jsonify({
+            "message": clash,
+            "status": "failed"
+        }), 400
+
     for key, value in kwargs.items():
         if value is None:
             continue
@@ -137,31 +172,9 @@ def update_student(student_id, **kwargs):
         "status":"success"
     })
 
-def delete_student(student_id):
-    student = Student.query.get(student_id)
-
-    if not student:
-        return jsonify({
-            "message":"student not found",
-            "status":"failed"
-        }), 404
-
-    enrollments = Enrollment.query.filter_by(student_id=student_id).all()
-    for enrollment in enrollments:
-        db.session.delete(enrollment)
-
-    db.session.delete(student)
-    try:
-        db.session.commit()
-    except IntegrityError:
-        # Other records still point to this one, so the database refuses
-        db.session.rollback()
-        return jsonify({
-            "message": "Cannot delete this student because attendance, results or submissions still belong to them. Delete those first.",
-            "status": "failed"
-        }), 409
-
-    return jsonify({
-        "message":"student deleted successfully",
-        "status":"success"
-    })
+def delete_student(student_id, remove_records=False):
+    """Delete a student. If they still have marks, attendance or submissions, only when
+    remove_records is True (see services/delete_checks.py)."""
+    # Imported here, not at the top: delete_checks imports from this package (a circular import)
+    from src.services.delete_checks import delete_student_with_records
+    return delete_student_with_records(student_id, remove_records)

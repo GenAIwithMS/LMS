@@ -34,7 +34,7 @@ def get_assignment_by_id(assignment_id):
             "id": assignment.id,
             "title": assignment.title,
             "description": assignment.description,
-            "due_date": assignment.due_date,
+            "due_date": assignment.due_date.isoformat(),   # "2026-11-20", easy to read and to put in a date box
             "subject_id": assignment.subject_id,
             "subject_name": assignment.subject.name,
             "section_id": assignment.section_id,
@@ -53,7 +53,7 @@ def get_all_assignments():
             "id": assignment.id,
             "title": assignment.title,
             "description": assignment.description,
-            "due_date": assignment.due_date,
+            "due_date": assignment.due_date.isoformat(),   # "2026-11-20", easy to read and to put in a date box
             "subject_id": assignment.subject_id,
             "subject_name": assignment.subject.name,
             "section_id": assignment.section_id,

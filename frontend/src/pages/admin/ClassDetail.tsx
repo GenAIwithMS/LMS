@@ -10,6 +10,7 @@ import {
 import type { SchoolClassDetails, SchoolClassSummary, ClassSubject, SyllabusChapter, Teacher, TeacherSkills } from '../../types';
 import { Modal } from '../../components/Modal';
 import { showError, showSuccess } from '../../utils/errorHandler';
+import toast from 'react-hot-toast';
 
 // One class (for example Class 5), set up in steps:
 // 1. sections and their class incharge, 2. the subjects the class studies,
@@ -43,6 +44,19 @@ const AdminClassDetail: React.FC = () => {
 
   // The subjects each teacher teaches, so the teacher lists show them first
   const [teacherSkills, setTeacherSkills] = useState<TeacherSkills[]>([]);
+
+  // Windows that ask before changing or deleting something
+  const [sectionToDelete, setSectionToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [subjectToRename, setSubjectToRename] = useState<ClassSubject | null>(null);
+  const [renameText, setRenameText] = useState('');
+  const [subjectToDelete, setSubjectToDelete] = useState<ClassSubject | null>(null);
+  // A change of subject teacher that replaces (or removes) the current teacher waits here for a yes
+  const [teacherChange, setTeacherChange] = useState<{ sectionId: number; sectionName: string; subjectId: number; subjectName: string; currentName: string; newTeacherId: string; newName: string } | null>(null);
+
+  // Inside the chapters window: the chapter being renamed or about to be deleted
+  const [editingChapterId, setEditingChapterId] = useState<number | null>(null);
+  const [chapterTitleText, setChapterTitleText] = useState('');
+  const [chapterToDeleteId, setChapterToDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchClass();
@@ -133,14 +147,17 @@ const AdminClassDetail: React.FC = () => {
     }
   };
 
-  const handleDeleteSection = async (sectionId: number, name: string) => {
-    if (!window.confirm(`Delete section ${name}?`)) return;
+  const handleDeleteSection = async () => {
+    if (!sectionToDelete) return;
     try {
-      await deleteClassSection(sectionId);
+      await deleteClassSection(sectionToDelete.id);
       showSuccess('Section deleted');
       fetchClass();
     } catch (error: any) {
+      // For example: the section still has students
       showError(error, 'Failed to delete the section');
+    } finally {
+      setSectionToDelete(null);
     }
   };
 
@@ -159,26 +176,44 @@ const AdminClassDetail: React.FC = () => {
     }
   };
 
-  const handleRenameSubject = async (subject: ClassSubject) => {
-    const newName = window.prompt('New name for the subject', subject.name);
-    if (!newName || newName.trim() === subject.name) return;
+  const openRenameSubject = (subject: ClassSubject) => {
+    setSubjectToRename(subject);
+    setRenameText(subject.name);
+  };
+
+  const handleRenameSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subjectToRename) return;
+    const newName = renameText.trim();
+    if (newName === '') {
+      toast.error('Write the new name');
+      return;
+    }
+    if (newName === subjectToRename.name) {
+      setSubjectToRename(null);
+      return;
+    }
     try {
-      await renameClassSubject(subject.id, newName.trim());
+      await renameClassSubject(subjectToRename.id, newName);
       showSuccess('Subject renamed');
+      setSubjectToRename(null);
       fetchClass();
     } catch (error: any) {
       showError(error, 'Failed to rename the subject');
     }
   };
 
-  const handleDeleteSubject = async (subject: ClassSubject) => {
-    if (!window.confirm(`Delete ${subject.name} and its chapters?`)) return;
+  const handleDeleteSubject = async () => {
+    if (!subjectToDelete) return;
     try {
-      await deleteClassSubject(subject.id);
+      await deleteClassSubject(subjectToDelete.id);
       showSuccess('Subject deleted');
       fetchClass();
     } catch (error: any) {
+      // For example: the subject already has marks or exam papers
       showError(error, 'Failed to delete the subject');
+    } finally {
+      setSubjectToDelete(null);
     }
   };
 
@@ -195,7 +230,44 @@ const AdminClassDetail: React.FC = () => {
     return '';
   };
 
-  const handleSubjectTeacherChange = async (sectionId: number, subjectId: number, teacherId: string) => {
+  // The name of a teacher, from their ID
+  const teacherName = (teacherId: string): string => {
+    for (const teacher of teachers) {
+      if (String(teacher.id) === teacherId) {
+        return teacher.name;
+      }
+    }
+    return 'the new teacher';
+  };
+
+  // A new choice in the table: save straight away when nobody teaches it yet,
+  // otherwise ask first (the current teacher would lose the subject)
+  const chooseSubjectTeacher = (sectionId: number, sectionName: string, subjectId: number, subjectName: string, teacherId: string) => {
+    const currentId = findSubjectTeacher(sectionId, subjectId);
+    if (currentId === teacherId) return;
+    if (currentId === '') {
+      saveSubjectTeacher(sectionId, subjectId, teacherId);
+      return;
+    }
+    setTeacherChange({
+      sectionId: sectionId,
+      sectionName: sectionName,
+      subjectId: subjectId,
+      subjectName: subjectName,
+      currentName: teacherName(currentId),
+      newTeacherId: teacherId,
+      newName: teacherId ? teacherName(teacherId) : '',
+    });
+  };
+
+  const confirmTeacherChange = async () => {
+    if (!teacherChange) return;
+    const change = teacherChange;
+    setTeacherChange(null);
+    await saveSubjectTeacher(change.sectionId, change.subjectId, change.newTeacherId);
+  };
+
+  const saveSubjectTeacher = async (sectionId: number, subjectId: number, teacherId: string) => {
     try {
       const data = await setSubjectTeacher(sectionId, subjectId, teacherId ? Number(teacherId) : null);
       showSuccess(data.message || 'Subject teacher updated');
@@ -238,11 +310,26 @@ const AdminClassDetail: React.FC = () => {
     }
   };
 
+  const startRenameChapter = (chapter: SyllabusChapter) => {
+    setChapterToDeleteId(null);
+    setEditingChapterId(chapter.id);
+    setChapterTitleText(chapter.title);
+  };
+
   const handleRenameChapter = async (chapter: SyllabusChapter) => {
-    const newTitle = window.prompt(`New title for chapter ${chapter.number}`, chapter.title);
-    if (!newTitle || newTitle.trim() === chapter.title || !chapterSubject) return;
+    if (!chapterSubject) return;
+    const newTitle = chapterTitleText.trim();
+    if (newTitle === '') {
+      toast.error('Write the chapter title');
+      return;
+    }
+    if (newTitle === chapter.title) {
+      setEditingChapterId(null);
+      return;
+    }
     try {
-      await updateSubjectChapter(chapter.id, { title: newTitle.trim() });
+      await updateSubjectChapter(chapter.id, { title: newTitle });
+      setEditingChapterId(null);
       fetchChapters(chapterSubject.id);
     } catch (error: any) {
       showError(error, 'Failed to rename the chapter');
@@ -250,14 +337,21 @@ const AdminClassDetail: React.FC = () => {
   };
 
   const handleDeleteChapter = async (chapter: SyllabusChapter) => {
-    if (!chapterSubject || !window.confirm(`Delete chapter ${chapter.number}: ${chapter.title}?`)) return;
+    if (!chapterSubject) return;
     try {
       await deleteSubjectChapter(chapter.id);
+      setChapterToDeleteId(null);
       fetchChapters(chapterSubject.id);
       fetchClass();
     } catch (error: any) {
       showError(error, 'Failed to delete the chapter');
     }
+  };
+
+  const closeChapters = () => {
+    setChapterSubject(null);
+    setEditingChapterId(null);
+    setChapterToDeleteId(null);
   };
 
   if (loading || !schoolClass) {
@@ -322,7 +416,7 @@ const AdminClassDetail: React.FC = () => {
                         <button onClick={() => navigate(`/admin/sections/${section.id}`)} className="btn btn-secondary text-sm px-3 py-1 flex items-center gap-1">
                           Open section <ChevronRight size={14} />
                         </button>
-                        <button onClick={() => handleDeleteSection(section.id, section.full_name)} className="p-2 text-red-600 hover:bg-red-50 rounded" title="Delete section">
+                        <button onClick={() => setSectionToDelete({ id: section.id, name: section.full_name })} className="p-2 text-red-600 hover:bg-red-50 rounded" title={`Delete section ${section.full_name}`} aria-label={`Delete section ${section.full_name}`}>
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -361,8 +455,8 @@ const AdminClassDetail: React.FC = () => {
                     <div className="text-xs text-gray-500">{subject.chapter_count} chapters</div>
                   </div>
                   <div className="flex">
-                    <button onClick={() => handleRenameSubject(subject)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Rename"><Edit size={14} /></button>
-                    <button onClick={() => handleDeleteSubject(subject)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete"><Trash2 size={14} /></button>
+                    <button onClick={() => openRenameSubject(subject)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title={`Rename ${subject.name}`} aria-label={`Rename ${subject.name}`}><Edit size={14} /></button>
+                    <button onClick={() => setSubjectToDelete(subject)} className="p-1 text-red-600 hover:bg-red-50 rounded" title={`Delete ${subject.name}`} aria-label={`Delete ${subject.name}`}><Trash2 size={14} /></button>
                   </div>
                 </div>
                 <button onClick={() => openChapters(subject)} className="mt-2 text-sm text-primary-600 hover:underline flex items-center gap-1">
@@ -400,27 +494,36 @@ const AdminClassDetail: React.FC = () => {
                 {schoolClass.subjects.map((subject) => (
                   <tr key={subject.id}>
                     <td className="font-semibold">{subject.name}</td>
-                    {schoolClass.sections.map((section) => (
-                      <td key={section.id}>
-                        <select
-                          value={findSubjectTeacher(section.id, subject.id)}
-                          onChange={(e) => handleSubjectTeacherChange(section.id, subject.id, e.target.value)}
-                          className="input py-1 min-w-[10rem]"
-                        >
-                          <option value="">No teacher yet</option>
-                          <optgroup label={`Teaches ${subject.name}`}>
-                            {teachers.filter((teacher) => teacherTeaches(teacher.id, subject.name)).map((teacher) => (
-                              <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="Other teachers">
-                            {teachers.filter((teacher) => !teacherTeaches(teacher.id, subject.name)).map((teacher) => (
-                              <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
-                            ))}
-                          </optgroup>
-                        </select>
-                      </td>
-                    ))}
+                    {schoolClass.sections.map((section) => {
+                      // Teachers of this subject first; a group is only shown when it has someone in it
+                      const subjectTeachers = teachers.filter((teacher) => teacherTeaches(teacher.id, subject.name));
+                      const otherTeachers = teachers.filter((teacher) => !teacherTeaches(teacher.id, subject.name));
+                      return (
+                        <td key={section.id}>
+                          <select
+                            value={findSubjectTeacher(section.id, subject.id)}
+                            onChange={(e) => chooseSubjectTeacher(section.id, section.full_name, subject.id, subject.name, e.target.value)}
+                            className="input py-1 min-w-[10rem]"
+                          >
+                            <option value="">No teacher yet</option>
+                            {subjectTeachers.length > 0 && (
+                              <optgroup label={`Teaches ${subject.name}`}>
+                                {subjectTeachers.map((teacher) => (
+                                  <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                            {otherTeachers.length > 0 && (
+                              <optgroup label="Other teachers">
+                                {otherTeachers.map((teacher) => (
+                                  <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </select>
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -443,26 +546,108 @@ const AdminClassDetail: React.FC = () => {
         </button>
       </div>
 
-      <Modal isOpen={chapterSubject !== null} onClose={() => setChapterSubject(null)} title={chapterSubject ? `${chapterSubject.name}: chapters` : ''}>
+      <Modal isOpen={chapterSubject !== null} onClose={closeChapters} title={chapterSubject ? `${chapterSubject.name}: chapters` : ''}>
         <div className="space-y-2 max-h-80 overflow-y-auto">
           {chapters.length === 0 ? (
             <p className="text-sm text-gray-500">No chapters yet.</p>
           ) : (
-            chapters.map((chapter) => (
-              <div key={chapter.id} className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2">
-                <span className="text-sm"><span className="font-semibold">{chapter.number}.</span> {chapter.title}</span>
-                <div className="flex">
-                  <button onClick={() => handleRenameChapter(chapter)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Rename"><Edit size={14} /></button>
-                  <button onClick={() => handleDeleteChapter(chapter)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete"><Trash2 size={14} /></button>
+            chapters.map((chapter) => {
+              // Renaming: the title becomes a box with Save and Cancel
+              if (editingChapterId === chapter.id) {
+                return (
+                  <div key={chapter.id} className="flex items-center gap-2 border border-primary-200 rounded-lg px-3 py-2">
+                    <span className="text-sm font-semibold">{chapter.number}.</span>
+                    <input type="text" value={chapterTitleText} onChange={(e) => setChapterTitleText(e.target.value)} className="input py-1 text-sm flex-1" aria-label={`New title for chapter ${chapter.number}`} />
+                    <button onClick={() => handleRenameChapter(chapter)} className="btn btn-primary text-xs px-2 py-1">Save</button>
+                    <button onClick={() => setEditingChapterId(null)} className="btn btn-secondary text-xs px-2 py-1">Cancel</button>
+                  </div>
+                );
+              }
+              // Deleting: ask on the same row
+              if (chapterToDeleteId === chapter.id) {
+                return (
+                  <div key={chapter.id} className="flex items-center justify-between gap-2 border border-red-200 bg-red-50 rounded-lg px-3 py-2">
+                    <span className="text-sm text-red-800">Delete chapter {chapter.number}: {chapter.title}?</span>
+                    <div className="flex gap-1">
+                      <button onClick={() => handleDeleteChapter(chapter)} className="btn text-xs px-2 py-1 bg-red-600 hover:bg-red-700 text-white">Delete</button>
+                      <button onClick={() => setChapterToDeleteId(null)} className="btn btn-secondary text-xs px-2 py-1">Cancel</button>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div key={chapter.id} className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2">
+                  <span className="text-sm"><span className="font-semibold">{chapter.number}.</span> {chapter.title}</span>
+                  <div className="flex">
+                    <button onClick={() => startRenameChapter(chapter)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title={`Rename chapter ${chapter.number}`} aria-label={`Rename chapter ${chapter.number}`}><Edit size={14} /></button>
+                    <button onClick={() => { setEditingChapterId(null); setChapterToDeleteId(chapter.id); }} className="p-1 text-red-600 hover:bg-red-50 rounded" title={`Delete chapter ${chapter.number}`} aria-label={`Delete chapter ${chapter.number}`}><Trash2 size={14} /></button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
         <form onSubmit={handleAddChapter} className="flex gap-2 mt-4">
           <input type="text" placeholder="Chapter title" value={newChapterTitle} onChange={(e) => setNewChapterTitle(e.target.value)} className="input" />
           <button type="submit" className="btn btn-primary flex items-center gap-1"><Plus size={16} /> Add</button>
         </form>
+      </Modal>
+
+      {/* Delete a section */}
+      <Modal isOpen={sectionToDelete !== null} onClose={() => setSectionToDelete(null)} title="Delete section">
+        <p className="text-sm text-gray-700">Delete section {sectionToDelete?.name}?</p>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={() => setSectionToDelete(null)} className="btn btn-secondary">Cancel</button>
+          <button onClick={handleDeleteSection} className="btn bg-red-600 hover:bg-red-700 text-white">Delete</button>
+        </div>
+      </Modal>
+
+      {/* Rename a subject */}
+      <Modal isOpen={subjectToRename !== null} onClose={() => setSubjectToRename(null)} title="Rename subject">
+        <form onSubmit={handleRenameSubject} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">New name</label>
+            <input type="text" value={renameText} onChange={(e) => setRenameText(e.target.value)} className="input" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setSubjectToRename(null)} className="btn btn-secondary">Cancel</button>
+            <button type="submit" className="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete a subject */}
+      <Modal isOpen={subjectToDelete !== null} onClose={() => setSubjectToDelete(null)} title="Delete subject">
+        <p className="text-sm text-gray-700">Delete {subjectToDelete?.name} and its chapters?</p>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={() => setSubjectToDelete(null)} className="btn btn-secondary">Cancel</button>
+          <button onClick={handleDeleteSubject} className="btn bg-red-600 hover:bg-red-700 text-white">Delete</button>
+        </div>
+      </Modal>
+
+      {/* Replace or remove a subject teacher */}
+      <Modal isOpen={teacherChange !== null} onClose={() => setTeacherChange(null)} title="Change subject teacher">
+        {teacherChange && (
+          <div className="space-y-4">
+            {teacherChange.newTeacherId ? (
+              <p className="text-sm text-gray-700">
+                {teacherChange.subjectName} in {teacherChange.sectionName} is taught by {teacherChange.currentName} now.
+                Give it to {teacherChange.newName} instead? {teacherChange.currentName} will no longer teach it there, and its
+                timetable periods will show {teacherChange.newName} (teachers and students see that after the timetable is published again).
+              </p>
+            ) : (
+              <p className="text-sm text-gray-700">
+                Remove {teacherChange.currentName} from {teacherChange.subjectName} in {teacherChange.sectionName}? Its timetable periods will have no teacher.
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setTeacherChange(null)} className="btn btn-secondary">Cancel</button>
+              <button onClick={confirmTeacherChange} className="btn btn-primary">
+                {teacherChange.newTeacherId ? `Yes, give it to ${teacherChange.newName}` : `Yes, remove ${teacherChange.currentName}`}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

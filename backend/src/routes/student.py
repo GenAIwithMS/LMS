@@ -1,3 +1,4 @@
+from src.services.delete_checks import get_student_delete_check
 from flask import Blueprint, request,jsonify
 from src.models import Section,Student
 from src.services import add_students, get_all_students, get_student_by_id, update_student, delete_student
@@ -138,6 +139,17 @@ def delete_std():
     if student_id is None:
         return jsonify({"error":"invalid ID"}),400
     
-    result = delete_student(student_id)
+    # The admin has seen the student's records and chose to delete them too
+    remove_records = request.args.get("remove_records", "false").lower() == "true"
+    result = delete_student(student_id, remove_records)
     return result
     
+
+
+@student_bp.route("/api/admin/students/<int:student_id>/delete-check", methods=["GET"])
+@jwt_required()
+def student_delete_check(student_id):
+    """What the student still has, shown before deleting them."""
+    if get_jwt()["role"] != "admin":
+        return jsonify({"message": "Only the admin can delete students", "status": "failed"}), 403
+    return get_student_delete_check(student_id)

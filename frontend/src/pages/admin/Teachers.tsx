@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Search, Settings, Activity, BookOpen, X } from 'lucide-react';
 import { Modal } from '../../components/Modal';
-import { DeleteConfirmation } from '../../components/DeleteConfirmation';
-import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getSchoolClasses, getSchoolClass, setSubjectTeacher, getTeacherSubjects, addTeacherSubject, removeTeacherSubject } from '../../services/api';
+import { getTeachers, addTeacher, updateTeacher, deleteTeacher, getTeacherDeleteCheck, getSchoolClasses, getSchoolClass, setSubjectTeacher, getTeacherSubjects, addTeacherSubject, removeTeacherSubject } from '../../services/api';
 import type { Teacher, SchoolClassSummary, SchoolClassDetails, TeacherSkills } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import toast from 'react-hot-toast';
@@ -31,6 +30,8 @@ const AdminTeachers: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingTeacher, setDeletingTeacher] = useState<Teacher | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  // What stops the teacher from being deleted, loaded when the delete window opens
+  const [deleteBlockers, setDeleteBlockers] = useState<string[] | null>(null);
   const optionsRef = useRef<HTMLDivElement>(null);
 
   // The "Subjects" window: what one teacher teaches, and giving them more
@@ -41,6 +42,8 @@ const AdminTeachers: React.FC = () => {
   const [pickClassId, setPickClassId] = useState('');
   const [pickSectionId, setPickSectionId] = useState('');
   const [pickSubjectId, setPickSubjectId] = useState('');
+  // Asking before a subject is taken from the teacher who teaches it now
+  const [replaceTeacherName, setReplaceTeacherName] = useState<string | null>(null);
 
   // The subjects each teacher teaches (before any class), and every subject name in the school
   const [teacherSkills, setTeacherSkills] = useState<TeacherSkills[]>([]);
@@ -118,7 +121,21 @@ const AdminTeachers: React.FC = () => {
     e.preventDefault();
     try {
       if (editingTeacher) {
-        await updateTeacher(editingTeacher.id, formData);
+        // Send only what was filled in: an empty password box keeps the current password
+        const updateData: { name?: string; username?: string; email?: string; password?: string } = {};
+        if (formData.name.trim() !== '') {
+          updateData.name = formData.name.trim();
+        }
+        if (formData.username.trim() !== '') {
+          updateData.username = formData.username.trim();
+        }
+        if (formData.email.trim() !== '') {
+          updateData.email = formData.email.trim();
+        }
+        if (formData.password !== '') {
+          updateData.password = formData.password;
+        }
+        await updateTeacher(editingTeacher.id, updateData);
         showSuccess('Teacher updated successfully');
         setIsModalOpen(false);
         resetForm();
@@ -160,20 +177,35 @@ const AdminTeachers: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeleteClick = (teacher: Teacher) => {
+  // Open the delete window and load what still stops the teacher from being deleted
+  const handleDeleteClick = async (teacher: Teacher) => {
     setDeletingTeacher(teacher);
+    setDeleteBlockers(null);
     setShowDeleteConfirm(true);
+    try {
+      const data = await getTeacherDeleteCheck(teacher.id);
+      setDeleteBlockers(Array.isArray(data.blockers) ? data.blockers : []);
+    } catch (error: any) {
+      showError(error, 'Failed to check the teacher');
+      setShowDeleteConfirm(false);
+      setDeletingTeacher(null);
+    }
+  };
+
+  const closeDeleteWindow = () => {
+    setShowDeleteConfirm(false);
+    setDeletingTeacher(null);
+    setDeleteBlockers(null);
   };
 
   const handleDeleteConfirm = async () => {
     if (!deletingTeacher) return;
-    
+
     setIsDeleting(true);
     try {
       await deleteTeacher(deletingTeacher.id);
       showSuccess('Teacher deleted successfully');
-      setShowDeleteConfirm(false);
-      setDeletingTeacher(null);
+      closeDeleteWindow();
       fetchTeachers();
     } catch (error: any) {
       showError(error, 'Failed to delete teacher');
@@ -308,6 +340,7 @@ const AdminTeachers: React.FC = () => {
     }
   };
 
+  // Assign: if another teacher teaches it there now, ask first
   const handleAssignSubject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subjectsTeacher) return;
@@ -315,9 +348,53 @@ const AdminTeachers: React.FC = () => {
       toast.error('Choose a class, a section and a subject');
       return;
     }
+    let nowTeacherId: number | null = null;
+    let nowTeacherName: string | null = null;
+    const detail = classDetails[Number(pickClassId)];
+    if (detail) {
+      for (const row of detail.subject_teachers) {
+        if (row.section_id === Number(pickSectionId) && row.subject_id === Number(pickSubjectId)) {
+          nowTeacherId = row.teacher_id;
+          nowTeacherName = row.teacher_name;
+        }
+      }
+    }
+    if (nowTeacherId !== null && nowTeacherId !== subjectsTeacher.id) {
+      setReplaceTeacherName(nowTeacherName || 'another teacher');
+      return;
+    }
+    await assignSubject();
+  };
+
+  // The names used in the "give it to ... instead?" question
+  const pickedSubjectName = (): string => {
+    const detail = classDetails[Number(pickClassId)];
+    if (!detail) return 'This subject';
+    for (const subject of detail.subjects) {
+      if (subject.id === Number(pickSubjectId)) {
+        return subject.name;
+      }
+    }
+    return 'This subject';
+  };
+
+  const pickedSectionName = (): string => {
+    const detail = classDetails[Number(pickClassId)];
+    if (!detail) return 'this section';
+    for (const section of detail.sections) {
+      if (section.id === Number(pickSectionId)) {
+        return section.full_name;
+      }
+    }
+    return 'this section';
+  };
+
+  const assignSubject = async () => {
+    if (!subjectsTeacher) return;
     try {
       const data = await setSubjectTeacher(Number(pickSectionId), Number(pickSubjectId), subjectsTeacher.id);
       showSuccess(data.message || 'Subject assigned');
+      setReplaceTeacherName(null);
       setPickSubjectId('');
       loadSubjectData();
       // Teaching it in a section adds it to their subjects too
@@ -386,6 +463,20 @@ const AdminTeachers: React.FC = () => {
     return subjectName;
   };
 
+  // The chosen class's subjects, split into ones the teacher teaches and the rest
+  const taughtSubjects = () => {
+    const detail = classDetails[Number(pickClassId)];
+    if (!detail || !subjectsTeacher) return [];
+    return detail.subjects.filter((subject) => teachesSubject(skillsOf(subjectsTeacher.id), subject.name));
+  };
+
+  const otherSubjects = () => {
+    const detail = classDetails[Number(pickClassId)];
+    if (!detail) return [];
+    if (!subjectsTeacher) return detail.subjects;
+    return detail.subjects.filter((subject) => !teachesSubject(skillsOf(subjectsTeacher.id), subject.name));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -416,7 +507,8 @@ const AdminTeachers: React.FC = () => {
               <button
                 onClick={() => setShowOptions(!showOptions)}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded transition-all duration-200"
-                title="Sort & Filter Options"
+                title="Sort and filter"
+                aria-label="Sort and filter"
               >
                 <Settings size={16} />
               </button>
@@ -510,6 +602,7 @@ const AdminTeachers: React.FC = () => {
                         onClick={() => openSubjects(teacher)}
                         className="p-2 text-purple-600 hover:bg-purple-50 rounded"
                         title="Subjects"
+                        aria-label={`Subjects of ${teacher.name}`}
                       >
                         <BookOpen size={18} />
                       </button>
@@ -518,18 +611,23 @@ const AdminTeachers: React.FC = () => {
                         onClick={() => navigate(`/admin/teachers/${teacher.id}/activity`)}
                         className="p-2 text-green-600 hover:bg-green-50 rounded"
                         title="Activity"
+                        aria-label={`Activity of ${teacher.name}`}
                       >
                         <Activity size={18} />
                       </button>
                       <button
                         onClick={() => handleEdit(teacher)}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                        title={`Edit ${teacher.name}`}
+                        aria-label={`Edit ${teacher.name}`}
                       >
                         <Edit size={18} />
                       </button>
                       <button
                         onClick={() => handleDeleteClick(teacher)}
                         className="p-2 text-red-600 hover:bg-red-50 rounded"
+                        title={`Delete ${teacher.name}`}
+                        aria-label={`Delete ${teacher.name}`}
                       >
                         <Trash2 size={18} />
                       </button>
@@ -626,7 +724,7 @@ const AdminTeachers: React.FC = () => {
                   {subjectsTeacher && skillsOf(subjectsTeacher.id).map((name) => (
                     <span key={name} className="flex items-center gap-1 px-2 py-1 rounded-full bg-purple-50 text-purple-700 text-sm font-medium">
                       {name}
-                      <button type="button" onClick={() => handleRemoveSkill(name)} className="text-purple-400 hover:text-red-600" title={`Remove ${name}`}>
+                      <button type="button" onClick={() => handleRemoveSkill(name)} className="text-purple-400 hover:text-red-600" title={`Remove ${name}`} aria-label={`Remove ${name}`}>
                         <X size={14} />
                       </button>
                     </span>
@@ -666,7 +764,7 @@ const AdminTeachers: React.FC = () => {
                   {getTeaching().map((row) => (
                     <div key={`${row.sectionId}-${row.subjectId}`} className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
                       <span className="text-sm">{row.text}</span>
-                      <button onClick={() => handleRemoveTeaching(row.sectionId, row.subjectId)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Remove">
+                      <button onClick={() => handleRemoveTeaching(row.sectionId, row.subjectId)} className="p-1 text-red-600 hover:bg-red-50 rounded" title={`Remove ${row.text}`} aria-label={`Remove ${row.text}`}>
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -701,20 +799,20 @@ const AdminTeachers: React.FC = () => {
                         </select>
                         <select value={pickSubjectId} onChange={(e) => setPickSubjectId(e.target.value)} className="input" disabled={!pickSectionId}>
                           <option value="">Choose a subject</option>
-                          <optgroup label="Teaches">
-                            {classDetails[Number(pickClassId)].subjects
-                              .filter((subject) => subjectsTeacher !== null && teachesSubject(skillsOf(subjectsTeacher.id), subject.name))
-                              .map((subject) => (
+                          {taughtSubjects().length > 0 && (
+                            <optgroup label="Teaches">
+                              {taughtSubjects().map((subject) => (
                                 <option key={subject.id} value={subject.id}>{subjectLabel(subject.id, subject.name)}</option>
                               ))}
-                          </optgroup>
-                          <optgroup label="Other subjects">
-                            {classDetails[Number(pickClassId)].subjects
-                              .filter((subject) => subjectsTeacher === null || !teachesSubject(skillsOf(subjectsTeacher.id), subject.name))
-                              .map((subject) => (
+                            </optgroup>
+                          )}
+                          {otherSubjects().length > 0 && (
+                            <optgroup label="Other subjects">
+                              {otherSubjects().map((subject) => (
                                 <option key={subject.id} value={subject.id}>{subjectLabel(subject.id, subject.name)}</option>
                               ))}
-                          </optgroup>
+                            </optgroup>
+                          )}
                         </select>
                         <div className="flex justify-end">
                           <button type="submit" className="btn btn-primary flex items-center gap-1"><Plus size={16} /> Assign</button>
@@ -729,25 +827,50 @@ const AdminTeachers: React.FC = () => {
         )}
       </Modal>
 
-      <DeleteConfirmation
-        isOpen={showDeleteConfirm}
-        onClose={() => {
-          setShowDeleteConfirm(false);
-          setDeletingTeacher(null);
-        }}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Teacher"
-        itemName={deletingTeacher?.name || ''}
-        itemType="teacher"
-        effects={[
-          'All subjects assigned to this teacher',
-          'All sections managed by this teacher',
-          'All assignments created by this teacher',
-          'All attendance records marked by this teacher',
-          'All results recorded by this teacher',
-        ]}
-        loading={isDeleting}
-      />
+      {/* Asked before a subject is taken from the teacher who teaches it now */}
+      <Modal isOpen={replaceTeacherName !== null} onClose={() => setReplaceTeacherName(null)} title="Change the subject teacher">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            {pickedSubjectName()} in {pickedSectionName()} is taught by {replaceTeacherName} now.
+            Give it to {subjectsTeacher?.name} instead? {replaceTeacherName} will no longer teach it there,
+            and its timetable periods will show {subjectsTeacher?.name} (teachers and students see that after
+            the timetable is published again).
+          </p>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setReplaceTeacherName(null)} className="btn btn-secondary">Cancel</button>
+            <button onClick={assignSubject} className="btn btn-primary">Yes, give it to {subjectsTeacher?.name}</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete: first says what still stops the teacher from being deleted */}
+      <Modal isOpen={showDeleteConfirm} onClose={closeDeleteWindow} title="Delete teacher">
+        {deleteBlockers === null ? (
+          <p className="text-sm text-gray-400">Checking the teacher...</p>
+        ) : deleteBlockers.length > 0 ? (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">{deletingTeacher?.name} can't be deleted yet:</p>
+            <ul className="list-disc ml-5 text-sm text-gray-700 space-y-1">
+              {deleteBlockers.map((blocker) => (
+                <li key={blocker}>{blocker}</li>
+              ))}
+            </ul>
+            <div className="flex justify-end">
+              <button onClick={closeDeleteWindow} className="btn btn-secondary">Close</button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">Delete {deletingTeacher?.name}? This can't be undone.</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={closeDeleteWindow} className="btn btn-secondary">Cancel</button>
+              <button onClick={handleDeleteConfirm} disabled={isDeleting} className="btn btn-primary bg-red-600 hover:bg-red-700">
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

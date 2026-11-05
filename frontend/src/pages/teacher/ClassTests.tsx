@@ -324,7 +324,13 @@ const TeacherClassTests: React.FC = () => {
                     <td>{test.average !== null ? test.average : '-'}</td>
                     <td>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => openMarks(test)} className="btn btn-secondary text-sm px-3 py-1 flex items-center gap-1">
+                        {/* Marks can be entered once the test has taken place */}
+                        <button
+                          onClick={() => openMarks(test)}
+                          disabled={test.date > todayText()}
+                          title={test.date > todayText() ? `This test is on ${test.date}; marks can be entered from that day` : `Marks for ${test.title}`}
+                          className="btn btn-secondary text-sm px-3 py-1 flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
                           <PenLine size={14} /> Marks
                         </button>
                         <button onClick={() => openEdit(test)} className="p-2 text-blue-600 hover:bg-blue-50 rounded" title="Edit test">

@@ -6,6 +6,7 @@ from src.db import db, pakistan_time
 from src.models import (TimetablePeriod, Section, Subject, TeachingAssignment, Teacher, Student, SchoolPeriod,
                         SchoolSetting, TimetableVersion, PublishedPeriod)
 from src.services.teacher_skills import teacher_skill_names, add_skill_if_missing
+from src.services.wording import plural
 
 
 # The school timetable.
@@ -187,7 +188,7 @@ def save_timetable_settings(days, periods):
 
     message = "Timetable settings saved"
     if removed > 0:
-        message = message + f". {removed} period(s) on removed days or periods were taken out of the draft"
+        message = message + f". {plural(removed, 'period')} on removed days or periods were taken out of the draft"
     return jsonify({"message": message, "status": "success", "removed": removed, "settings": layout_data()})
 
 

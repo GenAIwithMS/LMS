@@ -1,4 +1,3 @@
-from src.models import TeacherSubject
 from src.models import Teacher
 from src.services.users import is_email_taken, is_username_taken
 from src.db import db
@@ -97,27 +96,8 @@ def update_teacher(teacher_id, **kwargs):
     })
 
 def delete_teacher(teacher_id):
-    teacher = Teacher.query.get(teacher_id)
-    if not teacher:
-        return jsonify({
-            "message":"teacher not found",
-            "status":"failed"
-        }), 400
-    
-    # The list of subjects they can teach goes with them
-    TeacherSubject.query.filter_by(teacher_id=teacher_id).delete()
-    db.session.delete(teacher)
-    try:
-        db.session.commit()
-    except IntegrityError:
-        # Other records still point to this one, so the database refuses
-        db.session.rollback()
-        return jsonify({
-            "message": "Cannot delete this teacher because they still have courses, subjects, sections, assignments or announcements. Reassign or delete those first.",
-            "status": "failed"
-        }), 409
-    
-    return jsonify({
-        "message":"teacher deleted successfully",
-        "status":"success"
-    })
+    """Delete a teacher, once their classes and the things they wrote are no longer in use
+    (see services/delete_checks.py)."""
+    # Imported here, not at the top: delete_checks imports from this package (a circular import)
+    from src.services.delete_checks import delete_teacher_checked
+    return delete_teacher_checked(teacher_id)

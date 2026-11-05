@@ -17,7 +17,10 @@ const RESULT_COLOURS: Record<string, string> = {
 export const ReportCardView: React.FC<ReportCardViewProps> = ({ card }) => {
   let attendanceText = '-';
   if (card.attendance.percentage !== null) {
-    attendanceText = `${card.attendance.percentage}% (present ${card.attendance.present + card.attendance.late} of ${card.attendance.present + card.attendance.late + card.attendance.absent} days)`;
+    const daysPresent = card.attendance.present + card.attendance.late;
+    const schoolDays = card.attendance.present + card.attendance.late + card.attendance.absent;
+    const dayWord = schoolDays === 1 ? 'day' : 'days';
+    attendanceText = `${card.attendance.percentage}% (present ${daysPresent} of ${schoolDays} ${dayWord})`;
   }
 
   // The school's own grading scale, like "A+ from 80%, A from 70%, ..., F from 0%"

@@ -526,6 +526,7 @@ export interface StudentTermResult {
   grade: string | null;
   result: TermResultStatus;
   position: number | null;
+  remarks?: string | null;   // the class incharge's report card remarks
 }
 
 export interface SectionResultSheet {
