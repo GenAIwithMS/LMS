@@ -101,16 +101,21 @@ def submit_assignment(student_id, assignment_id, submission_text=None, submissio
             }), 400
 
     if earlier:
-        # Replace the earlier submission, and remove its old file from disk
-        old_file_path = get_submission_file_path(earlier)
-        earlier.submission_text = submission_text
-        earlier.submission_file = saved_name
+        # Update the earlier submission. New text replaces the text, and a new file
+        # replaces the file (the old file is then removed from disk). Whatever isn't
+        # sent again stays as it was, so nothing is lost by accident.
+        old_file_path = None
+        if submission_text:
+            earlier.submission_text = submission_text
+        if saved_name:
+            old_file_path = get_submission_file_path(earlier)
+            earlier.submission_file = saved_name
         earlier.submitted_at = pakistan_time()
         db.session.commit()
         if old_file_path and os.path.exists(old_file_path):
             os.remove(old_file_path)
         return jsonify({
-            "message": "Your earlier submission was replaced with this one",
+            "message": "Your submission was updated",
             "status": "success"
         }), 200
 

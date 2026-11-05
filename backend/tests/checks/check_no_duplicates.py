@@ -96,7 +96,7 @@ r = submit(I["open"], "first try", b"%PDF first")
 check("first submission works", r.status_code == 201, r.get_json())
 first_files = os.listdir(UPLOADS)
 r = submit(I["open"], "second try", b"%PDF second")
-check("resubmitting before the due date replaces the earlier one", r.status_code == 200 and "replaced" in r.get_json()["message"], r.get_json())
+check("resubmitting before the due date replaces the earlier one", r.status_code == 200 and r.get_json()["message"] == "Your submission was updated", r.get_json())
 with app.app_context():
     rows = AssignmentSubmission.query.filter_by(student_id=I["ali"], assignment_id=I["open"]).all()
     check("still only one submission for that assignment", len(rows) == 1, len(rows))

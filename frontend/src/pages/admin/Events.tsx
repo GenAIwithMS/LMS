@@ -7,6 +7,16 @@ import type { Event } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import { todayText } from '../../utils/date';
 
+// "2026-11-08" -> "8 Nov 2026" (read from the text, so no time zone moves the day)
+const readableDate = (value: string): string => {
+  const parts = String(value || '').slice(0, 10).split('-');
+  if (parts.length !== 3) {
+    return value;
+  }
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${Number(parts[2])} ${months[Number(parts[1]) - 1]} ${parts[0]}`;
+};
+
 const AdminEvents: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -156,7 +166,7 @@ const AdminEvents: React.FC = () => {
               </div>
               <p className="text-gray-600 mb-4">{event.description}</p>
               <div className="flex items-center justify-between text-sm text-gray-500">
-                <span>{event.event_date}</span>
+                <span>{readableDate(event.event_date)}</span>
                 {/* The time as the server gives it ("09:00"), nothing when there is none */}
                 <span>{event.event_time || ''}</span>
               </div>

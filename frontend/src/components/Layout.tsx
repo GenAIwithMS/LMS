@@ -27,7 +27,7 @@ import {
   CalendarDays,
   Megaphone,
 } from 'lucide-react';
-import { getAnnouncements, getEvents, getPublishedTimetableInfo } from '../services/api';
+import { getAnnouncements, getEvents, getPublishedTimetableInfo, getAssignments, getSubmissionsByStudent, getClassTests, getExamTerms } from '../services/api';
 import toast from 'react-hot-toast';
 
 // Manus Icon Component
@@ -54,21 +54,62 @@ interface LayoutProps {
 interface Notification {
   id: string | number;
   title: string;
-  type: 'announcement' | 'event' | 'timetable';
+  type: 'announcement' | 'event' | 'timetable' | 'assignment' | 'grade' | 'report';
   time: string;
   creatorId?: number | string;
   fromIncharge?: boolean;   // a class announcement from the class incharge (shown in amber)
+  path?: string;            // the page it opens
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "2026-11-05..." or "Thu, 05 Nov 2026 14:00:00 GMT" -> "5 Nov 2026" (read from the text,
+// so no time zone can move it to another day)
+const shortDate = (value: any): string => {
+  const text = String(value || '');
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    return `${Number(iso[3])} ${MONTHS[Number(iso[2]) - 1]} ${iso[1]}`;
+  }
+  const rfc = text.match(/(\d{1,2}) ([A-Z][a-z]{2}) (\d{4})/);
+  if (rfc) {
+    return `${Number(rfc[1])} ${rfc[2]} ${rfc[3]}`;
+  }
+  return '';
+};
+
+// The ids of the notifications the user has already seen (saved in this browser)
+const readSeenIds = (): string[] => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('notificationsSeen') || '[]');
+    return Array.isArray(saved) ? saved : [];
+  } catch (error) {
+    return [];
+  }
+};
+
+// The list of a response: a plain list, or {"data": [...]}
+const listOf = (data: any): any[] => {
+  if (Array.isArray(data)) {
+    return data;
+  }
+  if (data && Array.isArray(data.data)) {
+    return data.data;
+  }
+  if (data && Array.isArray(data.assignments)) {
+    return data.assignments;
+  }
+  return [];
+};
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { logout, userRole, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    const saved = localStorage.getItem('sidebarOpen');
-    return saved !== null ? saved === 'true' : true;
-  });
+  // The slide-out menu (phones only; on a computer the menu is always shown).
+  // It starts closed on every page load, so it never covers the page by itself.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
     return saved !== null ? saved === 'true' : false;
@@ -88,16 +129,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   });
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Moving to another page closes the notifications panel
+  // Moving to another page closes the notifications panel and the phone menu
   useEffect(() => {
     setShowNotifications(false);
+    setSidebarOpen(false);
   }, [location.pathname]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [hasUnread, setHasUnread] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem('sidebarOpen', sidebarOpen.toString());
-  }, [sidebarOpen]);
 
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', sidebarCollapsed.toString());
@@ -129,7 +168,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               id: `a-${a.id}`,
               title: a.title,
               type: 'announcement' as const,
-              time: 'Recently',
+              time: shortDate(a.created_at) || 'Recently',
               creatorId: a.teacher_id,
               fromIncharge: a.from_incharge === true
             })) : []),
@@ -142,11 +181,71 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               id: `e-${e.id}`,
               title: e.title,
               type: 'event' as const,
-              time: e.event_date || 'Upcoming',
+              time: shortDate(e.event_date) + (e.event_time ? ` · ${e.event_time}` : ''),
               creatorId: e.admin_id
             })) : [])
         ];
         
+        // For students: new work, marks and report cards
+        if (userRole === 'student') {
+          const today = new Date().toLocaleDateString('en-CA');
+          const [assignmentData, submissionData, testData, termData] = await Promise.all([
+            getAssignments().catch(() => []),
+            getSubmissionsByStudent().catch(() => []),
+            getClassTests().catch(() => []),
+            getExamTerms().catch(() => []),
+          ]);
+          const submissions = listOf(submissionData);
+
+          // Assignments still to hand in
+          for (const assignment of listOf(assignmentData)) {
+            const handedIn = submissions.some((sub: any) => sub.assignment_id === assignment.id);
+            if (!handedIn && String(assignment.due_date) >= today) {
+              combined.push({
+                id: `as-${assignment.id}`,
+                title: `New assignment: ${assignment.title} (${assignment.subject_name})`,
+                type: 'assignment',
+                time: `Due ${shortDate(assignment.due_date)}`,
+                path: '/student/assignments',
+              });
+            }
+          }
+          // Graded work
+          for (const sub of submissions) {
+            if (sub.marks !== null && sub.marks !== undefined) {
+              combined.push({
+                id: `gr-${sub.id}-${sub.marks}`,
+                title: `${sub.assignment} has been graded: ${Number(sub.marks)} marks`,
+                type: 'grade',
+                time: 'Assignment',
+                path: '/student/assignments',
+              });
+            }
+          }
+          // Class test marks
+          for (const test of listOf(testData)) {
+            if (test.my_marks !== null && test.my_marks !== undefined) {
+              combined.push({
+                id: `ct-${test.id}-${test.my_marks}`,
+                title: `${test.title}: ${test.my_marks} / ${Number(test.total_marks)}`,
+                type: 'grade',
+                time: 'Class test',
+                path: '/student/class-tests',
+              });
+            }
+          }
+          // Published report cards (students only get published terms)
+          for (const term of listOf(termData)) {
+            combined.push({
+              id: `rc-${term.id}`,
+              title: `Your ${term.name} report card is ready`,
+              type: 'report',
+              time: term.session_name || '',
+              path: '/student/report-card',
+            });
+          }
+        }
+
         // A newly published timetable, for teachers and students
         let newTimetable = false;
         if (userRole === 'teacher' || userRole === 'student') {
@@ -167,9 +266,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         }
 
         setNotifications(combined);
-        if ((combined.length > 0 && !localStorage.getItem('notificationsRead')) || newTimetable) {
-          setHasUnread(true);
-        }
+        // The red dot shows while there is anything the user hasn't seen yet
+        const seen = readSeenIds();
+        const somethingNew = combined.some((n) => n.type !== 'timetable' && !seen.includes(String(n.id)));
+        setHasUnread(somethingNew || newTimetable);
       } catch (error) {
         console.error('Failed to fetch notifications');
       }
@@ -193,6 +293,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (n.type === 'timetable') {
       return 'bg-green-50 text-green-600';
     }
+    if (n.type === 'assignment') {
+      return 'bg-orange-50 text-orange-600';
+    }
+    if (n.type === 'grade' || n.type === 'report') {
+      return 'bg-rose-50 text-rose-600';
+    }
     return 'bg-purple-50 text-purple-600';
   };
 
@@ -207,7 +313,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleMarkAllRead = () => {
     setHasUnread(false);
     markTimetableSeen();
-    localStorage.setItem('notificationsRead', 'true');
+    // Remember every notification shown now; only newer ones light up the bell again
+    const ids: string[] = [];
+    for (const n of notifications) {
+      ids.push(String(n.id));
+    }
+    localStorage.setItem('notificationsSeen', JSON.stringify(ids));
     toast.success('All notifications marked as read');
   };
 
@@ -324,13 +435,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path === '/chatbot') {
       return 'Assistant';
     }
-    // Anything else: the last part of the address, as words
-    const parts = path.split('/').filter((part) => part !== '' && !/^\d+$/.test(part));
-    if (parts.length === 0) {
-      return 'Dashboard';
-    }
-    const last = parts[parts.length - 1].replace(/-/g, ' ');
-    return last.charAt(0).toUpperCase() + last.slice(1);
+    // Every real page is named above, so anything else is an unknown address
+    return 'Page not found';
   };
 
   useEffect(() => {
@@ -393,6 +499,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
           <button
             onClick={() => setSidebarOpen(false)}
+            title="Close menu"
+            aria-label="Close menu"
             className="lg:hidden ml-auto text-gray-400 hover:text-gray-600"
           >
             <X size={20} />
@@ -527,11 +635,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                               className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
                               onClick={() => {
                                 setShowNotifications(false);
+                                // This one is now seen
+                                const seen = readSeenIds();
+                                if (!seen.includes(String(n.id))) {
+                                  seen.push(String(n.id));
+                                  localStorage.setItem('notificationsSeen', JSON.stringify(seen));
+                                }
                                 // The timetable notice opens the Timetable page
                                 if (n.type === 'timetable') {
                                   markTimetableSeen();
                                   setHasUnread(false);
                                   navigate(`/${userRole}/timetable`);
+                                } else if (n.path) {
+                                  navigate(n.path);
                                 } else if (n.type === 'announcement') {
                                   navigate(`/${userRole}/announcements`);
                                 } else if (userRole === 'admin') {
@@ -544,7 +660,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                             >
                               <div className="flex items-start gap-3">
                                 <div className={`mt-1 p-1.5 rounded-lg ${notificationColour(n)}`}>
-                                  {n.type === 'announcement' ? <Bell size={14} /> : n.type === 'timetable' ? <CalendarDays size={14} /> : <Calendar size={14} />}
+                                  {n.type === 'announcement' ? <Bell size={14} /> : n.type === 'timetable' ? <CalendarDays size={14} /> : n.type === 'event' ? <Calendar size={14} /> : n.type === 'report' ? <Award size={14} /> : <FileText size={14} />}
                                 </div>
                                 <div>
                                   <p className="text-sm font-medium text-gray-900">{n.title}</p>

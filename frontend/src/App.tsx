@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import Homepage from './pages/Homepage';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import NotFound from './pages/NotFound';
 
 // Admin pages
 import AdminStudents from './pages/admin/Students';
@@ -422,6 +423,18 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Chatbot />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Any other address: a "page not found" page with the menu, instead of a blank page */}
+        <Route
+          path="*"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <NotFound />
               </Layout>
             </ProtectedRoute>
           }

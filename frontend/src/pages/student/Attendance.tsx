@@ -13,6 +13,25 @@ const STATUS_BADGES: Record<AttendanceStatus, { label: string; badgeClass: strin
 };
 
 // A student's own daily attendance, marked by their class incharge.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// "2026-11-05" -> "5 Nov 2026" (the day first). Read from the text, so time zones can't move it.
+const dateText = (value: string | null | undefined): string => {
+  if (!value) {
+    return '-';
+  }
+  const parts = value.slice(0, 10).split('-');
+  if (parts.length !== 3) {
+    return value;
+  }
+  const month = MONTHS[parseInt(parts[1], 10) - 1];
+  const day = parseInt(parts[2], 10);
+  if (!month || isNaN(day)) {
+    return value;
+  }
+  return `${day} ${month} ${parts[0]}`;
+};
+
 const StudentAttendance: React.FC = () => {
   const [attendance, setAttendance] = useState<MyDailyAttendance | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,7 +124,7 @@ const StudentAttendance: React.FC = () => {
                   const badge = STATUS_BADGES[record.status];
                   return (
                     <tr key={record.id}>
-                      <td>{new Date(record.date + 'T00:00:00').toLocaleDateString()}</td>
+                      <td>{dateText(record.date)}</td>
                       <td>
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${badge ? badge.badgeClass : 'bg-gray-100 text-gray-800'}`}>
                           {badge ? badge.label : record.status}

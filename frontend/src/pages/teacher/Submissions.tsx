@@ -466,7 +466,7 @@ const TeacherSubmissions: React.FC = () => {
                     <td>{submission.id}</td>
                     <td>{submission.student || 'N/A'}</td>
                     <td className="max-w-xs truncate">{submission.submission_text || 'N/A'}</td>
-                    <td>{submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : 'N/A'}</td>
+                    <td>{submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}</td>
                     <td>{submission.marks_obtained !== null && submission.marks_obtained !== undefined ? marksText(submission.marks_obtained) : 'Not graded'}</td>
                     <td className="max-w-xs truncate">{submission.feedback || 'N/A'}</td>
                     <td>

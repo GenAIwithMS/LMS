@@ -391,7 +391,8 @@ const TeacherAnnouncements: React.FC = () => {
               </div>
               <p className="text-gray-600 mb-4">{announcement.content}</p>
               <div className="flex items-center justify-between text-sm text-gray-500">
-                <span>{new Date(announcement.created_at).toLocaleDateString()}</span>
+                {/* Day first ("5 Nov 2026"); the server's time is already Pakistan time, labelled GMT */}
+                <span>{new Date(announcement.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}</span>
                 <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded-full text-xs">{announcement.audience_text || announcement.target_audience}</span>
               </div>
             </div>

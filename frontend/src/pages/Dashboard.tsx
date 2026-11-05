@@ -12,8 +12,9 @@ import {
   ArrowRight,
   Activity,
   Clock,
+  ClipboardList,
 } from 'lucide-react';
-import { getStudents, getTeachers, getSchoolClasses, getAssignments, getAnnouncements, getEvents } from '../services/api';
+import { getStudents, getTeachers, getSchoolClasses, getAssignments, getAnnouncements, getEvents, getMyDailyAttendance, getSubmissionsByStudent } from '../services/api';
 import toast from 'react-hot-toast';
 
 // Count the rows in an API answer: a plain list, or a list inside "data" / "assignments"
@@ -87,6 +88,9 @@ const Dashboard: React.FC = () => {
     announcements: 0,
     events: 0,
   });
+  // Student only: attendance percentage ("-" before any day is marked) and work still to hand in
+  const [myAttendance, setMyAttendance] = useState('-');
+  const [toHandIn, setToHandIn] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -116,6 +120,10 @@ const Dashboard: React.FC = () => {
           newStats.students = await countFrom(getStudents);
         }
         newStats.assignments = await countFrom(getAssignments);
+
+        if (userRole === 'student') {
+          await loadStudentSummary();
+        }
         newStats.announcements = await countFrom(getAnnouncements);
         const upcoming = await loadUpcomingEvents();
         setUpcomingEvents(upcoming);
@@ -126,6 +134,47 @@ const Dashboard: React.FC = () => {
         toast.error('Failed to load dashboard data');
       } finally {
         setLoading(false);
+      }
+    };
+
+    // A student's attendance percentage, and the assignments not yet handed in that are still open
+    const loadStudentSummary = async () => {
+      try {
+        const attendance = await getMyDailyAttendance();
+        if (attendance && attendance.summary && attendance.summary.percentage !== null) {
+          setMyAttendance(`${attendance.summary.percentage}%`);
+        }
+      } catch (error) {
+        setMyAttendance('-');
+      }
+      try {
+        const assignmentData = await getAssignments();
+        const submissionData = await getSubmissionsByStudent();
+        let assignments: any[] = [];
+        if (Array.isArray(assignmentData)) {
+          assignments = assignmentData;
+        } else if (assignmentData && Array.isArray(assignmentData.assignments)) {
+          assignments = assignmentData.assignments;
+        } else if (assignmentData && Array.isArray(assignmentData.data)) {
+          assignments = assignmentData.data;
+        }
+        let submissions: any[] = [];
+        if (Array.isArray(submissionData)) {
+          submissions = submissionData;
+        } else if (submissionData && Array.isArray(submissionData.data)) {
+          submissions = submissionData.data;
+        }
+        const today = new Date().toLocaleDateString('en-CA');
+        let count = 0;
+        for (const assignment of assignments) {
+          const handedIn = submissions.some((sub) => sub.assignment_id === assignment.id);
+          if (!handedIn && String(assignment.due_date) >= today) {
+            count = count + 1;
+          }
+        }
+        setToHandIn(count);
+      } catch (error) {
+        setToHandIn(0);
       }
     };
 
@@ -169,6 +218,24 @@ const Dashboard: React.FC = () => {
       bgColor: 'bg-amber-50',
       // The admin sees each teacher's assignments on the Oversight page
       path: userRole === 'teacher' ? '/teacher/assignments' : userRole === 'student' ? '/student/assignments' : '/admin/oversight',
+    },
+    {
+      roles: ['student'],
+      title: 'To Hand In',
+      value: toHandIn,
+      icon: ClipboardList,
+      color: 'text-rose-600',
+      bgColor: 'bg-rose-50',
+      path: '/student/assignments',
+    },
+    {
+      roles: ['student'],
+      title: 'My Attendance',
+      value: myAttendance,
+      icon: Clock,
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+      path: '/student/attendance',
     },
   ];
 
