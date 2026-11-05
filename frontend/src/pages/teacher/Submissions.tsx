@@ -7,9 +7,23 @@ import { showError, showSuccess } from '../../utils/errorHandler';
 import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
 
+// An assignment as listed in the picker: it also knows its section
+interface SectionAssignment extends Assignment {
+  section_name: string | null;
+}
+
+// Marks without needless decimals: "10" instead of "10.00", but "7.5" stays
+const marksText = (value: number | string): string => {
+  const number = Number(value);
+  if (isNaN(number)) {
+    return String(value);
+  }
+  return String(number);
+};
+
 const TeacherSubmissions: React.FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [assignments, setAssignments] = useState<SectionAssignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,26 +63,40 @@ const TeacherSubmissions: React.FC = () => {
     };
   }, []);
 
+  // The assignment shown follows the address (?assignmentId=), so "View Submissions" on
+  // another assignment, or the menu link, always shows the right one. Without a valid
+  // one in the address, the first assignment is shown and written into the address.
   useEffect(() => {
-    if (assignments.length > 0 && !selectedAssignment) {
-      const assignmentId = searchParams.get('assignmentId');
-      if (assignmentId) {
-        const id = parseInt(assignmentId);
-        if (!isNaN(id) && id > 0) {
-          setSelectedAssignment(id);
-        }
-      } else {
-        // Auto-select first assignment if available and no assignment is selected
-        const firstAssignment = assignments[0];
-        if (firstAssignment && firstAssignment.id) {
-          const id = firstAssignment.id;
-          setSelectedAssignment(id);
-          setSearchParams({ assignmentId: id.toString() }, { replace: true });
-        }
+    if (assignments.length === 0) {
+      return;
+    }
+    const idText = searchParams.get('assignmentId');
+    let id = idText ? parseInt(idText) : NaN;
+
+    let found = false;
+    for (const assignment of assignments) {
+      if (assignment.id === id) {
+        found = true;
       }
     }
+    if (!found) {
+      id = assignments[0].id;
+      setSearchParams({ assignmentId: id.toString() }, { replace: true });
+    }
+    if (id !== selectedAssignment) {
+      setSelectedAssignment(id);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignments]);
+  }, [assignments, searchParams]);
+
+  // The teacher picked another assignment in the picker
+  const handleAssignmentChange = (value: string) => {
+    const id = parseInt(value);
+    if (isNaN(id)) {
+      return;
+    }
+    setSearchParams({ assignmentId: id.toString() });
+  };
 
   useEffect(() => {
     if (selectedAssignment && selectedAssignment > 0) {
@@ -186,7 +214,7 @@ const TeacherSubmissions: React.FC = () => {
       ]) as any;
 
       // Handle different response formats
-      let assignmentsData: Assignment[] = [];
+      let assignmentsData: SectionAssignment[] = [];
       
       if (Array.isArray(data)) {
         assignmentsData = data;
@@ -196,7 +224,7 @@ const TeacherSubmissions: React.FC = () => {
         assignmentsData = Array.isArray(data.assignment) ? data.assignment : [data.assignment];
       } else if (data && typeof data === 'object') {
         // Try to find any array in the response
-        const assignmentsArray = Object.values(data).find((val) => Array.isArray(val)) as Assignment[] | undefined;
+        const assignmentsArray = Object.values(data).find((val) => Array.isArray(val)) as SectionAssignment[] | undefined;
         if (assignmentsArray) {
           assignmentsData = assignmentsArray;
         }
@@ -211,6 +239,7 @@ const TeacherSubmissions: React.FC = () => {
         subject: assignment.subject || assignment.subject_name || '',
         teacher: assignment.teacher || assignment.teacher_name || '',
         total_marks: assignment.total_marks || assignment.totalMarks || 100,
+        section_name: assignment.section_name || null,
       }));
       
       setAssignments(assignmentsData);
@@ -244,7 +273,7 @@ const TeacherSubmissions: React.FC = () => {
   const handleEdit = (submission: Submission) => {
     setEditingSubmission(submission);
     setFormData({
-      marks_obtained: submission.marks_obtained || 0,
+      marks_obtained: Number(submission.marks_obtained) || 0,
       feedback: submission.feedback || '',
     });
     setIsModalOpen(true);
@@ -262,6 +291,14 @@ const TeacherSubmissions: React.FC = () => {
     setFormData({ marks_obtained: 0, feedback: '' });
     setEditingSubmission(null);
   };
+
+  // The assignment being shown, for its name and total marks
+  let currentAssignment: SectionAssignment | null = null;
+  for (const assignment of assignments) {
+    if (assignment.id === selectedAssignment) {
+      currentAssignment = assignment;
+    }
+  }
 
   const filteredSubmissions = submissions
     .filter((submission) => {
@@ -305,14 +342,15 @@ const TeacherSubmissions: React.FC = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      {/* On a phone the title, search box and buttons stack, so nothing is pushed off the screen */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Submissions</h1>
           <p className="text-gray-600 mt-2">Review and grade student submissions</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Search Bar with Options Icon */}
-          <div className="relative" ref={optionsRef}>
+          <div className="relative w-full sm:w-auto" ref={optionsRef}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -320,7 +358,7 @@ const TeacherSubmissions: React.FC = () => {
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input pl-10 pr-10 py-2 text-sm w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="input pl-10 pr-10 py-2 text-sm w-full sm:w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
               <button
                 onClick={() => setShowOptions(!showOptions)}
@@ -363,6 +401,36 @@ const TeacherSubmissions: React.FC = () => {
         </div>
       </div>
 
+      {/* Which assignment's submissions are shown, and a way to switch */}
+      {assignments.length > 0 && (
+        <div className="card mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Assignment</label>
+          <select
+            value={selectedAssignment !== null ? String(selectedAssignment) : ''}
+            onChange={(e) => handleAssignmentChange(e.target.value)}
+            className="input w-full sm:w-auto"
+          >
+            {assignments.map((assignment) => {
+              const parts = [assignment.title];
+              if (assignment.section_name) {
+                parts.push(assignment.section_name);
+              }
+              if (assignment.subject) {
+                parts.push(assignment.subject);
+              }
+              return (
+                <option key={assignment.id} value={assignment.id}>
+                  {parts.join(' · ')}
+                </option>
+              );
+            })}
+          </select>
+          {currentAssignment && (
+            <p className="text-sm text-gray-500 mt-2">Out of {marksText(currentAssignment.total_marks)} marks</p>
+          )}
+        </div>
+      )}
+
       {!selectedAssignment && assignments.length === 0 ? (
         <div className="card text-center py-12">
           <p className="text-gray-500">No assignments available</p>
@@ -399,7 +467,7 @@ const TeacherSubmissions: React.FC = () => {
                     <td>{submission.student || 'N/A'}</td>
                     <td className="max-w-xs truncate">{submission.submission_text || 'N/A'}</td>
                     <td>{submission.submitted_at ? new Date(submission.submitted_at).toLocaleDateString() : 'N/A'}</td>
-                    <td>{submission.marks_obtained !== null && submission.marks_obtained !== undefined ? submission.marks_obtained : 'Not graded'}</td>
+                    <td>{submission.marks_obtained !== null && submission.marks_obtained !== undefined ? marksText(submission.marks_obtained) : 'Not graded'}</td>
                     <td className="max-w-xs truncate">{submission.feedback || 'N/A'}</td>
                     <td>
                       <div className="flex items-center space-x-1">
@@ -458,14 +526,19 @@ const TeacherSubmissions: React.FC = () => {
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Marks Obtained</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Marks Obtained{currentAssignment ? ` (out of ${marksText(currentAssignment.total_marks)})` : ''}
+            </label>
+            {/* Marks can't be below 0 or above the assignment's total (the server checks this too) */}
             <input
               type="number"
               required
               value={formData.marks_obtained}
-              onChange={(e) => setFormData({ ...formData, marks_obtained: parseInt(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, marks_obtained: parseFloat(e.target.value) })}
               className="input"
               min="0"
+              max={currentAssignment ? Number(currentAssignment.total_marks) : undefined}
+              step="any"
             />
           </div>
           <div>

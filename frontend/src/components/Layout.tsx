@@ -87,6 +87,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return saved !== null ? saved === 'true' : false;
   });
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // Moving to another page closes the notifications panel
+  useEffect(() => {
+    setShowNotifications(false);
+  }, [location.pathname]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [hasUnread, setHasUnread] = useState(false);
 
@@ -130,6 +135,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             })) : []),
           ...(Array.isArray(events) ? events
             .filter((e: any) => !(userRole === 'admin' && e.admin_id === currentUserId))
+            // Only events from today onwards; past events are no longer news
+            .filter((e: any) => String(e.event_date || '').slice(0, 10) >= new Date().toLocaleDateString('en-CA'))
             .slice(0, 5)
             .map((e: any) => ({
               id: `e-${e.id}`,
@@ -462,6 +469,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
+              title="Open menu"
+              aria-label="Open menu"
               className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
             >
               <Menu size={20} />
@@ -481,6 +490,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="relative">
               <button 
                 onClick={() => setShowNotifications(!showNotifications)}
+                title="Notifications"
+                aria-label="Notifications"
                 className={`p-2.5 rounded-xl transition-all relative ${
                   showNotifications 
                     ? 'bg-primary-50 text-primary-600 shadow-md' 
@@ -513,14 +524,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                           {notifications.map((n) => (
                             <div
                               key={n.id}
-                              className={`p-4 hover:bg-gray-50 transition-colors ${n.type === 'timetable' ? 'cursor-pointer' : ''}`}
+                              className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
                               onClick={() => {
+                                setShowNotifications(false);
                                 // The timetable notice opens the Timetable page
                                 if (n.type === 'timetable') {
                                   markTimetableSeen();
                                   setHasUnread(false);
-                                  setShowNotifications(false);
                                   navigate(`/${userRole}/timetable`);
+                                } else if (n.type === 'announcement') {
+                                  navigate(`/${userRole}/announcements`);
+                                } else if (userRole === 'admin') {
+                                  navigate('/admin/events');
+                                } else {
+                                  // Teachers and students see the upcoming events on the dashboard
+                                  navigate('/dashboard');
                                 }
                               }}
                             >

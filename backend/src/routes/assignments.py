@@ -3,10 +3,25 @@ from flask import Blueprint, request, jsonify
 from src.schemas import assignmentSchema,UpdateAssignmentSchema
 from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
-from src.models import Subject, Assignment
+from src.models import Subject, Assignment, AssignmentSubmission
+from src.db import pakistan_time
 from src.services.access import find_teacher_subject, teacher_teaches, get_teacher_teaching, teacher_owns_assignment, get_teacher_assignment_ids, get_student_assignment_ids, filter_response_by_ids
 
 assignment_bp = Blueprint("assignment", __name__)
+
+
+def check_due_date(due_date):
+    """A message if the due date is before today, else None."""
+    if due_date is not None and due_date < pakistan_time().date():
+        return "The due date is in the past; choose today or a later date"
+    return None
+
+
+def check_total_marks(total_marks):
+    """A message if the total marks are not more than 0, else None."""
+    if total_marks is not None and float(total_marks) <= 0:
+        return "Total marks must be more than 0"
+    return None
 
 @assignment_bp.route("/api/create/assignments", methods=["POST"])
 @jwt_required()
@@ -30,6 +45,12 @@ def create_assign():
     subject_name = data.get("subject_name")
     teacher_id = int(get_jwt_identity())  
     total_marks = data.get("total_marks")
+
+    problem = check_due_date(due_date)
+    if not problem:
+        problem = check_total_marks(total_marks)
+    if problem:
+        return jsonify({"message": problem, "status": "failed"}), 400
 
     subject = find_teacher_subject(teacher_id, subject_name, data.get("subject_id"))
     if not subject:
@@ -121,6 +142,23 @@ def update_assignment():
         data = UpdateAssignmentSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
+
+    assignment = Assignment.query.get(assignment_id)
+
+    # A past due date is only refused when it is being changed (an old assignment can keep its date)
+    if 'due_date' in data and data['due_date'] != assignment.due_date:
+        problem = check_due_date(data['due_date'])
+        if problem:
+            return jsonify({"message": problem, "status": "failed"}), 400
+
+    if 'total_marks' in data:
+        problem = check_total_marks(data['total_marks'])
+        if problem:
+            return jsonify({"message": problem, "status": "failed"}), 400
+        # The total can't go below marks already given
+        for submission in AssignmentSubmission.query.filter_by(assignment_id=assignment_id).all():
+            if submission.marks is not None and float(submission.marks) > float(data['total_marks']):
+                return jsonify({"message": "Some students already have more marks than the new total", "status": "failed"}), 400
 
     kwargs = {}
     for key, value in data.items():

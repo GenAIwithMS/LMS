@@ -1,6 +1,6 @@
 from decimal import Decimal
 from flask import jsonify
-from src.db import db
+from src.db import db, pakistan_time
 from src.models import ClassTest, ClassTestMark, Section, Subject, Student, SyllabusChapter
 
 
@@ -127,6 +127,10 @@ def save_class_test_marks(test_id, marks):
     test = ClassTest.query.get(test_id)
     if not test:
         return jsonify({"message": "Test not found", "status": "failed"}), 404
+
+    # Marks only once the test has taken place
+    if test.date > pakistan_time().date():
+        return jsonify({"message": f"This test is on {test.date.isoformat()}; marks can be entered on or after that day", "status": "failed"}), 400
 
     # Check everything first, so nothing is saved if one row is wrong
     for row in marks:

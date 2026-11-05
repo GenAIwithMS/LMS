@@ -11,7 +11,7 @@ from sqlalchemy.ext.compiler import compiles
 def _bigint_sqlite(type_, compiler, **kw):  # let SQLite autoincrement BigInteger PKs
     return "INTEGER"
 
-from school_setup import give_teachers_their_subjects
+from school_setup import give_teachers_their_subjects, make_every_day_a_school_day
 from src import create_app
 from src.db import db
 from src.models import Admin, Teacher, Course, Subject, Section, Student, Assignment, AssignmentSubmission, Enrollment, Announcement
@@ -34,6 +34,7 @@ def make(cls, name, uname, **kw):
 today = datetime.date.today()
 with app.app_context():
     db.create_all()
+    make_every_day_a_school_day()   # attendance for "today" works on any day
     admin = make(Admin, "Root", "root"); sara = make(Teacher, "Sara", "sara")
     db.session.add_all([admin, sara]); db.session.commit()
     course = Course(name="CS", course_code="CS1", teacher_id=sara.id); sec = Section(name="A", teacher_id=sara.id)

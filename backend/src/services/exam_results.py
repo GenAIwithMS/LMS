@@ -173,15 +173,18 @@ def student_term_result(student, papers):
             "passed": passed
         })
 
+    # The overall percentage and grade only once every paper is marked (or absent).
+    # Before that, a missing paper would count as 0 and the grade would be wrong.
     percentage = None
-    if len(papers) > 0 and missing < len(papers):
+    if len(papers) > 0 and missing == 0:
         percentage = percentage_of(total_obtained, total_marks)
 
-    # Pass only when every subject is marked and passed
-    if failed > 0:
-        result = "Fail"
-    elif missing > 0:
+    # While a mark is missing the result is "Incomplete", even if a subject is already failed.
+    # Pass only when every subject is marked and passed.
+    if missing > 0:
         result = "Incomplete"
+    elif failed > 0:
+        result = "Fail"
     else:
         result = "Pass"
 
@@ -228,7 +231,11 @@ def section_results(term, section):
 
     results = []
     for student in section_term_students(term, section):
-        results.append(student_term_result(student, papers))
+        item = student_term_result(student, papers)
+        # The class incharge's remarks, so the remarks list can show them
+        remark = ReportRemark.query.filter_by(term_id=term.id, student_id=student.id).first()
+        item["remarks"] = remark.remarks if remark else None
+        results.append(item)
     add_positions(results)
     return results, papers
 

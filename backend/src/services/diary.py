@@ -1,5 +1,5 @@
 from flask import jsonify
-from src.db import db
+from src.db import db, pakistan_time
 from src.models import DiaryEntry, Section, Subject
 
 
@@ -55,6 +55,10 @@ def save_diary_entry(section_id, subject_id, day, classwork, homework, teacher_i
 
     if not classwork and not homework:
         return jsonify({"message": "Write the classwork, the homework, or both", "status": "failed"}), 400
+
+    # The diary says what was taught, so it can't be written for a day that hasn't come yet
+    if day > pakistan_time().date():
+        return jsonify({"message": "The diary can't be written for a future date", "status": "failed"}), 400
 
     entry = DiaryEntry.query.filter_by(section_id=section_id, subject_id=subject_id, date=day).first()
     if entry:

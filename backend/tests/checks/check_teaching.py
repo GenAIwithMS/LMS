@@ -4,6 +4,8 @@ import os, sys
 os.environ.update(RATELIMIT_ENABLED="false", GROQ_API_KEY="dummy", JWT_SECRET_KEY="x" * 40,
                   DATABASE_URI="sqlite:///:memory:")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))   # the backend folder
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # for school_setup
+from school_setup import make_every_day_a_school_day
 
 from sqlalchemy import BigInteger
 from sqlalchemy.ext.compiler import compiles
@@ -30,6 +32,7 @@ def make(cls, name, uname, **kw):
 
 with app.app_context():
     db.create_all()
+    make_every_day_a_school_day()   # attendance for "today" works on any day
     db.session.add_all([make(Admin, "Principal", "root"), make(Teacher, "Sara", "sara"), make(Teacher, "Omar", "omar"), make(Teacher, "Zara", "zara")])
     db.session.commit()
     SARA = Teacher.query.filter_by(username="sara").first().id
@@ -102,6 +105,12 @@ summary = client.get(f"/api/school/sections/{A}/attendance/summary?month={TODAY[
 hina_row = [s for s in summary["students"] if s["name"] == "Hina"][0]
 check("month summary: late counts as attended", hina_row["late"] == 1 and hina_row["percentage"] == 100.0 if YESTERDAY[:7] == TODAY[:7] else hina_row["late"] == 1, hina_row)
 check("a bad month is refused", client.get(f"/api/school/sections/{A}/attendance/summary?month=13-2026", headers=H["sara"]).status_code == 400)
+
+# Back to the normal school week (Monday to Saturday) for the timetable checks below
+with app.app_context():
+    from src.models import SchoolSetting
+    SchoolSetting.query.filter_by(key="school_days").first().value = "1,2,3,4,5,6"
+    db.session.commit()
 
 print("--- Syllabus progress (subject teacher)")
 r = client.put(f"/api/school/sections/{A}/chapters/{CHAPTERS[0]}/progress", json={"status": "done"}, headers=H["sara"])

@@ -127,6 +127,16 @@ def get_submissions_assignment():
             "data": []
         }), 500
 
+def format_number(value):
+    """10.00 -> "10", 7.50 -> "7.5"."""
+    if value is None:
+        return ""
+    text = str(value)
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text
+
+
 @assignment_submission_bp.route("/api/update/submission", methods=["PUT"])
 @jwt_required()
 def update_subm():
@@ -166,7 +176,17 @@ def update_subm():
     # A teacher only grades: marks and feedback. The student's work stays as submitted.
     grading = {}
     if "marks" in data:
-        grading["marks"] = data["marks"]
+        # Marks go from 0 up to the assignment's total
+        marks = data["marks"]
+        total = submission.assignment.total_marks
+        if marks is not None:
+            if marks < 0 or (total is not None and marks > total):
+                total_text = format_number(total)
+                return jsonify({
+                    "message": f"Marks must be between 0 and {total_text}",
+                    "status": "failed"
+                }), 400
+        grading["marks"] = marks
     if "feedback" in data:
         grading["feedback"] = data["feedback"]
 

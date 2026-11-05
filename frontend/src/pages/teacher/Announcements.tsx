@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit, Trash2, Search, Settings, Megaphone } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Modal } from '../../components/Modal';
-import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement, getSections, getMyClasses } from '../../services/api';
 import { announcementLook } from '../../utils/announcementLook';
 import type { Announcement, Section, ClassSection } from '../../types';
@@ -259,14 +258,15 @@ const TeacherAnnouncements: React.FC = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      {/* On a phone the title, search box and buttons stack, so nothing is pushed off the screen */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Announcements</h1>
           <p className="text-gray-600 mt-2">Create and manage announcements</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Search Bar with Options Icon */}
-          <div className="relative" ref={optionsRef}>
+          <div className="relative w-full sm:w-auto" ref={optionsRef}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -274,7 +274,7 @@ const TeacherAnnouncements: React.FC = () => {
                 placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input pl-10 pr-10 py-2 text-sm w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="input pl-10 pr-10 py-2 text-sm w-full sm:w-[250px] transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
               <button
                 onClick={() => setShowOptions(!showOptions)}
@@ -380,10 +380,10 @@ const TeacherAnnouncements: React.FC = () => {
                 {/* Only the teacher's own announcements can be changed here */}
                 {user !== null && announcement.teacher_id === user.id && (
                   <div className="flex items-center space-x-2">
-                    <button onClick={() => handleEdit(announcement)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
+                    <button onClick={() => handleEdit(announcement)} className="p-2 text-blue-600 hover:bg-blue-50 rounded" title={`Edit ${announcement.title}`} aria-label={`Edit ${announcement.title}`}>
                       <Edit size={18} />
                     </button>
-                    <button onClick={() => handleDeleteClick(announcement)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                    <button onClick={() => handleDeleteClick(announcement)} className="p-2 text-red-600 hover:bg-red-50 rounded" title={`Delete ${announcement.title}`} aria-label={`Delete ${announcement.title}`}>
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -444,22 +444,42 @@ const TeacherAnnouncements: React.FC = () => {
         </form>
       </Modal>
 
-      <DeleteConfirmation
+      {/* Ask before deleting, in plain words */}
+      <Modal
         isOpen={showDeleteConfirm}
         onClose={() => {
           setShowDeleteConfirm(false);
           setDeletingAnnouncement(null);
         }}
-        onConfirm={handleDeleteConfirm}
         title="Delete Announcement"
-        itemName={deletingAnnouncement?.title || ''}
-        itemType="announcement"
-        effects={[
-          'This announcement will be permanently removed',
-          'All notifications related to this announcement will be deleted',
-        ]}
-        loading={isDeleting}
-      />
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Delete <span className="font-semibold text-gray-900">{deletingAnnouncement?.title || ''}</span>? It will be removed for everyone who can see it. This can't be undone.
+          </p>
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                setDeletingAnnouncement(null);
+              }}
+              disabled={isDeleting}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="btn bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -40,8 +40,15 @@ const countFrom = async (request: () => Promise<any>): Promise<number> => {
   }
 };
 
-// Count only the events from today onwards (past events are not "upcoming")
-const countUpcomingEvents = async (): Promise<number> => {
+interface UpcomingEvent {
+  id: number;
+  title: string;
+  event_date: string;
+  event_time: string | null;
+}
+
+// The events from today onwards (past events are not "upcoming"), soonest first
+const loadUpcomingEvents = async (): Promise<UpcomingEvent[]> => {
   try {
     const data = await getEvents();
     let events: any[] = [];
@@ -54,22 +61,24 @@ const countUpcomingEvents = async (): Promise<number> => {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     const today = `${now.getFullYear()}-${month}-${day}`;
-    let count = 0;
+    const upcoming: UpcomingEvent[] = [];
     for (const event of events) {
       const eventDate = String(event.event_date || '').slice(0, 10);
       if (eventDate >= today) {
-        count = count + 1;
+        upcoming.push({ id: event.id, title: event.title, event_date: eventDate, event_time: event.event_time || null });
       }
     }
-    return count;
+    upcoming.sort((a, b) => (a.event_date + (a.event_time || '')).localeCompare(b.event_date + (b.event_time || '')));
+    return upcoming;
   } catch (error) {
-    return 0;
+    return [];
   }
 };
 
 const Dashboard: React.FC = () => {
   const { userRole, user } = useAuth();
   const navigate = useNavigate();
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [stats, setStats] = useState({
     students: 0,
     teachers: 0,
@@ -108,7 +117,9 @@ const Dashboard: React.FC = () => {
         }
         newStats.assignments = await countFrom(getAssignments);
         newStats.announcements = await countFrom(getAnnouncements);
-        newStats.events = await countUpcomingEvents();
+        const upcoming = await loadUpcomingEvents();
+        setUpcomingEvents(upcoming);
+        newStats.events = upcoming.length;
 
         setStats(newStats);
       } catch (error) {
@@ -405,13 +416,28 @@ const Dashboard: React.FC = () => {
                       <p className="text-sm text-gray-600 mt-1">Stay updated with upcoming activities</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => navigate(userRole === 'admin' ? '/admin/events' : '#')} 
-                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-colors shadow-md"
-                  >
-                    View Calendar
-                    <ArrowRight size={18} />
-                  </button>
+                  {/* The next few events, so everyone can see what and when */}
+                  <ul className="mt-4 space-y-2">
+                    {upcomingEvents.slice(0, 5).map((event) => (
+                      <li key={event.id} className="bg-white rounded-xl px-4 py-2 shadow-sm">
+                        <p className="text-sm font-semibold text-gray-900">{event.title}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                          {event.event_time ? ` · ${event.event_time}` : ''}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                  {/* Only the admin has an Events page to manage them */}
+                  {userRole === 'admin' && (
+                    <button 
+                      onClick={() => navigate('/admin/events')} 
+                      className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-colors shadow-md"
+                    >
+                      Manage Events
+                      <ArrowRight size={18} />
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="bg-white border-2 border-dashed border-gray-200 p-8 rounded-2xl text-center hover:border-gray-300 transition-colors">

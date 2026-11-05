@@ -65,10 +65,16 @@ export const useChat = (enabled: boolean = true) => {
       setPendingActions(response.pending_actions || []);
     } catch (error: any) {
       // Shown on screen only. It is not saved, so it never goes back to the assistant.
-      toast.error(error.response?.data?.message || 'Failed to get response');
+      // When the server says why (for example, the assistant isn't set up), show that reason
+      const serverMessage: string | undefined = error.response?.data?.message;
+      toast.error(serverMessage || 'Failed to get response');
+      let bubbleText = 'Sorry, I encountered an error. Please try again.';
+      if (serverMessage) {
+        bubbleText = serverMessage;
+      }
       setMessages((previous) => [
         ...previous,
-        { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' },
+        { role: 'assistant', content: bubbleText },
       ]);
     } finally {
       setLoading(false);

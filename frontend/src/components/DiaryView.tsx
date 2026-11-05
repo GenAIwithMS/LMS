@@ -90,7 +90,8 @@ export const DiaryView: React.FC<DiaryViewProps> = ({ sectionId, writableSubject
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-sm text-gray-600">Day</label>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input max-w-[12rem]" />
+        {/* The diary is written for today or earlier days, never for days to come */}
+        <input type="date" value={date} max={todayText()} onChange={(e) => setDate(e.target.value)} className="input max-w-[12rem]" />
         {writableSubjects.map((subject) => (
           <button key={subject.subject_id} onClick={() => openWrite(subject)} className="btn btn-primary text-sm flex items-center gap-1">
             <PenSquare size={14} /> {findEntry(subject.subject_id) ? 'Edit' : 'Write'} {subject.subject_name}

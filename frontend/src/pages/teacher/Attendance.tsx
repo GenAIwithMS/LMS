@@ -122,7 +122,11 @@ const TeacherAttendance: React.FC = () => {
       }
     }
     if (missingCount > 0) {
-      toast.error(`${missingCount} student(s) have no status yet. Choose one for every student.`);
+      if (missingCount === 1) {
+        toast.error('1 student has no status yet. Choose one for every student.');
+      } else {
+        toast.error(`${missingCount} students have no status yet. Choose one for every student.`);
+      }
       return;
     }
 

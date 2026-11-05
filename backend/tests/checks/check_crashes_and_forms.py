@@ -13,7 +13,7 @@ def _b(t, c, **kw): return "INTEGER"
 def _fk(conn, rec):          # make SQLite enforce foreign keys like MySQL does
     conn.execute("PRAGMA foreign_keys=ON")
 
-from school_setup import give_teachers_their_subjects
+from school_setup import give_teachers_their_subjects, make_every_day_a_school_day
 from src import create_app
 from src.db import db
 from src.models import Admin, Teacher, Course, Subject, Section, Student, Assignment, Attendance, Result, Enrollment
@@ -27,6 +27,7 @@ def make(cls, name, uname, **kw):
 
 with app.app_context():
     db.create_all()
+    make_every_day_a_school_day()   # attendance for "today" works on any day
     admin = make(Admin, "Root", "root"); sara = make(Teacher, "Sara", "sara"); omar = make(Teacher, "Omar", "omar")
     db.session.add_all([admin, sara, omar]); db.session.commit()
     cs = Course(name="CS", course_code="CS1", teacher_id=sara.id); ph = Course(name="PH", course_code="PH1", teacher_id=omar.id)
