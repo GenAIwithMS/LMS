@@ -155,6 +155,8 @@ export const PeriodPicker: React.FC<PeriodPickerProps> = ({ day, dayName, period
                       <div className="font-semibold text-gray-900">{candidate.teacherName}</div>
                       {reason ? (
                         <div className="text-xs text-red-700 flex items-center gap-1"><XCircle size={12} /> Busy: {reason}</div>
+                      ) : isThisPeriodsChoice ? (
+                        <div className="text-xs text-primary-700 flex items-center gap-1"><CheckCircle2 size={12} /> Teaching this period</div>
                       ) : (
                         <div className="text-xs text-green-700 flex items-center gap-1"><CheckCircle2 size={12} /> Free at this time</div>
                       )}
@@ -190,6 +192,9 @@ export const PeriodPicker: React.FC<PeriodPickerProps> = ({ day, dayName, period
               <span className="font-medium text-gray-800">{row.teacher.teacher_name}</span>
               {row.busyText ? (
                 <span className="text-xs text-red-700 text-right">Busy: {row.busyText}</span>
+              ) : currentSlot !== undefined && currentSlot.teacher_id === row.teacher.teacher_id ? (
+                // The teacher of the period being edited: not "Free", they teach it
+                <span className="text-xs text-primary-700 font-semibold text-right">Teaching this period ({currentSlot.subject_name})</span>
               ) : (
                 <span className="text-xs text-green-700 text-right">
                   Free{row.canTeachHere.length > 0 ? ` · can teach ${row.canTeachHere.join(', ')}` : ' · no subject of this class'}
