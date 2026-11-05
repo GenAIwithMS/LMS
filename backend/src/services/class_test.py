@@ -202,11 +202,19 @@ def get_student_class_tests(student_id):
     if not student:
         return jsonify({"message": "Student not found", "status": "failed"}), 404
 
-    tests = ClassTest.query.filter_by(section_id=student.section_id).order_by(ClassTest.date.desc(), ClassTest.id.desc()).all()
+    # The student's own marks, loaded once
+    marks_by_test = {}
+    for mark in ClassTestMark.query.filter_by(student_id=student_id).all():
+        marks_by_test[mark.test_id] = mark
+
+    # This section's tests, and earlier tests the student has marks in (from before a promotion)
+    tests = ClassTest.query.filter(
+        (ClassTest.section_id == student.section_id) | (ClassTest.id.in_(list(marks_by_test.keys())))
+    ).order_by(ClassTest.date.desc(), ClassTest.id.desc()).all()
 
     test_list = []
     for test in tests:
-        mark = ClassTestMark.query.filter_by(test_id=test.id, student_id=student_id).first()
+        mark = marks_by_test.get(test.id)
         data = test_data(test)
         data["my_marks"] = marks_text(mark.obtained_marks) if mark else None
         data["was_absent"] = mark is not None and mark.obtained_marks is None

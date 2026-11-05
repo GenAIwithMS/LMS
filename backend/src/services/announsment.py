@@ -1,5 +1,6 @@
 from src.models import Announcement, Section, SchoolClass
 from flask import jsonify
+from sqlalchemy.orm import joinedload
 from src.db import db
   
 def add_announcement(title, content, teacher_id, section_id,target_audience='all', created_at=None, from_incharge=False):
@@ -36,7 +37,7 @@ def announcement_data(announcement):
     """One announcement for pages and the chatbot: who wrote it, who it's for, and where."""
     section = None
     if announcement.section_id:
-        section = Section.query.get(announcement.section_id)
+        section = announcement.section
 
     # The author: a teacher or the admin
     author_role = "teacher"
@@ -90,9 +91,27 @@ def author_text(announcement, author_role, author_name, section):
     return name + " (Teacher)"
 
 
-def get_all_announcements():
-    """Every announcement, newest first."""
-    announcements = Announcement.query.order_by(Announcement.created_at.desc(), Announcement.id.desc()).all()
+def get_all_announcements(allowed_ids=None, limit=None):
+    """Announcements, newest first. allowed_ids: only these (what a student or teacher may see).
+    limit: only the newest few (the notification bell).
+
+    The author, section and class of every announcement are loaded in the same query,
+    not one by one, so the list stays fast as announcements pile up over the year.
+    """
+    query = Announcement.query.options(
+        joinedload(Announcement.teacher),
+        joinedload(Announcement.admin),
+        joinedload(Announcement.school_class),
+        joinedload(Announcement.section).joinedload(Section.school_class),
+    )
+    if allowed_ids is not None:
+        if len(allowed_ids) == 0:
+            return jsonify([])
+        query = query.filter(Announcement.id.in_(allowed_ids))
+    query = query.order_by(Announcement.created_at.desc(), Announcement.id.desc())
+    if limit:
+        query = query.limit(limit)
+    announcements = query.all()
     announcement_list = []
     for announcement in announcements:
         announcement_list.append(announcement_data(announcement))

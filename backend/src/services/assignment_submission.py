@@ -65,6 +65,19 @@ def get_submission_file_path(submission):
     return None
 
 
+def commit_or_remove_file(saved_name):
+    """Save to the database. If that fails (for example another save of the same submission at
+    the same moment), remove the file this attempt stored, so no stray file is left behind."""
+    try:
+        db.session.commit()
+    except Exception:
+        if saved_name:
+            path = os.path.join(UPLOAD_FOLDER, saved_name)
+            if os.path.exists(path):
+                os.remove(path)
+        raise
+
+
 def submit_assignment(student_id, assignment_id, submission_text=None, submission_file=None,submitted_at=None,feedback=None):
 
     assignment = Assignment.query.get(assignment_id)
@@ -111,7 +124,7 @@ def submit_assignment(student_id, assignment_id, submission_text=None, submissio
             old_file_path = get_submission_file_path(earlier)
             earlier.submission_file = saved_name
         earlier.submitted_at = pakistan_time()
-        db.session.commit()
+        commit_or_remove_file(saved_name)
         if old_file_path and os.path.exists(old_file_path):
             os.remove(old_file_path)
         return jsonify({
@@ -130,7 +143,7 @@ def submit_assignment(student_id, assignment_id, submission_text=None, submissio
         new_submission.submitted_at = submitted_at
 
     db.session.add(new_submission)
-    db.session.commit()
+    commit_or_remove_file(saved_name)
 
     return jsonify({
         "message": "Assignment submitted successfully",

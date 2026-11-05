@@ -1,3 +1,4 @@
+import os
 from sqlalchemy.exc import OperationalError
 from flask import Blueprint,request,jsonify
 from src.models import Admin,Teacher,Student
@@ -9,7 +10,7 @@ from datetime import timedelta
 from src.db import db, pakistan_time_naive
 from src.services.users import is_username_taken
 from src.extention import limiter, logged_in_user_key
-from src.models import RevokedToken
+from src.models import RevokedToken, LoginFailure
 
 
 # How long after a tab closes its token is blocked. A refresh reloads the page
@@ -63,8 +64,30 @@ def get_logged_in_user():
     return None
 
 
+# Wrong passwords allowed per account before its login is paused (set in .env)
+LOGIN_MAX_FAILURES = int(os.getenv("LOGIN_MAX_FAILURES", "10"))
+LOGIN_LOCK_MINUTES = int(os.getenv("LOGIN_LOCK_MINUTES", "15"))
+
+
+def recent_failures(email):
+    """Wrong passwords for this account in the last LOGIN_LOCK_MINUTES minutes."""
+    since = pakistan_time_naive() - timedelta(minutes=LOGIN_LOCK_MINUTES)
+    return LoginFailure.query.filter(LoginFailure.email == email, LoginFailure.failed_at >= since).count()
+
+
+def remember_failure(email):
+    db.session.add(LoginFailure(email=email, ip_address=request.remote_addr))
+    # Old rows are no longer needed
+    cutoff = pakistan_time_naive() - timedelta(days=1)
+    LoginFailure.query.filter(LoginFailure.failed_at < cutoff).delete(synchronize_session=False)
+    db.session.commit()
+
+
+# Password guessing is stopped per account (LOGIN_MAX_FAILURES, kept in the database, so it
+# works with several server processes). The limit per address is only a flood guard and is
+# generous, because a whole school can share one internet address (LOGIN_RATE_LIMIT in .env).
 @auth_bp.route('/api/login', methods=['POST'])
-@limiter.limit("10 per minute")   # slows down password guessing
+@limiter.limit(lambda: os.getenv("LOGIN_RATE_LIMIT", "120 per minute"))
 def login():
     try:
         data = loginSchema().load(request.get_json())
@@ -78,6 +101,14 @@ def login():
             "status": False,
             "message": "email and password required"
         }), 400
+
+    # The wrong-password count is per account, whatever capitals were typed
+    failure_key = email.strip().lower()
+    if recent_failures(failure_key) >= LOGIN_MAX_FAILURES:
+        return jsonify({
+            "status": False,
+            "message": f"Too many wrong passwords for this account. Please wait {LOGIN_LOCK_MINUTES} minutes and try again."
+        }), 429
 
 
     role = ''
@@ -99,10 +130,15 @@ def login():
     # The same message for a wrong email and a wrong password, so nobody can
     # find out which emails have an account
     if not user or not user.check_password(password):
+        remember_failure(failure_key)
         return jsonify({
             "status": False,
             "message": "Invalid email or password"
         }), 401
+
+    # A good login clears this account's wrong-password count
+    LoginFailure.query.filter_by(email=failure_key).delete(synchronize_session=False)
+    db.session.commit()
     try:
         token = make_token(user, role)
     except Exception:

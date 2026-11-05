@@ -1,7 +1,10 @@
 """Closing a tab blocks its login; security headers; proxy setting; chatbot asks before edits. In-memory SQLite."""
 import os, sys, time
 os.environ.update(RATELIMIT_ENABLED="true", GROQ_API_KEY="dummy", JWT_SECRET_KEY="x" * 40,
-                  DATABASE_URI="sqlite:///:memory:", TRUSTED_PROXY_COUNT="0")
+                  DATABASE_URI="sqlite:///:memory:", TRUSTED_PROXY_COUNT="0",
+                  # These checks are about the limit per address, so keep it at 10 a minute here and
+                  # turn the per-account wrong-password pause out of the way
+                  LOGIN_RATE_LIMIT="10 per minute", LOGIN_MAX_FAILURES="1000")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))   # the backend folder
 
 from sqlalchemy import BigInteger

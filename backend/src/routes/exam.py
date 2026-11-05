@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, send_file
+from src.services.save_retry import save_with_retry
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from marshmallow import ValidationError
 from src.models import ExamTerm, ExamPaper, TeachingAssignment
@@ -241,7 +242,7 @@ def enter_paper_marks(paper_id, section_id):
         data = PaperMarksSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
-    return save_section_paper_marks(paper_id, section_id, data["marks"], user_id)
+    return save_with_retry(lambda: save_section_paper_marks(paper_id, section_id, data["marks"], user_id))
 
 
 # ---------------- Results and report cards
@@ -291,7 +292,7 @@ def write_remarks(term_id, student_id):
         data = ReportRemarksSchema().load(request.get_json())
     except ValidationError as e:
         return jsonify(e.messages), 400
-    return save_report_remarks(term_id, student_id, data["remarks"], user_id)
+    return save_with_retry(lambda: save_report_remarks(term_id, student_id, data["remarks"], user_id))
 
 
 @exam_bp.route("/api/exams/terms/<int:term_id>/analysis", methods=["GET"])

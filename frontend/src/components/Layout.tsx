@@ -27,7 +27,7 @@ import {
   CalendarDays,
   Megaphone,
 } from 'lucide-react';
-import { getAnnouncements, getEvents, getPublishedTimetableInfo, getAssignments, getSubmissionsByStudent, getClassTests, getExamTerms } from '../services/api';
+import { getLatestAnnouncements, getEvents, getPublishedTimetableInfo, getAssignments, getSubmissionsByStudent, getClassTests, getExamTerms } from '../services/api';
 import toast from 'react-hot-toast';
 
 // Manus Icon Component
@@ -151,7 +151,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const fetchNotifications = async () => {
       try {
         const [announcements, events] = await Promise.all([
-          getAnnouncements(),
+          // A few more than shown, since the user's own posts are left out below
+          getLatestAnnouncements(15),
           getEvents()
         ]);
         

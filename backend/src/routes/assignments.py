@@ -97,7 +97,7 @@ def get_assignments():
                 "message": "You can only view your own assignments",
                 "status": "failed"
             }), 403
-        if user_role == "student" and assignment_id not in get_student_assignment_ids(user_id):
+        if user_role == "student" and assignment_id not in get_student_assignment_ids(user_id, include_past=True):
             return jsonify({
                 "message": "Assignment not found",
                 "status": "failed"
@@ -110,7 +110,7 @@ def get_assignments():
             result = filter_response_by_ids(result, get_teacher_assignment_ids(user_id))
         # A student only sees assignments from teachers who teach them
         if user_role == "student":
-            result = filter_response_by_ids(result, get_student_assignment_ids(user_id))
+            result = filter_response_by_ids(result, get_student_assignment_ids(user_id, include_past=True))
     return result
 
 @assignment_bp.route("/api/update/assignments/", methods=["PUT"])

@@ -10,6 +10,7 @@ from src.db import db, pakistan_time_naive
 from src.services.pagination import paginate_list_response
 from src.services.activity_log import record_activity
 from src.extention import bcrypt , jwt, limiter, migrate
+from src.services.save_retry import is_save_conflict, conflict_answer
 from src.models import Student, Teacher, Admin, Assignment, Attendance,Result,Subject,Course,Announcement,AssignmentSubmission,Enrollment,Event,Message,Section,RevokedToken
 
 from src.routes import home_bp,auth_bp,student_bp,teacher_bp,admin_bp,assignment_bp,subject_bp,result_bp,section_bp,assignment_submission_bp,announcement_bp,chatbot_bp,course_bp,enrollment_bp,event_bp,attendance_bp,school_bp,teaching_bp,exam_bp,oversight_bp
@@ -98,6 +99,12 @@ def create_app():
             }), error.code
 
         db.session.rollback()
+
+        # Two saves of the same record at the same moment: not a crash, just try again
+        if is_save_conflict(error):
+            app.logger.warning("Save clash on %s %s", request.method, request.path)
+            return conflict_answer()
+
         app.logger.exception("Unexpected error on %s %s", request.method, request.path)
         return jsonify({
             "message": "Something went wrong on the server. Please try again.",
@@ -131,6 +138,21 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
         "DATABASE_URI"
     )
+
+    # Database connections kept open for each server process. With many people at once,
+    # requests wait for a free connection; too few connections means long waits and,
+    # after DB_POOL_TIMEOUT seconds, errors. Set the numbers in .env to suit the server.
+    # (Not for SQLite, which the automated tests use.)
+    database_uri = os.getenv("DATABASE_URI") or ""
+    if not database_uri.startswith("sqlite"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_size": int(os.getenv("DB_POOL_SIZE", "10")),
+            "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "20")),
+            "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", "30")),
+            # Replace connections the database may have closed (idle too long, or a restart)
+            "pool_recycle": 1800,
+            "pool_pre_ping": True,
+        }
 
     # Rate limits are on unless RATELIMIT_ENABLED=false (only for automated tests).
     # With several server processes, point RATELIMIT_STORAGE_URI at Redis so they share counts.

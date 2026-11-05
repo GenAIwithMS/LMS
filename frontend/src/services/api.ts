@@ -421,6 +421,12 @@ export const getAnnouncements = async (id?: number) => {
   return response.data;
 };
 
+// Only the newest few announcements (for the notification bell, which checks every minute)
+export const getLatestAnnouncements = async (limit: number) => {
+  const response = await api.get('/get/announcements', { params: { limit } });
+  return response.data;
+};
+
 // The backend finds announcements by their title, not by id
 export const updateAnnouncement = async (title: string, data: { title?: string; content?: string; target_audience?: string; section_id?: number; section_name?: string }) => {
   const response = await api.put('/update/announcement', data, { params: { title } });

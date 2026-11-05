@@ -366,11 +366,24 @@ def save_report_remarks(term_id, student_id, remarks, teacher_id):
 
 
 def get_student_report_cards(student_id):
-    """The published terms a student can open a report card for."""
+    """The published terms a student has a report card in: their class sat papers in the
+    term, or they have marks in it (for example from their class before a promotion)."""
     term_list = []
+    student = Student.query.get(student_id)
+    if not student:
+        return jsonify(term_list)
+    class_id = student.section.class_id if student.section else None
+
+    # Terms with this student's marks, loaded once
+    marked_term_ids = set()
+    for (term_id,) in db.session.query(ExamPaper.term_id).join(ExamMark, ExamMark.paper_id == ExamPaper.id).filter(ExamMark.student_id == student_id).all():
+        marked_term_ids.add(term_id)
+
     terms = ExamTerm.query.filter_by(is_published=True).order_by(ExamTerm.start_date.desc()).all()
     for term in terms:
-        term_list.append(term_data(term))
+        class_sat_it = class_id is not None and ExamPaper.query.filter_by(term_id=term.id, class_id=class_id).first() is not None
+        if class_sat_it or term.id in marked_term_ids:
+            term_list.append(term_data(term))
     return jsonify(term_list)
 
 

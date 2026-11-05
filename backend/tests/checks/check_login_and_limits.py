@@ -68,8 +68,16 @@ print("--- Rate limits")
 codes = []
 for attempt in range(12):
     codes.append(login("root@x.com", "wrongpass", ip="10.0.0.9").status_code)
-check("11th login attempt in a minute is refused", codes[:10] == [401] * 10 and codes[10] == 429, codes)
-check("another address can still log in", login("root@x.com", ip="10.0.0.10").status_code == 200)
+check("after 10 wrong passwords the 11th attempt is refused", codes[:10] == [401] * 10 and codes[10] == 429, codes)
+# The pause is per account, so guessing from another address doesn't get around it,
+# while other people (even on the same address) can still log in
+check("the same account is paused from another address too", login("root@x.com", ip="10.0.0.10").status_code == 429)
+check("another account can still log in", login("sara@x.com", ip="10.0.0.9").status_code == 200)
+with app.app_context():
+    from src.models import LoginFailure
+    LoginFailure.query.delete()   # as if the lock time had passed
+    db.session.commit()
+check("once the pause is over the account can log in", login("root@x.com", ip="10.0.0.10").status_code == 200)
 
 class StubGraph:
     def invoke(self, state, config):
