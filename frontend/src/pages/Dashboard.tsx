@@ -40,6 +40,33 @@ const countFrom = async (request: () => Promise<any>): Promise<number> => {
   }
 };
 
+// Count only the events from today onwards (past events are not "upcoming")
+const countUpcomingEvents = async (): Promise<number> => {
+  try {
+    const data = await getEvents();
+    let events: any[] = [];
+    if (Array.isArray(data)) {
+      events = data;
+    } else if (data && Array.isArray(data.data)) {
+      events = data.data;
+    }
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const today = `${now.getFullYear()}-${month}-${day}`;
+    let count = 0;
+    for (const event of events) {
+      const eventDate = String(event.event_date || '').slice(0, 10);
+      if (eventDate >= today) {
+        count = count + 1;
+      }
+    }
+    return count;
+  } catch (error) {
+    return 0;
+  }
+};
+
 const Dashboard: React.FC = () => {
   const { userRole, user } = useAuth();
   const navigate = useNavigate();
@@ -81,7 +108,7 @@ const Dashboard: React.FC = () => {
         }
         newStats.assignments = await countFrom(getAssignments);
         newStats.announcements = await countFrom(getAnnouncements);
-        newStats.events = await countFrom(getEvents);
+        newStats.events = await countUpcomingEvents();
 
         setStats(newStats);
       } catch (error) {
@@ -129,7 +156,8 @@ const Dashboard: React.FC = () => {
       icon: FileText,
       color: 'text-amber-600',
       bgColor: 'bg-amber-50',
-      path: userRole === 'teacher' ? '/teacher/assignments' : userRole === 'student' ? '/student/assignments' : undefined,
+      // The admin sees each teacher's assignments on the Oversight page
+      path: userRole === 'teacher' ? '/teacher/assignments' : userRole === 'student' ? '/student/assignments' : '/admin/oversight',
     },
   ];
 
@@ -373,7 +401,7 @@ const Dashboard: React.FC = () => {
                       <Calendar size={24} className="text-primary-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-lg font-bold text-gray-900">{stats.events} Scheduled Events</p>
+                      <p className="text-lg font-bold text-gray-900">{stats.events} {stats.events === 1 ? 'Upcoming Event' : 'Upcoming Events'}</p>
                       <p className="text-sm text-gray-600 mt-1">Stay updated with upcoming activities</p>
                     </div>
                   </div>
@@ -402,7 +430,7 @@ const Dashboard: React.FC = () => {
                       <Bell size={24} className="text-blue-600" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-lg font-bold text-gray-900">{stats.announcements} New Announcements</p>
+                      <p className="text-lg font-bold text-gray-900">{stats.announcements} {stats.announcements === 1 ? 'Announcement' : 'Announcements'}</p>
                       <p className="text-sm text-gray-600 mt-1">Check the latest updates</p>
                     </div>
                   </div>

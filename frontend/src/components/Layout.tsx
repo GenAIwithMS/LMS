@@ -73,6 +73,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const saved = localStorage.getItem('sidebarCollapsed');
     return saved !== null ? saved === 'true' : false;
   });
+  // Collapsing the menu to icons is only for wide screens. On a phone the menu slides out
+  // over the page, so it always shows the labels.
+  const [isWideScreen, setIsWideScreen] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)');
+    const handleChange = () => setIsWideScreen(query.matches);
+    query.addEventListener('change', handleChange);
+    return () => query.removeEventListener('change', handleChange);
+  }, []);
   const [chatbotOpen, setChatbotOpen] = useState(() => {
     const saved = localStorage.getItem('chatbotOpen');
     return saved !== null ? saved === 'true' : false;
@@ -196,7 +205,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const handleViewAll = () => {
-    const path = userRole === 'admin' ? '/admin/events' : `/${userRole}/announcements`;
+    // Notifications are mostly announcements, so "View all" opens the announcements page
+    const path = `/${userRole}/announcements`;
     navigate(path);
     setShowNotifications(false);
     setHasUnread(false);
@@ -270,6 +280,52 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const menuItems = userRole === 'admin' ? adminMenuItems : userRole === 'teacher' ? teacherMenuItems : studentMenuItems;
 
+  // The title in the top bar: the menu item's name, or a readable name for pages inside one
+  // (no raw addresses or ID numbers)
+  const pageTitle = (): string => {
+    const path = location.pathname;
+    for (const item of menuItems) {
+      if (item.path === path) {
+        return item.label;
+      }
+    }
+    let match = path.match(/^\/admin\/classes\/(\d+)$/);
+    if (match) {
+      return `Classes / Class ${match[1]}`;
+    }
+    if (/^\/admin\/sections\/\d+$/.test(path)) {
+      return 'Classes / Section';
+    }
+    if (/^\/teacher\/sections\/\d+$/.test(path)) {
+      return 'My Classes / Section';
+    }
+    if (/^\/admin\/teachers\/\d+\/activity$/.test(path)) {
+      return 'Teachers / Teacher activity';
+    }
+    if (/^\/admin\/exams\/\d+$/.test(path)) {
+      return 'Exams / Exam term';
+    }
+    if (path === '/admin/grading') {
+      return 'Exams / Grading scale';
+    }
+    if (path.startsWith('/report-card/')) {
+      return 'Report card';
+    }
+    if (path === '/account') {
+      return 'My Account';
+    }
+    if (path === '/chatbot') {
+      return 'Assistant';
+    }
+    // Anything else: the last part of the address, as words
+    const parts = path.split('/').filter((part) => part !== '' && !/^\d+$/.test(part));
+    if (parts.length === 0) {
+      return 'Dashboard';
+    }
+    const last = parts[parts.length - 1].replace(/-/g, ' ');
+    return last.charAt(0).toUpperCase() + last.slice(1);
+  };
+
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {
@@ -281,7 +337,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const sidebarWidth = sidebarCollapsed ? 'w-20' : 'w-64';
+  const collapsed = sidebarCollapsed && isWideScreen;
+  const sidebarWidth = collapsed ? 'w-20' : 'w-64';
 
   return (
     <div className="min-h-screen bg-gray-50 flex overflow-hidden">
@@ -301,7 +358,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       >
         {/* Logo Section */}
         <div className="h-16 flex items-center px-6 border-b border-gray-100 relative overflow-hidden bg-gradient-to-r from-primary-50/30 to-transparent">
-          {!sidebarCollapsed ? (
+          {!collapsed ? (
             <div className="flex items-center gap-3 shrink-0 w-full">
               <div className="w-9 h-9 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center text-white font-bold shrink-0 shadow-lg">
                 L
@@ -309,7 +366,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="ml-auto p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
+                className="hidden lg:block ml-auto p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
                 title="Collapse Sidebar"
               >
                 <PanelLeft size={18} />
@@ -349,14 +406,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-200'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`}
-                title={sidebarCollapsed ? item.label : ''}
+                title={collapsed ? item.label : ''}
               >
                 {active && (
                   <div className="absolute inset-0 bg-white/10 animate-shimmer"></div>
                 )}
                 <Icon size={20} className={`relative z-10 ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                {!sidebarCollapsed && <span className="text-sm relative z-10">{item.label}</span>}
-                {active && !sidebarCollapsed && (
+                {!collapsed && <span className="text-sm relative z-10">{item.label}</span>}
+                {active && !collapsed && (
                   <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full relative z-10"></div>
                 )}
               </Link>
@@ -366,11 +423,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
         {/* User Profile Section */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-          <div className={`flex items-center gap-3 ${sidebarCollapsed ? 'justify-center' : 'px-2 py-2'}`}>
+          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : 'px-2 py-2'}`}>
             <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl flex items-center justify-center text-primary-700 border-2 border-primary-300 shadow-md">
               <UserCircle size={24} />
             </div>
-            {!sidebarCollapsed && (
+            {!collapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-gray-900 truncate">{user?.name || 'User'}</p>
                 <p className="text-xs text-gray-500 capitalize font-medium">{userRole}</p>
@@ -381,19 +438,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             to="/account"
             className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-semibold shadow-sm hover:shadow-md ${
               isActive('/account') ? 'bg-primary-100 text-primary-700' : 'text-gray-700 bg-white hover:bg-gray-100'
-            } ${sidebarCollapsed ? 'justify-center' : ''}`}
-            title={sidebarCollapsed ? 'My Account' : ''}
+            } ${collapsed ? 'justify-center' : ''}`}
+            title={collapsed ? 'My Account' : ''}
           >
             <Settings size={18} />
-            {!sidebarCollapsed && <span className="text-sm">My Account</span>}
+            {!collapsed && <span className="text-sm">My Account</span>}
           </Link>
           <button
             onClick={handleLogout}
-            className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-all font-semibold shadow-sm hover:shadow-md ${sidebarCollapsed ? 'justify-center' : ''}`}
-            title={sidebarCollapsed ? 'Logout' : ''}
+            className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-all font-semibold shadow-sm hover:shadow-md ${collapsed ? 'justify-center' : ''}`}
+            title={collapsed ? 'Logout' : ''}
           >
             <LogOut size={18} />
-            {!sidebarCollapsed && <span className="text-sm">Logout</span>}
+            {!collapsed && <span className="text-sm">Logout</span>}
           </button>
         </div>
       </aside>
@@ -413,7 +470,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-primary-600 rounded-full"></div>
                 <h2 className="text-sm font-bold text-gray-800">
-                  {location.pathname.split('/').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' / ') || 'Dashboard'}
+                  {pageTitle()}
                 </h2>
               </div>
             </div>
@@ -491,7 +548,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         onClick={handleViewAll}
                         className="text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-wider"
                       >
-                        View All Activity
+                        View All Announcements
                       </button>
                     </div>
                   </div>

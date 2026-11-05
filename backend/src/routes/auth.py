@@ -1,3 +1,4 @@
+from sqlalchemy.exc import OperationalError
 from flask import Blueprint,request,jsonify
 from src.models import Admin,Teacher,Student
 from flask_jwt_extended import create_access_token, decode_token
@@ -151,11 +152,20 @@ def logout_tab_closing():
 def logout_cancel_closing():
     """The page came back after a refresh: cancel the block scheduled by /api/logout/closing."""
     jti = get_jwt()["jti"]
-    pending = RevokedToken.query.filter(RevokedToken.jti == jti,
-                                        RevokedToken.revoked_at > pakistan_time_naive()).first()
-    if pending:
-        db.session.delete(pending)
-        db.session.commit()
+
+    # A page can send this twice at the same moment (for example two tabs, or a quick double
+    # refresh). On MySQL/MariaDB the second delete can then fail with "record has changed".
+    # That's fine: try once more on fresh data; if the row is already gone, the job is done.
+    for attempt in range(2):
+        try:
+            pending = RevokedToken.query.filter(RevokedToken.jti == jti,
+                                                RevokedToken.revoked_at > pakistan_time_naive()).first()
+            if pending:
+                db.session.delete(pending)
+                db.session.commit()
+            break
+        except OperationalError:
+            db.session.rollback()
     return jsonify({"status": "success"})
 
 

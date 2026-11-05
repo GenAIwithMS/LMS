@@ -9,6 +9,7 @@ import { ProgressView } from '../components/ProgressView';
 import { DiaryView } from '../components/DiaryView';
 import { showError, showSuccess } from '../utils/errorHandler';
 import { todayText } from '../utils/date';
+import { Modal } from '../components/Modal';
 
 // True if the teacher teaches this subject (names compared without capitals or spaces at the ends)
 const teachesSubject = (skills: string[], subjectName: string): boolean => {
@@ -45,6 +46,8 @@ const SectionDetail: React.FC = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   // The subjects each teacher teaches, so the teacher lists show them first
   const [teacherSkills, setTeacherSkills] = useState<TeacherSkills[]>([]);
+  // A change of subject teacher that replaces (or removes) the current teacher waits here for a yes
+  const [teacherChange, setTeacherChange] = useState<{ subjectId: number; subjectName: string; currentName: string; newTeacherId: string; newName: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('overview');
 
@@ -127,6 +130,41 @@ const SectionDetail: React.FC = () => {
     } catch (error: any) {
       showError(error, 'Failed to load the attendance');
     }
+  };
+
+  // The name of a teacher, from their ID
+  const teacherName = (teacherId: string): string => {
+    for (const teacher of teachers) {
+      if (String(teacher.id) === teacherId) {
+        return teacher.name;
+      }
+    }
+    return 'the new teacher';
+  };
+
+  // A new choice in the list: save straight away when nobody teaches it yet,
+  // otherwise ask first (the current teacher would lose the subject)
+  const chooseTeacher = (item: SectionDetails['subjects'][number], teacherId: string) => {
+    const currentId = item.teacher_id ? String(item.teacher_id) : '';
+    if (currentId === teacherId) return;
+    if (currentId === '') {
+      handleTeacherChange(item.subject_id, teacherId);
+      return;
+    }
+    setTeacherChange({
+      subjectId: item.subject_id,
+      subjectName: item.subject_name,
+      currentName: item.teacher_name || teacherName(currentId),
+      newTeacherId: teacherId,
+      newName: teacherId ? teacherName(teacherId) : '',
+    });
+  };
+
+  const confirmTeacherChange = async () => {
+    if (!teacherChange) return;
+    const change = teacherChange;
+    setTeacherChange(null);
+    await handleTeacherChange(change.subjectId, change.newTeacherId);
   };
 
   const handleTeacherChange = async (subjectId: number, teacherId: string) => {
@@ -250,30 +288,39 @@ const SectionDetail: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {section.subjects.map((item) => (
+                    {section.subjects.map((item) => {
+                      // Teachers of this subject first; a group is only shown when it has someone in it
+                      const subjectTeachers = teachers.filter((teacher) => teacherTeaches(teacher.id, item.subject_name));
+                      const otherTeachers = teachers.filter((teacher) => !teacherTeaches(teacher.id, item.subject_name));
+                      return (
                       <tr key={item.subject_id}>
                         <td className="font-semibold">{item.subject_name}</td>
                         <td>
                           {isAdmin ? (
-                            <select value={item.teacher_id ? String(item.teacher_id) : ''} onChange={(e) => handleTeacherChange(item.subject_id, e.target.value)} className="input py-1">
+                            <select value={item.teacher_id ? String(item.teacher_id) : ''} onChange={(e) => chooseTeacher(item, e.target.value)} className="input py-1">
                               <option value="">No teacher yet</option>
-                              <optgroup label={`Teaches ${item.subject_name}`}>
-                                {teachers.filter((teacher) => teacherTeaches(teacher.id, item.subject_name)).map((teacher) => (
-                                  <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
-                                ))}
-                              </optgroup>
-                              <optgroup label="Other teachers">
-                                {teachers.filter((teacher) => !teacherTeaches(teacher.id, item.subject_name)).map((teacher) => (
-                                  <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
-                                ))}
-                              </optgroup>
+                              {subjectTeachers.length > 0 && (
+                                <optgroup label={`Teaches ${item.subject_name}`}>
+                                  {subjectTeachers.map((teacher) => (
+                                    <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {otherTeachers.length > 0 && (
+                                <optgroup label="Other teachers">
+                                  {otherTeachers.map((teacher) => (
+                                    <option key={teacher.id} value={teacher.id}>{teacher.name} ({teacher.username})</option>
+                                  ))}
+                                </optgroup>
+                              )}
                             </select>
                           ) : (
                             <span>{item.teacher_name || <span className="text-gray-400">No teacher yet</span>}</span>
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
                 {isAdmin && (
@@ -418,6 +465,31 @@ const SectionDetail: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Replace or remove a subject teacher */}
+      <Modal isOpen={teacherChange !== null} onClose={() => setTeacherChange(null)} title="Change subject teacher">
+        {teacherChange && (
+          <div className="space-y-4">
+            {teacherChange.newTeacherId ? (
+              <p className="text-sm text-gray-700">
+                {teacherChange.subjectName} in {section.full_name} is taught by {teacherChange.currentName} now.
+                Give it to {teacherChange.newName} instead? {teacherChange.currentName} will no longer teach it there, and its
+                timetable periods will show {teacherChange.newName} (teachers and students see that after the timetable is published again).
+              </p>
+            ) : (
+              <p className="text-sm text-gray-700">
+                Remove {teacherChange.currentName} from {teacherChange.subjectName} in {section.full_name}? Its timetable periods will have no teacher.
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setTeacherChange(null)} className="btn btn-secondary">Cancel</button>
+              <button onClick={confirmTeacherChange} className="btn btn-primary">
+                {teacherChange.newTeacherId ? `Yes, give it to ${teacherChange.newName}` : `Yes, remove ${teacherChange.currentName}`}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

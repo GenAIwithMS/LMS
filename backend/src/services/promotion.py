@@ -86,8 +86,29 @@ def promote_students(section_id, target_section_id, student_ids):
             return jsonify({"message": f"Student {student_id} is not in {section.full_name()}", "status": "failed"}), 400
         students.append(student)
 
+    # Keep each roll number only if it's still free in the new section
+    taken = []
+    for other in Student.query.filter_by(section_id=target.id).all():
+        if other.roll_number:
+            taken.append(other.roll_number.strip())
+    cleared = 0
     for student in students:
         student.section_id = target.id
+        if student.roll_number:
+            roll = student.roll_number.strip()
+            if roll in taken:
+                student.roll_number = None
+                cleared = cleared + 1
+            else:
+                taken.append(roll)
     db.session.commit()
 
-    return jsonify({"message": f"{len(students)} student(s) promoted to {target.full_name()}", "status": "success"})
+    if len(students) == 1:
+        message = f"1 student promoted to {target.full_name()}"
+    else:
+        message = f"{len(students)} students promoted to {target.full_name()}"
+    if cleared == 1:
+        message = message + ". 1 of them needs a new roll number (theirs was already used there)"
+    if cleared > 1:
+        message = message + f". {cleared} of them need new roll numbers (theirs were already used there)"
+    return jsonify({"message": message, "status": "success", "roll_numbers_cleared": cleared})

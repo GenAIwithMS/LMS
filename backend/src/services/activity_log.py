@@ -25,6 +25,8 @@ ENDPOINT_LABELS = {
     # School structure
     "school.create_session": ("create", "school", "Added an academic session"),
     "school.make_session_current": ("update", "school", "Changed the current session"),
+    "school.update_session": ("update", "school", "Changed an academic session"),
+    "school.remove_session": ("delete", "school", "Deleted an academic session"),
     "school.create_section": ("create", "school", "Added a section"),
     "school.update_section": ("update", "school", "Changed a section (name or class incharge)"),
     "school.delete_section": ("delete", "school", "Deleted a section"),

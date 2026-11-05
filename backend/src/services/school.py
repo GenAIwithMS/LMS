@@ -2,7 +2,7 @@ from flask import jsonify
 from src.db import db
 from src.models import (AcademicSession, SchoolClass, Section, Subject, SyllabusChapter, TeachingAssignment,
                         Teacher, Student, Assignment, Result, Attendance, DailyAttendance, ChapterProgress,
-                        DiaryEntry, ClassTest, TimetablePeriod, ExamPaper, ExamMark, TeacherSubject)
+                        DiaryEntry, ClassTest, TimetablePeriod, ExamPaper, ExamMark, TeacherSubject, ExamTerm)
 from src.services.timetable import check_new_subject_teacher
 from src.services.access import incharge_clash_message
 from src.services.teacher_skills import same_name, name_in_list, teacher_skill_names, add_skill_if_missing, neat_subject_name
@@ -429,6 +429,46 @@ def add_session(name, start_date, end_date, make_current=False):
         set_current_session(session.id)
 
     return jsonify({"message": f"Session {name} added", "status": "success", "session_id": session.id}), 201
+
+
+def edit_session(session_id, data):
+    """data can hold name, start_date and end_date."""
+    session = AcademicSession.query.get(session_id)
+    if not session:
+        return jsonify({"message": "Session not found", "status": "failed"}), 404
+
+    start_date = data.get("start_date", session.start_date)
+    end_date = data.get("end_date", session.end_date)
+    if end_date <= start_date:
+        return jsonify({"message": "The session must end after it starts", "status": "failed"}), 400
+
+    if "name" in data:
+        new_name = data["name"].strip()
+        other = AcademicSession.query.filter_by(name=new_name).first()
+        if other and other.id != session.id:
+            return jsonify({"message": f"Session {new_name} already exists", "status": "failed"}), 409
+        session.name = new_name
+
+    session.start_date = start_date
+    session.end_date = end_date
+    db.session.commit()
+    return jsonify({"message": f"Session {session.name} updated", "status": "success"})
+
+
+def delete_session(session_id):
+    """Only a session that isn't current and has no exam terms (they hold marks) can be deleted."""
+    session = AcademicSession.query.get(session_id)
+    if not session:
+        return jsonify({"message": "Session not found", "status": "failed"}), 404
+    if session.is_current:
+        return jsonify({"message": f"{session.name} is the current session. Make another session current first.", "status": "failed"}), 409
+    term_count = ExamTerm.query.filter_by(session_id=session_id).count()
+    if term_count > 0:
+        return jsonify({"message": f"{session.name} has exam terms, so it can't be deleted", "status": "failed"}), 409
+
+    db.session.delete(session)
+    db.session.commit()
+    return jsonify({"message": f"Session {session.name} deleted", "status": "success"})
 
 
 def set_current_session(session_id):

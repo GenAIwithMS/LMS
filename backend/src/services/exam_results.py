@@ -5,6 +5,7 @@ from src.models import ExamTerm, ExamPaper, ExamMark, ReportRemark, Section, Stu
 from src.services.exam import term_is_closed, marks_text, paper_data, term_data
 from src.services.daily_attendance import count_statuses
 from src.services.grading import grade_for, scale_data
+from src.services.wording import plural
 
 
 # Exam results: subject teachers enter marks for their sections, then the school
@@ -121,7 +122,7 @@ def save_section_paper_marks(paper_id, section_id, rows, teacher_id):
         saved = saved + 1
     db.session.commit()
 
-    return jsonify({"message": f"Marks saved for {saved} student(s)", "status": "success"})
+    return jsonify({"message": f"Marks saved for {plural(saved, 'student')}", "status": "success"})
 
 
 # ---------------- Report cards and result sheets
@@ -199,10 +200,14 @@ def student_term_result(student, papers):
 
 
 def add_positions(results):
-    """Rank the students by total marks, highest first. Equal totals share a position (1, 2, 2, 4)."""
+    """Rank the students by total marks, highest first. Equal totals share a position (1, 2, 2, 4).
+
+    Only students whose marks are all in get a position; while marks are still missing
+    ("Incomplete") a position would be misleading.
+    """
     ranked = []
     for item in results:
-        if item["percentage"] is not None:
+        if item["percentage"] is not None and item["result"] != "Incomplete":
             ranked.append(item)
     ranked.sort(key=lambda item: Decimal(item["total_obtained"]), reverse=True)
 

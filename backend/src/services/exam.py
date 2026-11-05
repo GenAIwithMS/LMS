@@ -5,6 +5,7 @@ from flask import jsonify
 from werkzeug.utils import secure_filename
 from src.db import db, pakistan_time
 from src.models import ExamTerm, ExamPaper, ExamMark, ReportRemark, AcademicSession, SchoolClass, Subject, Section, TeachingAssignment
+from src.services.wording import plural
 
 
 # Exams: the admin adds a term (like "First Term") to a session, then sets up the
@@ -228,7 +229,7 @@ def set_up_class_papers(term_id, class_id, total_marks=None, passing_marks=None)
     if added == 0:
         message = f"Every subject of {school_class.name} already has a paper"
     else:
-        message = f"{added} paper(s) added for {school_class.name}"
+        message = f"{plural(added, 'paper')} added for {school_class.name}"
     return jsonify({"message": message, "status": "success", "added": added}), 201
 
 

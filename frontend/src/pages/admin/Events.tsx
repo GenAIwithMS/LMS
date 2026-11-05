@@ -5,6 +5,7 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getEvents, createEvent, updateEvent, deleteEvent } from '../../services/api';
 import type { Event } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
+import { todayText } from '../../utils/date';
 
 const AdminEvents: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -18,17 +19,17 @@ const AdminEvents: React.FC = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    event_date: new Date().toISOString().split('T')[0],
-    event_time: '09:00:00',
+    event_date: todayText(),
+    event_time: '09:00',
   });
 
   useEffect(() => {
     fetchEvents();
   }, []);
 
+  // The spinner shows only on the first load
   const fetchEvents = async () => {
     try {
-      setLoading(true);
       const data = await getEvents();
       setEvents(Array.isArray(data) ? data : data.event ? [data.event] : []);
     } catch (error: any) {
@@ -62,7 +63,7 @@ const AdminEvents: React.FC = () => {
       title: event.title,
       description: event.description,
       event_date: event.event_date,
-      event_time: event.event_time,
+      event_time: event.event_time || '',
     });
     setIsModalOpen(true);
   };
@@ -90,7 +91,7 @@ const AdminEvents: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ title: '', description: '', event_date: new Date().toISOString().split('T')[0], event_time: '09:00:00' });
+    setFormData({ title: '', description: '', event_date: todayText(), event_time: '09:00' });
     setEditingEvent(null);
   };
 
@@ -145,10 +146,10 @@ const AdminEvents: React.FC = () => {
                   <p className="text-sm text-gray-500 mt-1">{event.admin}</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <button onClick={() => handleEdit(event)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
+                  <button onClick={() => handleEdit(event)} className="p-2 text-blue-600 hover:bg-blue-50 rounded" title="Edit event" aria-label="Edit event">
                     <Edit size={18} />
                   </button>
-                  <button onClick={() => handleDeleteClick(event)} className="p-2 text-red-600 hover:bg-red-50 rounded">
+                  <button onClick={() => handleDeleteClick(event)} className="p-2 text-red-600 hover:bg-red-50 rounded" title="Delete event" aria-label="Delete event">
                     <Trash2 size={18} />
                   </button>
                 </div>
@@ -156,7 +157,8 @@ const AdminEvents: React.FC = () => {
               <p className="text-gray-600 mb-4">{event.description}</p>
               <div className="flex items-center justify-between text-sm text-gray-500">
                 <span>{event.event_date}</span>
-                <span>{event.event_time}</span>
+                {/* The time as the server gives it ("09:00"), nothing when there is none */}
+                <span>{event.event_time || ''}</span>
               </div>
             </div>
           ))
@@ -175,11 +177,18 @@ const AdminEvents: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Event Date</label>
-            <input type="date" required value={formData.event_date} onChange={(e) => setFormData({ ...formData, event_date: e.target.value })} className="input" />
+            <input
+              type="date"
+              required
+              min={editingEvent ? undefined : todayText()}
+              value={formData.event_date}
+              onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+              className="input"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Event Time</label>
-            <input type="time" required value={formData.event_time} onChange={(e) => setFormData({ ...formData, event_time: e.target.value + ':00' })} className="input" />
+            <input type="time" required value={formData.event_time} onChange={(e) => setFormData({ ...formData, event_time: e.target.value })} className="input" />
           </div>
           <div className="flex justify-end space-x-3 pt-4">
             <button type="button" onClick={() => { setIsModalOpen(false); resetForm(); }} className="btn btn-secondary">Cancel</button>

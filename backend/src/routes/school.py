@@ -2,13 +2,13 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from marshmallow import ValidationError
 from src.schemas import (ClassSectionSchema, UpdateClassSectionSchema, SubjectTeacherSchema, ClassSubjectSchema,
-                         ChapterSchema, UpdateChapterSchema, AcademicSessionSchema, TeacherSubjectSchema)
+                         ChapterSchema, UpdateChapterSchema, AcademicSessionSchema, TeacherSubjectSchema, UpdateAcademicSessionSchema)
 from src.services.school import (get_all_classes, get_class_details, add_class_section, edit_class_section,
                                  remove_class_section, get_section_details, set_subject_teacher, add_class_subject,
                                  rename_class_subject, remove_class_subject, get_subject_chapters, add_subject_chapter,
                                  edit_subject_chapter, remove_subject_chapter, get_all_sessions, add_session,
                                  set_current_session, get_teacher_classes, get_student_class, get_teacher_subject_list,
-                                 add_teacher_subject, remove_teacher_subject)
+                                 add_teacher_subject, remove_teacher_subject, edit_session, delete_session)
 from src.services.access import get_teacher_section_ids, get_teacher_subject_ids
 from src.models import Subject, Student
 
@@ -212,6 +212,28 @@ def create_session():
     except ValidationError as e:
         return jsonify(e.messages), 400
     return add_session(data["name"], data["start_date"], data["end_date"], data.get("is_current", False))
+
+
+@school_bp.route("/api/school/sessions/<int:session_id>", methods=["PUT"])
+@jwt_required()
+def update_session(session_id):
+    error = only_admin()
+    if error:
+        return error
+    try:
+        data = UpdateAcademicSessionSchema().load(request.get_json())
+    except ValidationError as e:
+        return jsonify(e.messages), 400
+    return edit_session(session_id, data)
+
+
+@school_bp.route("/api/school/sessions/<int:session_id>", methods=["DELETE"])
+@jwt_required()
+def remove_session(session_id):
+    error = only_admin()
+    if error:
+        return error
+    return delete_session(session_id)
 
 
 @school_bp.route("/api/school/sessions/<int:session_id>/current", methods=["PUT"])
