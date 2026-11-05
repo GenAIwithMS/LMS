@@ -2,7 +2,7 @@
 within the total, exam results while marks are missing, attendance only on school days,
 no diary or class test marks for days still to come, and remarks in the result sheet.
 In-memory SQLite."""
-import io, os, sys
+import io, os, shutil, sys, tempfile
 os.environ.update(RATELIMIT_ENABLED="false", GROQ_API_KEY="dummy", JWT_SECRET_KEY="x" * 40,
                   DATABASE_URI="sqlite:///:memory:")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))   # the backend folder
@@ -18,6 +18,11 @@ from datetime import timedelta
 from src import create_app
 from src.db import db, pakistan_time
 from src.models import Admin, Teacher, Student, Assignment
+import src.services.assignment_submission as submission_service
+
+# Uploaded test files go to a throwaway folder, not the real uploads folder
+UPLOADS = tempfile.mkdtemp()
+submission_service.UPLOAD_FOLDER = UPLOADS
 
 app = create_app()
 client = app.test_client()
@@ -150,6 +155,8 @@ check("and has no position, percentage or grade yet",
       rows["Hina"]["position"] is None and rows["Hina"]["percentage"] is None and rows["Hina"]["grade"] is None, rows["Hina"])
 check("Ali (all marked) passes with position 1", rows["Ali"]["result"] == "Pass" and rows["Ali"]["position"] == 1, rows["Ali"])
 check("the result sheet carries the incharge's remarks", rows["Ali"]["remarks"] == "Hard working" and rows["Hina"]["remarks"] is None, rows["Ali"].get("remarks"))
+
+shutil.rmtree(UPLOADS, ignore_errors=True)
 
 print("\nFAILED:" if fails else "\nALL PASSED", fails if fails else "")
 sys.exit(1 if fails else 0)
