@@ -53,11 +53,13 @@ class DiaryEntry(db.Model):
     date = db.Column(db.Date, nullable=False)
     classwork = db.Column(db.Text, nullable=True)
     homework = db.Column(db.Text, nullable=True)
+    topic_id = db.Column(db.BigInteger, db.ForeignKey('syllabus_topics.id'), nullable=True)   # the topic it was written from
     created_at = db.Column(db.DateTime, default=pakistan_time)
 
     section = db.relationship('Section', lazy=True)
     subject = db.relationship('Subject', lazy=True)
     teacher = db.relationship('Teacher', lazy=True)
+    topic = db.relationship('SyllabusTopic', lazy=True)
 
 
 class ClassTest(db.Model):
@@ -68,6 +70,7 @@ class ClassTest(db.Model):
     subject_id = db.Column(db.BigInteger, db.ForeignKey('subjects.id'), nullable=False)
     teacher_id = db.Column(db.BigInteger, db.ForeignKey('teachers.id'), nullable=False)
     chapter_id = db.Column(db.BigInteger, db.ForeignKey('syllabus_chapters.id'), nullable=True)
+    topic_id = db.Column(db.BigInteger, db.ForeignKey('syllabus_topics.id'), nullable=True)   # the topic it tests
     title = db.Column(db.String(255), nullable=False)
     date = db.Column(db.Date, nullable=False)
     total_marks = db.Column(db.Numeric(5, 2), nullable=False)
@@ -77,6 +80,7 @@ class ClassTest(db.Model):
     subject = db.relationship('Subject', lazy=True)
     teacher = db.relationship('Teacher', lazy=True)
     chapter = db.relationship('SyllabusChapter', lazy=True)
+    topic = db.relationship('SyllabusTopic', lazy=True)
 
 
 class ClassTestMark(db.Model):

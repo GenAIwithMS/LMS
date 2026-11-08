@@ -105,11 +105,6 @@ for name in ["Maths", "English"]:
     status, body = call("POST", f"/school/classes/{CLASS_3}/subjects", root, json={"name": name})
     subjects[name] = body.get("subject_id") if isinstance(body, dict) else None
     step("admin", f"adds subject {name} to Class 3", status == 201, body)
-chapters = []
-for title in ["Counting", "Addition", "Subtraction"]:
-    status, body = call("POST", f"/school/subjects/{subjects['Maths']}/chapters", root, json={"title": title})
-    chapters.append(body["chapter"]["id"] if isinstance(body, dict) and "chapter" in body else None)
-step("admin", "adds 3 Maths chapters", all(chapters), chapters)
 call("POST", f"/school/teachers/{NADIA}/subjects", root, json={"name": "Maths"})
 call("POST", f"/school/teachers/{KAMRAN}/subjects", root, json={"name": "English"})
 status, body = call("PUT", f"/school/sections/{SEC_3A}/teachers", root, json={"subject_id": subjects["Maths"], "teacher_id": NADIA})
@@ -189,15 +184,30 @@ status, body = call("POST", f"/school/sections/{SEC_3A}/diary", nadia, json={"su
 step("teacher", "Nadia writes today's Maths diary", status in (200, 201), body)
 status, body = call("POST", f"/school/sections/{SEC_3A}/diary", kamran, json={"subject_id": subjects["English"], "date": school_day(0), "homework": "Read story 1"})
 step("teacher", "Kamran writes today's English diary", status in (200, 201), body)
-status, body = call("PUT", f"/school/sections/{SEC_3A}/chapters/{chapters[0]}/progress", nadia, json={"status": "done"})
-step("teacher", "Nadia marks chapter 1 done", status == 200, body)
+# Nadia writes 3-A's Maths syllabus: chapters with daily topics, and ticks a topic off
+chapters = []
+for title in ["Counting", "Addition", "Subtraction"]:
+    status, body = call("POST", f"/school/sections/{SEC_3A}/subjects/{subjects['Maths']}/chapters", nadia, json={"title": title})
+    chapters.append(body["chapter"]["id"] if isinstance(body, dict) and "chapter" in body else None)
+step("teacher", "Nadia writes 3 Maths chapters for 3-A", all(chapters), chapters)
+status, body = call("POST", f"/school/sections/{SEC_3A}/subjects/{subjects['Maths']}/chapters", root, json={"title": "x"})
+step("admin", "can't change a section's syllabus", status == 403, body)
+topics = []
+for title in ["Counting to 100", "Counting in tens"]:
+    status, body = call("POST", f"/school/chapters/{chapters[0]}/topics", nadia, json={"title": title, "planned_date": school_day(0)})
+    topics.append(body["topic"]["id"] if isinstance(body, dict) and "topic" in body else None)
+step("teacher", "Nadia adds 2 daily topics to chapter 1", all(topics), topics)
+for topic in topics:
+    status, body = call("PUT", f"/school/topics/{topic}/done", nadia, json={"done": True})
+step("teacher", "ticking both topics off finishes chapter 1",
+     call("GET", f"/school/sections/{SEC_3A}/subjects/{subjects['Maths']}/progress", nadia)[1]["chapters"][0]["status"] == "done")
 
 # Assignment and class test
 due = (TODAY + timedelta(days=5)).isoformat()
 status, body = call("POST", "/create/assignments", nadia, json={"title": f"Addition homework {RUN}", "description": "Exercise 2, all", "subject_id": subjects["Maths"], "section_id": SEC_3A, "due_date": due, "total_marks": 10})
 step("teacher", "Nadia sets an assignment", status == 201, body)
 HW = [a for a in call("GET", "/get/assignments", nadia)[1]["assignments"] if a["title"] == f"Addition homework {RUN}"][0]["id"]
-status, body = call("POST", "/school/class-tests", nadia, json={"section_id": SEC_3A, "subject_id": subjects["Maths"], "title": f"Counting quiz {RUN}", "date": school_day(0), "total_marks": 10, "chapter_id": chapters[0]})
+status, body = call("POST", "/school/class-tests", nadia, json={"section_id": SEC_3A, "subject_id": subjects["Maths"], "title": f"Counting quiz {RUN}", "date": school_day(0), "total_marks": 10, "topic_id": topics[0]})
 TEST = body.get("test", {}).get("id") if isinstance(body, dict) else None
 step("teacher", "Nadia adds a class test", status == 201 and TEST, body)
 status, body = call("PUT", f"/school/class-tests/{TEST}/marks", nadia, json={"marks": [

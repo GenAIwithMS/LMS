@@ -2,11 +2,10 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from marshmallow import ValidationError
 from src.schemas import (ClassSectionSchema, UpdateClassSectionSchema, SubjectTeacherSchema, ClassSubjectSchema,
-                         ChapterSchema, UpdateChapterSchema, AcademicSessionSchema, TeacherSubjectSchema, UpdateAcademicSessionSchema)
+                         AcademicSessionSchema, TeacherSubjectSchema, UpdateAcademicSessionSchema)
 from src.services.school import (get_all_classes, get_class_details, add_class_section, edit_class_section,
                                  remove_class_section, get_section_details, set_subject_teacher, add_class_subject,
-                                 rename_class_subject, remove_class_subject, get_subject_chapters, add_subject_chapter,
-                                 edit_subject_chapter, remove_subject_chapter, get_all_sessions, add_session,
+                                 rename_class_subject, remove_class_subject, get_all_sessions, add_session,
                                  set_current_session, get_teacher_classes, get_student_class, get_teacher_subject_list,
                                  add_teacher_subject, remove_teacher_subject, edit_session, delete_session)
 from src.services.access import get_teacher_section_ids, get_teacher_subject_ids
@@ -141,56 +140,8 @@ def delete_subject(subject_id):
     return remove_class_subject(subject_id)
 
 
-@school_bp.route("/api/school/subjects/<int:subject_id>/chapters", methods=["GET"])
-@jwt_required()
-def list_chapters(subject_id):
-    token = get_jwt()
-    # The syllabus is visible to the admin, the subject's teachers, and students of that class
-    if token.get("role") == "teacher":
-        teacher_id = int(get_jwt_identity())
-        if subject_id not in get_teacher_subject_ids(teacher_id):
-            return jsonify({"message": "You don't teach this subject", "status": "failed"}), 403
-    elif token.get("role") == "student":
-        student = Student.query.get(int(get_jwt_identity()))
-        subject = Subject.query.get(subject_id)
-        if not student or not subject or not student.section or student.section.class_id != subject.class_id:
-            return jsonify({"message": "This subject is not in your class", "status": "failed"}), 403
-    return get_subject_chapters(subject_id)
-
-
-@school_bp.route("/api/school/subjects/<int:subject_id>/chapters", methods=["POST"])
-@jwt_required()
-def create_chapter(subject_id):
-    error = only_admin()
-    if error:
-        return error
-    try:
-        data = ChapterSchema().load(request.get_json())
-    except ValidationError as e:
-        return jsonify(e.messages), 400
-    return add_subject_chapter(subject_id, data["title"], data.get("description"), data.get("number"))
-
-
-@school_bp.route("/api/school/chapters/<int:chapter_id>", methods=["PUT"])
-@jwt_required()
-def update_chapter(chapter_id):
-    error = only_admin()
-    if error:
-        return error
-    try:
-        data = UpdateChapterSchema().load(request.get_json())
-    except ValidationError as e:
-        return jsonify(e.messages), 400
-    return edit_subject_chapter(chapter_id, data)
-
-
-@school_bp.route("/api/school/chapters/<int:chapter_id>", methods=["DELETE"])
-@jwt_required()
-def delete_chapter(chapter_id):
-    error = only_admin()
-    if error:
-        return error
-    return remove_subject_chapter(chapter_id)
+# Chapters and topics belong to each section's syllabus, written by its subject teacher:
+# see the syllabus routes in routes/teaching.py
 
 
 # ---------------- Academic sessions

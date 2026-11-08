@@ -3,8 +3,9 @@ from flask import jsonify
 from sqlalchemy.exc import IntegrityError
 from src.db import db
 
-def add_assignment(title, description, teacher_id, due_date, subject_id, total_marks, section_id=None):
+def add_assignment(title, description, teacher_id, due_date, subject_id, total_marks, section_id=None, topic_id=None):
     new_assignment = Assignment(
+        topic_id=topic_id,
         title=title,
         description=description,
         due_date=due_date,
@@ -40,7 +41,9 @@ def get_assignment_by_id(assignment_id):
             "section_id": assignment.section_id,
             "section_name": assignment.section.full_name() if assignment.section else None,
             "teacher_name": assignment.teacher.name,
-            "total_marks": str(assignment.total_marks)
+            "total_marks": str(assignment.total_marks),
+            "topic_id": assignment.topic_id,
+            "topic_title": assignment.topic.title if assignment.topic else None
         },
         "status": "success"
     })
@@ -59,7 +62,9 @@ def get_all_assignments():
             "section_id": assignment.section_id,
             "section_name": assignment.section.full_name() if assignment.section else None,
             "teacher_name": assignment.teacher.name,
-            "total_marks": str(assignment.total_marks)
+            "total_marks": str(assignment.total_marks),
+            "topic_id": assignment.topic_id,
+            "topic_title": assignment.topic.title if assignment.topic else None
         })
 
     return jsonify({

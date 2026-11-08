@@ -158,8 +158,8 @@ def pending_marks_for_teaching(teaching):
 
 
 def chapter_coverage(section_id, subject_id):
-    """(done chapters, all chapters) of a subject in a section."""
-    chapters = SyllabusChapter.query.filter_by(subject_id=subject_id).all()
+    """(done chapters, all chapters) of a subject in a section (each section has its own syllabus)."""
+    chapters = SyllabusChapter.query.filter_by(subject_id=subject_id, section_id=section_id).all()
     done = 0
     for chapter in chapters:
         progress = ChapterProgress.query.filter_by(section_id=section_id, chapter_id=chapter.id).first()
@@ -368,11 +368,13 @@ def syllabus_coverage_rows():
     # Everything needed, loaded once
     all_sections = Section.query.filter(Section.class_id.isnot(None)).order_by(Section.name).all()
     all_subjects = Subject.query.filter(Subject.class_id.isnot(None)).order_by(Subject.name).all()
-    chapters_by_subject = {}
-    for chapter_id, subject_id in db.session.query(SyllabusChapter.id, SyllabusChapter.subject_id).all():
-        if subject_id not in chapters_by_subject:
-            chapters_by_subject[subject_id] = []
-        chapters_by_subject[subject_id].append(chapter_id)
+    # Each section has its own syllabus: {(section_id, subject_id): [chapter ids]}
+    chapters_by_teaching = {}
+    for chapter_id, subject_id, section_id in db.session.query(SyllabusChapter.id, SyllabusChapter.subject_id, SyllabusChapter.section_id).all():
+        key = (section_id, subject_id)
+        if key not in chapters_by_teaching:
+            chapters_by_teaching[key] = []
+        chapters_by_teaching[key].append(chapter_id)
     done_chapters = set()
     for section_id, chapter_id in db.session.query(ChapterProgress.section_id, ChapterProgress.chapter_id).filter(ChapterProgress.status == "done").all():
         done_chapters.add((section_id, chapter_id))
@@ -390,7 +392,7 @@ def syllabus_coverage_rows():
             subject_list = []
             section_percentages = []
             for subject in subjects:
-                chapter_ids = chapters_by_subject.get(subject.id, [])
+                chapter_ids = chapters_by_teaching.get((section.id, subject.id), [])
                 total = len(chapter_ids)
                 if total == 0:
                     continue

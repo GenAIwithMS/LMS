@@ -1,6 +1,6 @@
 from flask import jsonify
 from src.db import db
-from src.models import (AcademicSession, SchoolClass, Section, Subject, SyllabusChapter, TeachingAssignment,
+from src.models import (AcademicSession, SchoolClass, Section, Subject, SyllabusChapter, SyllabusTopic, TeachingAssignment,
                         Teacher, Student, Assignment, Result, Attendance, DailyAttendance, ChapterProgress,
                         DiaryEntry, ClassTest, TimetablePeriod, ExamPaper, ExamMark, TeacherSubject, ExamTerm)
 from src.services.timetable import check_new_subject_teacher
@@ -70,10 +70,18 @@ def get_class_details(class_id):
     subjects = Subject.query.filter_by(class_id=class_id).order_by(Subject.name).all()
     subject_list = []
     for subject in subjects:
+        # Each section has its own syllabus: how many chapters each one has
+        section_chapters = []
+        for section in sections:
+            section_chapters.append({
+                "section_id": section.id,
+                "section_name": section.full_name(),
+                "chapter_count": SyllabusChapter.query.filter_by(subject_id=subject.id, section_id=section.id).count()
+            })
         subject_list.append({
             "id": subject.id,
             "name": subject.name,
-            "chapter_count": SyllabusChapter.query.filter_by(subject_id=subject.id).count()
+            "section_chapters": section_chapters
         })
 
     # Who teaches each subject in each section of the class
@@ -153,6 +161,19 @@ def edit_class_section(section_id, data):
     return jsonify({"message": "Section updated", "status": "success"})
 
 
+def delete_chapter_records(chapter):
+    """Delete a chapter with its topics and progress (things made from them stay, unlinked)."""
+    for topic in SyllabusTopic.query.filter_by(chapter_id=chapter.id).all():
+        Assignment.query.filter_by(topic_id=topic.id).update({"topic_id": None}, synchronize_session=False)
+        ClassTest.query.filter_by(topic_id=topic.id).update({"topic_id": None}, synchronize_session=False)
+        DiaryEntry.query.filter_by(topic_id=topic.id).update({"topic_id": None}, synchronize_session=False)
+        db.session.delete(topic)
+    ChapterProgress.query.filter_by(chapter_id=chapter.id).delete(synchronize_session=False)
+    ClassTest.query.filter_by(chapter_id=chapter.id).update({"chapter_id": None}, synchronize_session=False)
+    db.session.flush()
+    db.session.delete(chapter)
+
+
 def remove_class_section(section_id):
     section = Section.query.get(section_id)
     if not section:
@@ -172,6 +193,9 @@ def remove_class_section(section_id):
 
     # The timetable and syllabus progress belong only to this section
     TimetablePeriod.query.filter_by(section_id=section_id).delete()
+    # The section's own syllabus: chapters, topics and progress
+    for chapter in SyllabusChapter.query.filter_by(section_id=section_id).all():
+        delete_chapter_records(chapter)
     ChapterProgress.query.filter_by(section_id=section_id).delete()
     TeachingAssignment.query.filter_by(section_id=section_id).delete()
     db.session.delete(section)
@@ -300,98 +324,15 @@ def remove_class_subject(subject_id):
 
     TimetablePeriod.query.filter_by(subject_id=subject_id).delete()
     TeachingAssignment.query.filter_by(subject_id=subject_id).delete()
-    chapters = SyllabusChapter.query.filter_by(subject_id=subject_id).all()
-    for chapter in chapters:
-        ChapterProgress.query.filter_by(chapter_id=chapter.id).delete()
-    SyllabusChapter.query.filter_by(subject_id=subject_id).delete()
+    # Every section's chapters of the subject, with their topics and progress
+    for chapter in SyllabusChapter.query.filter_by(subject_id=subject_id).all():
+        delete_chapter_records(chapter)
     db.session.delete(subject)
     db.session.commit()
     return jsonify({"message": "Subject deleted", "status": "success"})
 
 
-# ---------------- Syllabus chapters
-
-def chapter_data(chapter):
-    return {
-        "id": chapter.id,
-        "subject_id": chapter.subject_id,
-        "number": chapter.number,
-        "title": chapter.title,
-        "description": chapter.description
-    }
-
-
-def get_subject_chapters(subject_id):
-    subject = Subject.query.get(subject_id)
-    if not subject:
-        return jsonify({"message": "Subject not found", "status": "failed"}), 404
-
-    chapters = SyllabusChapter.query.filter_by(subject_id=subject_id).order_by(SyllabusChapter.number).all()
-    chapter_list = []
-    for chapter in chapters:
-        chapter_list.append(chapter_data(chapter))
-
-    return jsonify({
-        "subject_id": subject.id,
-        "subject_name": subject.name,
-        "class_name": subject.school_class.name if subject.school_class else None,
-        "data": chapter_list
-    })
-
-
-def add_subject_chapter(subject_id, title, description=None, number=None):
-    subject = Subject.query.get(subject_id)
-    if not subject:
-        return jsonify({"message": "Subject not found", "status": "failed"}), 404
-
-    # Without a number, the chapter goes at the end
-    if number is None:
-        last = SyllabusChapter.query.filter_by(subject_id=subject_id).order_by(SyllabusChapter.number.desc()).first()
-        if last:
-            number = last.number + 1
-        else:
-            number = 1
-
-    if SyllabusChapter.query.filter_by(subject_id=subject_id, number=number).first():
-        return jsonify({"message": f"Chapter {number} already exists", "status": "failed"}), 409
-
-    chapter = SyllabusChapter(subject_id=subject_id, number=number, title=title.strip(), description=description)
-    db.session.add(chapter)
-    db.session.commit()
-    return jsonify({"message": f"Chapter {number} added", "status": "success", "chapter": chapter_data(chapter)}), 201
-
-
-def edit_subject_chapter(chapter_id, data):
-    chapter = SyllabusChapter.query.get(chapter_id)
-    if not chapter:
-        return jsonify({"message": "Chapter not found", "status": "failed"}), 404
-
-    if "number" in data and data["number"] != chapter.number:
-        other = SyllabusChapter.query.filter_by(subject_id=chapter.subject_id, number=data["number"]).first()
-        if other:
-            return jsonify({"message": f"Chapter {data['number']} already exists", "status": "failed"}), 409
-        chapter.number = data["number"]
-    if "title" in data:
-        chapter.title = data["title"].strip()
-    if "description" in data:
-        chapter.description = data["description"]
-
-    db.session.commit()
-    return jsonify({"message": "Chapter updated", "status": "success"})
-
-
-def remove_subject_chapter(chapter_id):
-    chapter = SyllabusChapter.query.get(chapter_id)
-    if not chapter:
-        return jsonify({"message": "Chapter not found", "status": "failed"}), 404
-
-    # Progress on the chapter goes with it; tests on it stay, without a chapter
-    ChapterProgress.query.filter_by(chapter_id=chapter_id).delete()
-    for test in ClassTest.query.filter_by(chapter_id=chapter_id).all():
-        test.chapter_id = None
-    db.session.delete(chapter)
-    db.session.commit()
-    return jsonify({"message": "Chapter deleted", "status": "success"})
+# Syllabus chapters and topics: see services/syllabus.py (each section has its own)
 
 
 # ---------------- Academic sessions
@@ -501,7 +442,8 @@ def get_teacher_classes(teacher_id):
             "section_name": teaching.section.full_name(),
             "subject_id": teaching.subject_id,
             "subject_name": teaching.subject.name,
-            "chapter_count": SyllabusChapter.query.filter_by(subject_id=teaching.subject_id).count(),
+            # This section's own syllabus for the subject
+            "chapter_count": SyllabusChapter.query.filter_by(subject_id=teaching.subject_id, section_id=teaching.section_id).count(),
             "student_count": Student.query.filter_by(section_id=teaching.section_id).count()
         })
 

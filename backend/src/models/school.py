@@ -21,16 +21,40 @@ class SchoolClass(db.Model):
 
 
 class SyllabusChapter(db.Model):
-    """One chapter of a subject's syllabus, e.g. Class 5 Maths, chapter 3 "Fractions"."""
+    """One chapter of a subject's syllabus in one section, e.g. 5-A Maths, chapter 3 "Fractions".
+
+    Each section has its own syllabus, written by the teacher who teaches the subject there
+    (5-A and 5-B Maths can differ). Chapters from before this change may have no section.
+    """
     __tablename__ = 'syllabus_chapters'
-    __table_args__ = (db.UniqueConstraint('subject_id', 'number', name='uq_chapter_subject_number'),)
+    __table_args__ = (db.UniqueConstraint('subject_id', 'section_id', 'number', name='uq_chapter_subject_section_number'),)
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     subject_id = db.Column(db.BigInteger, db.ForeignKey('subjects.id'), nullable=False)
+    section_id = db.Column(db.BigInteger, db.ForeignKey('sections.id'), nullable=True)
     number = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
 
     subject = db.relationship('Subject', backref='chapters', lazy=True)
+    section = db.relationship('Section', lazy=True)
+    topics = db.relationship('SyllabusTopic', backref='chapter', lazy=True, order_by='SyllabusTopic.number')
+
+
+class SyllabusTopic(db.Model):
+    """One daily topic of a chapter, e.g. "Adding fractions with the same denominator".
+
+    The teacher plans the day for it and ticks it off when it has been taught. Assignments,
+    class tests and diary entries made from a done topic point back to it.
+    """
+    __tablename__ = 'syllabus_topics'
+    __table_args__ = (db.UniqueConstraint('chapter_id', 'number', name='uq_topic_chapter_number'),)
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    chapter_id = db.Column(db.BigInteger, db.ForeignKey('syllabus_chapters.id'), nullable=False)
+    number = db.Column(db.Integer, nullable=False)
+    title = db.Column(db.String(255), nullable=False)
+    planned_date = db.Column(db.Date, nullable=True)    # the day the teacher plans to teach it
+    is_done = db.Column(db.Boolean, nullable=False, default=False)
+    done_on = db.Column(db.Date, nullable=True)
 
 
 class TeachingAssignment(db.Model):

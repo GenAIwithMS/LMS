@@ -94,19 +94,14 @@ r = client.post(f"/api/school/classes/{CLASS_4}/subjects", json={"name": "Maths"
 check("Class 4 has its own Maths", r.status_code == 201)
 MATHS_4 = r.get_json()["subject_id"]
 MATHS = SUBJECTS["Maths"]; SCIENCE = SUBJECTS["Science"]
-for title in ["Numbers", "Fractions", "Decimals"]:
-    client.post(f"/api/school/subjects/{MATHS}/chapters", json={"title": title}, headers=H["root"])
-r = client.get(f"/api/school/subjects/{MATHS}/chapters", headers=H["root"])
-chapters = r.get_json()["data"]
-check("chapters are numbered in order", [(c["number"], c["title"]) for c in chapters] == [(1, "Numbers"), (2, "Fractions"), (3, "Decimals")], chapters)
-r = client.post(f"/api/school/subjects/{MATHS}/chapters", json={"title": "Again", "number": 2}, headers=H["root"])
-check("two chapters can't have the same number", r.status_code == 409)
-r = client.put(f"/api/school/chapters/{chapters[2]['id']}", json={"title": "Decimals and Percentages"}, headers=H["root"])
-check("a chapter can be renamed", r.status_code == 200)
+# Chapters are written by each section's subject teacher (see check_syllabus.py); the admin can't
+r = client.post(f"/api/school/sections/{A}/subjects/{MATHS}/chapters", json={"title": "Numbers"}, headers=H["root"])
+check("the admin can't write a section's chapters", r.status_code == 403)
 r = client.get(f"/api/school/classes/{CLASS_5}", headers=H["root"])
 detail = r.get_json()
-check("class page shows sections and subjects with chapter counts",
-      len(detail["sections"]) == 2 and len(detail["subjects"]) == 8 and any(s["name"] == "Maths" and s["chapter_count"] == 3 for s in detail["subjects"]), detail["subjects"][:2])
+maths = [s for s in detail["subjects"] if s["name"] == "Maths"][0]
+check("class page shows sections and subjects, with each section's chapter count",
+      len(detail["sections"]) == 2 and len(detail["subjects"]) == 8 and [c["chapter_count"] for c in maths["section_chapters"]] == [0, 0], maths)
 
 print("--- Who teaches what in each section")
 r = client.put(f"/api/school/sections/{A}/teachers", json={"subject_id": MATHS, "teacher_id": SARA}, headers=H["root"])
@@ -167,10 +162,12 @@ r = client.get("/api/school/my-class", headers=H["ali"])
 my_class = r.get_json()
 check("Ali sees his class, incharge and subject teachers",
       my_class["section_name"] == "Class 5 - A" and my_class["incharge_name"] == "Sara" and {s["subject_name"]: s["teacher_name"] for s in my_class["subjects"]}.get("Science") == "Omar", my_class)
-check("Ali can read his class's syllabus", client.get(f"/api/school/subjects/{MATHS}/chapters", headers=H["ali"]).status_code == 200)
-check("Ali can't read another class's syllabus", client.get(f"/api/school/subjects/{MATHS_4}/chapters", headers=H["ali"]).status_code == 403)
-check("Sara can read the syllabus of a subject she teaches", client.get(f"/api/school/subjects/{MATHS}/chapters", headers=H["sara"]).status_code == 200)
-check("Sara can't read the syllabus of a subject she doesn't teach", client.get(f"/api/school/subjects/{SCIENCE}/chapters", headers=H["sara"]).status_code == 403)
+check("Ali can read his section's syllabus", client.get(f"/api/school/sections/{A}/subjects/{MATHS}/chapters", headers=H["ali"]).status_code == 200)
+check("Ali can't read another section's syllabus", client.get(f"/api/school/sections/{B}/subjects/{MATHS}/chapters", headers=H["ali"]).status_code == 403)
+check("Sara can edit the syllabus of the subject she teaches in 5-A",
+      client.get(f"/api/school/sections/{A}/subjects/{MATHS}/progress", headers=H["sara"]).get_json()["can_edit"] is True)
+check("Sara sees 5-A's Science syllabus but can't edit it (Omar teaches it)",
+      client.get(f"/api/school/sections/{A}/subjects/{SCIENCE}/progress", headers=H["sara"]).get_json()["can_edit"] is False)
 
 print("--- Safe deletes")
 check("a section with students can't be deleted", client.delete(f"/api/school/sections/{A}", headers=H["root"]).status_code == 409)

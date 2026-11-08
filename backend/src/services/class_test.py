@@ -2,6 +2,7 @@ from decimal import Decimal
 from flask import jsonify
 from src.db import db, pakistan_time
 from src.models import ClassTest, ClassTestMark, Section, Subject, Student, SyllabusChapter
+from src.services.syllabus import find_topic_for
 
 
 # Class tests: short tests a subject teacher takes in their section (a quiz, a chapter
@@ -44,12 +45,14 @@ def test_data(test):
         "teacher_name": test.teacher.name,
         "chapter_id": test.chapter_id,
         "chapter_title": test.chapter.title if test.chapter else None,
+        "topic_id": test.topic_id,
+        "topic_title": test.topic.title if test.topic else None,
         "marks_entered": marks_entered,
         "average": average
     }
 
 
-def add_class_test(section_id, subject_id, teacher_id, title, day, total_marks, chapter_id=None):
+def add_class_test(section_id, subject_id, teacher_id, title, day, total_marks, chapter_id=None, topic_id=None):
     section = Section.query.get(section_id)
     if not section:
         return jsonify({"message": "Section not found", "status": "failed"}), 404
@@ -58,10 +61,17 @@ def add_class_test(section_id, subject_id, teacher_id, title, day, total_marks, 
     if not subject or subject.class_id != section.class_id:
         return jsonify({"message": "This subject is not part of this section's class", "status": "failed"}), 400
 
+    # A test made from a syllabus topic is about that topic's chapter
+    topic, topic_error = find_topic_for(topic_id, section_id, subject_id)
+    if topic_error:
+        return jsonify({"message": topic_error, "status": "failed"}), 400
+    if topic:
+        chapter_id = topic.chapter_id
+
     if chapter_id:
         chapter = SyllabusChapter.query.get(chapter_id)
-        if not chapter or chapter.subject_id != subject_id:
-            return jsonify({"message": "This chapter is not part of the subject", "status": "failed"}), 400
+        if not chapter or chapter.subject_id != subject_id or chapter.section_id != section_id:
+            return jsonify({"message": "This chapter is not part of this section's syllabus", "status": "failed"}), 400
 
     if total_marks <= 0:
         return jsonify({"message": "Total marks must be more than 0", "status": "failed"}), 400
@@ -71,6 +81,7 @@ def add_class_test(section_id, subject_id, teacher_id, title, day, total_marks, 
         subject_id=subject_id,
         teacher_id=teacher_id,
         chapter_id=chapter_id,
+        topic_id=topic.id if topic else None,
         title=title.strip(),
         date=day,
         total_marks=total_marks
@@ -172,8 +183,8 @@ def edit_class_test(test_id, data):
         chapter_id = data["chapter_id"]
         if chapter_id:
             chapter = SyllabusChapter.query.get(chapter_id)
-            if not chapter or chapter.subject_id != test.subject_id:
-                return jsonify({"message": "This chapter is not part of the subject", "status": "failed"}), 400
+            if not chapter or chapter.subject_id != test.subject_id or chapter.section_id != test.section_id:
+                return jsonify({"message": "This chapter is not part of this section's syllabus", "status": "failed"}), 400
         test.chapter_id = chapter_id
 
     if "title" in data:

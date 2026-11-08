@@ -188,7 +188,8 @@ export interface SchoolClassSummary {
 export interface ClassSubject {
   id: number;
   name: string;
-  chapter_count: number;
+  // Each section writes its own syllabus: how many chapters each one has
+  section_chapters: { section_id: number; section_name: string; chapter_count: number }[];
 }
 
 export interface SchoolClassDetails {
@@ -216,9 +217,28 @@ export interface SectionDetails extends ClassSection {
 export interface SyllabusChapter {
   id: number;
   subject_id: number;
+  section_id: number | null;
   number: number;
   title: string;
   description: string | null;
+  topics?: { id: number; number: number; title: string; is_done: boolean }[];
+}
+
+// What was made from a daily topic
+export interface TopicLinks {
+  assignments: { id: number; title: string; due_date: string }[];
+  class_tests: { id: number; title: string; date: string }[];
+  diary: { id: number; date: string }[];
+}
+
+export interface SyllabusTopicItem {
+  topic_id: number;
+  number: number;
+  title: string;
+  planned_date: string | null;
+  is_done: boolean;
+  done_on: string | null;
+  links: TopicLinks;
 }
 
 export interface AcademicSession {
@@ -300,10 +320,12 @@ export interface ChapterProgressItem {
   chapter_id: number;
   number: number;
   title: string;
+  description?: string | null;
   status: ProgressStatus;
   planned_date: string | null;
   started_on: string | null;
   completed_on: string | null;
+  topics: SyllabusTopicItem[];   // when there are topics, the status follows them
 }
 
 export interface SubjectProgress {
@@ -313,9 +335,12 @@ export interface SubjectProgress {
   subject_name: string;
   teacher_id: number | null;
   teacher_name: string | null;
+  can_edit: boolean;            // the user teaches this subject in this section
   chapter_count: number;
   done_count: number;
   percentage: number;
+  topic_count: number;
+  topics_done: number;
   chapters: ChapterProgressItem[];
 }
 
@@ -323,9 +348,12 @@ export interface SectionProgressSubject {
   subject_id: number;
   subject_name: string;
   teacher_name: string | null;
+  teacher_id?: number | null;
   chapter_count: number;
   done_count: number;
   in_progress_count: number;
+  topic_count: number;
+  topics_done: number;
   percentage: number;
 }
 
@@ -340,6 +368,8 @@ export interface DiaryEntry {
   date: string;
   classwork: string | null;
   homework: string | null;
+  topic_id?: number | null;
+  topic_title?: string | null;
 }
 
 export interface ClassTest {
@@ -355,6 +385,8 @@ export interface ClassTest {
   teacher_name: string;
   chapter_id: number | null;
   chapter_title: string | null;
+  topic_id?: number | null;
+  topic_title?: string | null;
   marks_entered: number;
   average: number | null;
   my_marks?: string | null;      // only in a student's own list
