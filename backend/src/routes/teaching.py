@@ -4,8 +4,11 @@ from src.services.save_retry import save_with_retry
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from marshmallow import ValidationError
 from src.db import pakistan_time
-from src.models import Student, SyllabusChapter, DiaryEntry, ClassTest
+from src.models import Student, SyllabusChapter, SyllabusTopic, DiaryEntry, ClassTest
+from src.services.syllabus import (teacher_can_edit, get_section_subject_chapters, add_chapter, edit_chapter, remove_chapter,
+                                   move_chapter, add_topic, edit_topic, remove_topic, move_topic, set_topic_done)
 from src.schemas import (DailyAttendanceSchema, ChapterProgressSchema, DiaryEntrySchema, ClassTestSchema,
+                         SectionChapterSchema, UpdateSectionChapterSchema, TopicSchema, UpdateTopicSchema, TopicDoneSchema, MoveSchema,
                          UpdateClassTestSchema, ClassTestMarksSchema, TimetableSlotSchema, TimetableSettingsSchema)
 from src.services.access import teacher_teaches, teacher_is_incharge, user_can_view_section, get_teacher_teaching
 from src.services.daily_attendance import get_section_register, save_section_register, get_section_month_summary, get_student_daily_attendance
@@ -129,10 +132,167 @@ def section_progress(section_id):
 @teaching_bp.route("/api/school/sections/<int:section_id>/subjects/<int:subject_id>/progress", methods=["GET"])
 @jwt_required()
 def subject_progress(section_id, subject_id):
+    """The section's syllabus for a subject: chapters, daily topics, progress, and what was
+    made from each topic. Anyone who can see the section; only its subject teacher edits."""
     error = cannot_view_section(section_id)
     if error:
         return error
-    return get_subject_progress(section_id, subject_id)
+    role, user_id = current_user()
+    can_edit = role == "teacher" and teacher_can_edit(user_id, section_id, subject_id)
+    return get_subject_progress(section_id, subject_id, can_edit)
+
+
+# ---------------- The section's syllabus: chapters and daily topics
+
+def cannot_edit_syllabus(section_id, subject_id):
+    """An answer refusing the change, unless the user teaches the subject in the section."""
+    role, user_id = current_user()
+    if role != "teacher" or not teacher_can_edit(user_id, section_id, subject_id):
+        return jsonify({"message": "Only the teacher of this subject in this section can change its syllabus", "status": "failed"}), 403
+    return None
+
+
+def load_body(schema):
+    """(data, error answer)"""
+    try:
+        return schema.load(request.get_json() or {}), None
+    except ValidationError as e:
+        return None, (jsonify(e.messages), 400)
+
+
+def chapter_or_refusal(chapter_id):
+    """(chapter, error answer): the chapter, if the user may change it."""
+    chapter = SyllabusChapter.query.get(chapter_id)
+    if not chapter or chapter.section_id is None:
+        return None, (jsonify({"message": "Chapter not found", "status": "failed"}), 404)
+    error = cannot_edit_syllabus(chapter.section_id, chapter.subject_id)
+    if error:
+        return None, error
+    return chapter, None
+
+
+def topic_or_refusal(topic_id):
+    """(topic, error answer): the topic, if the user may change it."""
+    topic = SyllabusTopic.query.get(topic_id)
+    if not topic or topic.chapter.section_id is None:
+        return None, (jsonify({"message": "Topic not found", "status": "failed"}), 404)
+    error = cannot_edit_syllabus(topic.chapter.section_id, topic.chapter.subject_id)
+    if error:
+        return None, error
+    return topic, None
+
+
+@teaching_bp.route("/api/school/sections/<int:section_id>/subjects/<int:subject_id>/chapters", methods=["GET"])
+@jwt_required()
+def section_subject_chapters(section_id, subject_id):
+    error = cannot_view_section(section_id)
+    if error:
+        return error
+    return get_section_subject_chapters(section_id, subject_id)
+
+
+@teaching_bp.route("/api/school/sections/<int:section_id>/subjects/<int:subject_id>/chapters", methods=["POST"])
+@jwt_required()
+def create_chapter(section_id, subject_id):
+    error = cannot_edit_syllabus(section_id, subject_id)
+    if error:
+        return error
+    data, error = load_body(SectionChapterSchema())
+    if error:
+        return error
+    return add_chapter(section_id, subject_id, data["title"], data.get("description"))
+
+
+@teaching_bp.route("/api/school/chapters/<int:chapter_id>", methods=["PUT"])
+@jwt_required()
+def update_chapter(chapter_id):
+    chapter, error = chapter_or_refusal(chapter_id)
+    if error:
+        return error
+    data, error = load_body(UpdateSectionChapterSchema())
+    if error:
+        return error
+    return edit_chapter(chapter_id, data)
+
+
+@teaching_bp.route("/api/school/chapters/<int:chapter_id>", methods=["DELETE"])
+@jwt_required()
+def delete_chapter(chapter_id):
+    chapter, error = chapter_or_refusal(chapter_id)
+    if error:
+        return error
+    return remove_chapter(chapter_id)
+
+
+@teaching_bp.route("/api/school/chapters/<int:chapter_id>/move", methods=["PUT"])
+@jwt_required()
+def reorder_chapter(chapter_id):
+    chapter, error = chapter_or_refusal(chapter_id)
+    if error:
+        return error
+    data, error = load_body(MoveSchema())
+    if error:
+        return error
+    return move_chapter(chapter_id, data["direction"])
+
+
+@teaching_bp.route("/api/school/chapters/<int:chapter_id>/topics", methods=["POST"])
+@jwt_required()
+def create_topic(chapter_id):
+    chapter, error = chapter_or_refusal(chapter_id)
+    if error:
+        return error
+    data, error = load_body(TopicSchema())
+    if error:
+        return error
+    return add_topic(chapter_id, data["title"], data.get("planned_date"))
+
+
+@teaching_bp.route("/api/school/topics/<int:topic_id>", methods=["PUT"])
+@jwt_required()
+def update_topic(topic_id):
+    topic, error = topic_or_refusal(topic_id)
+    if error:
+        return error
+    data, error = load_body(UpdateTopicSchema())
+    if error:
+        return error
+    return edit_topic(topic_id, data)
+
+
+@teaching_bp.route("/api/school/topics/<int:topic_id>", methods=["DELETE"])
+@jwt_required()
+def delete_topic(topic_id):
+    topic, error = topic_or_refusal(topic_id)
+    if error:
+        return error
+    role, user_id = current_user()
+    return remove_topic(topic_id, user_id)
+
+
+@teaching_bp.route("/api/school/topics/<int:topic_id>/move", methods=["PUT"])
+@jwt_required()
+def reorder_topic(topic_id):
+    topic, error = topic_or_refusal(topic_id)
+    if error:
+        return error
+    data, error = load_body(MoveSchema())
+    if error:
+        return error
+    return move_topic(topic_id, data["direction"])
+
+
+@teaching_bp.route("/api/school/topics/<int:topic_id>/done", methods=["PUT"])
+@jwt_required()
+def mark_topic_done(topic_id):
+    topic, error = topic_or_refusal(topic_id)
+    if error:
+        return error
+    data, error = load_body(TopicDoneSchema())
+    if error:
+        return error
+    role, user_id = current_user()
+    return save_with_retry(lambda: set_topic_done(topic_id, data["done"], user_id))
 
 
 @teaching_bp.route("/api/school/sections/<int:section_id>/chapters/<int:chapter_id>/progress", methods=["PUT"])
@@ -180,7 +340,7 @@ def write_diary(section_id):
 
     classwork = data.get("classwork")
     homework = data.get("homework")
-    return save_with_retry(lambda: save_diary_entry(section_id, data["subject_id"], data["date"], classwork, homework, user_id))
+    return save_with_retry(lambda: save_diary_entry(section_id, data["subject_id"], data["date"], classwork, homework, user_id, data.get("topic_id")))
 
 
 @teaching_bp.route("/api/school/diary/<int:entry_id>", methods=["DELETE"])
@@ -222,7 +382,7 @@ def create_class_test():
         return jsonify({"message": "You can only add tests for subjects you teach in that section", "status": "failed"}), 403
 
     return add_class_test(data["section_id"], data["subject_id"], user_id, data["title"], data["date"],
-                          data["total_marks"], data.get("chapter_id"))
+                          data["total_marks"], data.get("chapter_id"), data.get("topic_id"))
 
 
 @teaching_bp.route("/api/school/class-tests", methods=["GET"])

@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, PenLine, ClipboardCheck } from 'lucide-react';
 import {
   getMyClasses, getClassTests, addClassTest, getClassTest, updateClassTest,
-  saveClassTestMarks, deleteClassTest, getSubjectChapters,
+  saveClassTestMarks, deleteClassTest, getSectionChapters,
 } from '../../services/api';
+import { useSearchParams } from 'react-router-dom';
 import type { ClassTest, ClassTestDetails, TeachingItem, SyllabusChapter } from '../../types';
 import { Modal } from '../../components/Modal';
 import { showError, showSuccess } from '../../utils/errorHandler';
@@ -37,6 +38,9 @@ const TeacherClassTests: React.FC = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addForm, setAddForm] = useState({ teaching_key: '', title: '', date: todayText(), total_marks: '10', chapter_id: '' });
   const [addChapters, setAddChapters] = useState<SyllabusChapter[]>([]);
+  // The syllabus topic a new test is on (when it comes from a done topic)
+  const [fromTopic, setFromTopic] = useState<{ id: number; title: string } | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Edit test window
   const [editingTest, setEditingTest] = useState<ClassTest | null>(null);
@@ -53,6 +57,40 @@ const TeacherClassTests: React.FC = () => {
   useEffect(() => {
     fetchAll();
   }, []);
+
+  // Sent here from a done topic in the syllabus (?new=1&section=..&subject=..&chapter=..&topic=..&topicTitle=..):
+  // open Add Test with the class, subject, chapter and topic filled in
+  useEffect(() => {
+    if (searchParams.get('new') !== '1' || teaching.length === 0) {
+      return;
+    }
+    const sectionId = Number(searchParams.get('section'));
+    const subjectId = Number(searchParams.get('subject'));
+    const chapterId = searchParams.get('chapter') || '';
+    const topicId = Number(searchParams.get('topic'));
+    const topicTitle = searchParams.get('topicTitle') || '';
+    // So a reload doesn't open it again
+    setSearchParams({}, { replace: true });
+
+    const openFromTopic = async () => {
+      const chapters = await fetchChapters(sectionId, subjectId);
+      setAddChapters(chapters);
+      setAddForm({
+        teaching_key: teachingKey(sectionId, subjectId),
+        title: topicTitle ? `${topicTitle} quiz` : '',
+        date: todayText(),
+        total_marks: '10',
+        chapter_id: chapterId,
+      });
+      if (topicId) {
+        setFromTopic({ id: topicId, title: topicTitle });
+      } else {
+        setFromTopic(null);
+      }
+      setIsAddOpen(true);
+    };
+    openFromTopic();
+  }, [teaching, searchParams]);
 
   const fetchAll = async () => {
     try {
@@ -77,9 +115,10 @@ const TeacherClassTests: React.FC = () => {
     }
   };
 
-  const fetchChapters = async (subjectId: number) => {
+  // The section's own chapters for the subject (each section writes its own syllabus)
+  const fetchChapters = async (sectionId: number, subjectId: number) => {
     try {
-      const data = await getSubjectChapters(subjectId);
+      const data = await getSectionChapters(sectionId, subjectId);
       if (Array.isArray(data.data)) {
         return data.data as SyllabusChapter[];
       }
@@ -104,6 +143,7 @@ const TeacherClassTests: React.FC = () => {
   const openAdd = () => {
     setAddForm({ teaching_key: '', title: '', date: todayText(), total_marks: '10', chapter_id: '' });
     setAddChapters([]);
+    setFromTopic(null);
     setIsAddOpen(true);
   };
 
@@ -112,7 +152,7 @@ const TeacherClassTests: React.FC = () => {
     setAddChapters([]);
     for (const item of teaching) {
       if (teachingKey(item.section_id, item.subject_id) === key) {
-        const chapters = await fetchChapters(item.subject_id);
+        const chapters = await fetchChapters(item.section_id, item.subject_id);
         setAddChapters(chapters);
       }
     }
@@ -136,9 +176,11 @@ const TeacherClassTests: React.FC = () => {
         date: addForm.date,
         total_marks: Number(addForm.total_marks),
         chapter_id: addForm.chapter_id ? Number(addForm.chapter_id) : null,
+        topic_id: fromTopic ? fromTopic.id : null,
       });
       showSuccess(`Test '${addForm.title.trim()}' added`);
       setIsAddOpen(false);
+      setFromTopic(null);
       fetchTests();
     } catch (error: any) {
       showError(error, 'Failed to add the test');
@@ -155,7 +197,7 @@ const TeacherClassTests: React.FC = () => {
       total_marks: test.total_marks,
       chapter_id: test.chapter_id ? String(test.chapter_id) : '',
     });
-    const chapters = await fetchChapters(test.subject_id);
+    const chapters = await fetchChapters(test.section_id, test.subject_id);
     setEditChapters(chapters);
   };
 
@@ -318,7 +360,10 @@ const TeacherClassTests: React.FC = () => {
                     <td className="font-semibold">{test.title}</td>
                     <td>{test.section_name}</td>
                     <td>{test.subject_name}</td>
-                    <td>{test.chapter_title || '-'}</td>
+                    <td>
+                      {test.chapter_title || '-'}
+                      {test.topic_title ? ` · ${test.topic_title}` : ''}
+                    </td>
                     <td>{test.total_marks}</td>
                     <td>{test.marks_entered} / {studentCount(test)}</td>
                     <td>{test.average !== null ? test.average : '-'}</td>
@@ -350,8 +395,11 @@ const TeacherClassTests: React.FC = () => {
       </div>
 
       {/* Add test */}
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Add Class Test">
+      <Modal isOpen={isAddOpen} onClose={() => { setIsAddOpen(false); setFromTopic(null); }} title="Add Class Test">
         <form onSubmit={handleAdd} className="space-y-4">
+          {fromTopic && (
+            <p className="text-sm text-primary-700 bg-primary-50 rounded-lg px-3 py-2">On topic: {fromTopic.title}</p>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Class and Subject</label>
             <select required value={addForm.teaching_key} onChange={(e) => handleAddTeachingChange(e.target.value)} className="input">

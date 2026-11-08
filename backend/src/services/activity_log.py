@@ -2,7 +2,7 @@ import logging
 from flask import request
 from flask_jwt_extended import get_jwt, decode_token
 from src.db import db
-from src.models import ActivityLog, Section, Subject, Student, ExamPaper, ClassTest
+from src.models import ActivityLog, Section, Subject, Student, ExamPaper, ClassTest, SyllabusChapter, SyllabusTopic
 
 
 # The activity log: after every change (POST, PUT, DELETE) and every login or logout,
@@ -36,9 +36,15 @@ ENDPOINT_LABELS = {
     "school.create_subject": ("create", "school", "Added a subject"),
     "school.update_subject": ("update", "school", "Renamed a subject"),
     "school.delete_subject": ("delete", "school", "Deleted a subject"),
-    "school.create_chapter": ("create", "syllabus", "Added a syllabus chapter"),
-    "school.update_chapter": ("update", "syllabus", "Changed a syllabus chapter"),
-    "school.delete_chapter": ("delete", "syllabus", "Deleted a syllabus chapter"),
+    "teaching.create_chapter": ("create", "syllabus", "Added a syllabus chapter"),
+    "teaching.update_chapter": ("update", "syllabus", "Changed a syllabus chapter"),
+    "teaching.delete_chapter": ("delete", "syllabus", "Deleted a syllabus chapter"),
+    "teaching.reorder_chapter": ("update", "syllabus", "Moved a syllabus chapter"),
+    "teaching.create_topic": ("create", "syllabus", "Added a daily topic"),
+    "teaching.update_topic": ("update", "syllabus", "Changed a daily topic"),
+    "teaching.delete_topic": ("delete", "syllabus", "Deleted a daily topic"),
+    "teaching.reorder_topic": ("update", "syllabus", "Moved a daily topic"),
+    "teaching.mark_topic_done": ("update", "syllabus", "Ticked off a daily topic"),
 
     # Day-to-day teaching
     "teaching.mark_section_attendance": ("update", "attendance", "Marked daily attendance"),
@@ -139,6 +145,18 @@ def find_section_and_subject():
         if test:
             section = test.section
             subject = test.subject
+    # Syllabus changes name a chapter or a topic
+    chapter = None
+    if view_args.get("chapter_id"):
+        chapter = SyllabusChapter.query.get(view_args["chapter_id"])
+    if view_args.get("topic_id"):
+        topic = SyllabusTopic.query.get(view_args["topic_id"])
+        if topic:
+            chapter = topic.chapter
+    if chapter:
+        subject = chapter.subject
+        if chapter.section_id and not section:
+            section = chapter.section
     if view_args.get("student_id") and not section:
         student = Student.query.get(view_args["student_id"])
         if student:

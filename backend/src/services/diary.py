@@ -2,6 +2,7 @@ from flask import jsonify
 from src.db import db, pakistan_time
 from src.models import DiaryEntry, Section, Subject
 from src.services.save_retry import wait_for_section
+from src.services.syllabus import find_topic_for
 
 
 # The daily diary: for each subject, what was taught today (classwork) and the homework.
@@ -19,7 +20,9 @@ def diary_data(entry):
         "teacher_name": entry.teacher.name,
         "date": entry.date.isoformat(),
         "classwork": entry.classwork,
-        "homework": entry.homework
+        "homework": entry.homework,
+        "topic_id": entry.topic_id,
+        "topic_title": entry.topic.title if entry.topic else None
     }
 
 
@@ -44,7 +47,7 @@ def get_section_diary(section_id, day):
     })
 
 
-def save_diary_entry(section_id, subject_id, day, classwork, homework, teacher_id):
+def save_diary_entry(section_id, subject_id, day, classwork, homework, teacher_id, topic_id=None):
     """Write the diary for a subject on a day. Writing the same day again updates it."""
     section = Section.query.get(section_id)
     if not section:
@@ -61,6 +64,11 @@ def save_diary_entry(section_id, subject_id, day, classwork, homework, teacher_i
     if day > pakistan_time().date():
         return jsonify({"message": "The diary can't be written for a future date", "status": "failed"}), 400
 
+    # Written from a syllabus topic: the topic must be this section's subject's
+    topic, topic_error = find_topic_for(topic_id, section_id, subject_id)
+    if topic_error:
+        return jsonify({"message": topic_error, "status": "failed"}), 400
+
     # Another save of this section's diary at the same moment waits for this one
     wait_for_section(section_id)
 
@@ -69,6 +77,8 @@ def save_diary_entry(section_id, subject_id, day, classwork, homework, teacher_i
         entry.classwork = classwork
         entry.homework = homework
         entry.teacher_id = teacher_id
+        if topic:
+            entry.topic_id = topic.id
         message = "Diary updated"
         status_code = 200
     else:
@@ -78,7 +88,8 @@ def save_diary_entry(section_id, subject_id, day, classwork, homework, teacher_i
             teacher_id=teacher_id,
             date=day,
             classwork=classwork,
-            homework=homework
+            homework=homework,
+            topic_id=topic.id if topic else None
         )
         db.session.add(entry)
         message = "Diary saved"

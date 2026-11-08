@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserCheck, BookOpen, Users, ChevronDown, ChevronUp, CalendarDays } from 'lucide-react';
 import { getMyClasses, getMyTimetable } from '../../services/api';
 import type { MyClasses, Timetable } from '../../types';
-import { SyllabusList } from '../../components/SyllabusList';
+import { SyllabusEditor } from '../../components/SyllabusEditor';
 import { TimetableGrid } from '../../components/TimetableGrid';
 import { showError } from '../../utils/errorHandler';
 
@@ -32,6 +32,16 @@ const TeacherMyClasses: React.FC = () => {
     };
     fetchMyClasses();
   }, []);
+
+  // After a syllabus change: refresh the chapter counts, without the loading spinner
+  const refreshCounts = async () => {
+    try {
+      const data = await getMyClasses();
+      setMyClasses(data);
+    } catch (error) {
+      // the counts just stay as they were
+    }
+  };
 
   if (loading || !myClasses) {
     return (
@@ -107,12 +117,12 @@ const TeacherMyClasses: React.FC = () => {
                       <span className="text-sm text-gray-500"> · {item.student_count} students · {item.chapter_count} chapters</span>
                     </div>
                     <button onClick={() => setOpenSyllabus(isOpen ? null : key)} className="btn btn-secondary text-sm flex items-center gap-1">
-                      Syllabus {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      Syllabus &amp; topics {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                   </div>
                   {isOpen && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
-                      <SyllabusList subjectId={item.subject_id} />
+                      <SyllabusEditor sectionId={item.section_id} subjectId={item.subject_id} onChanged={refreshCounts} />
                     </div>
                   )}
                 </div>

@@ -5,6 +5,7 @@ from marshmallow import ValidationError
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from src.models import Subject, Assignment, AssignmentSubmission
 from src.db import pakistan_time
+from src.services.syllabus import find_topic_for
 from src.services.access import find_teacher_subject, teacher_teaches, get_teacher_teaching, teacher_owns_assignment, get_teacher_assignment_ids, get_student_assignment_ids, filter_response_by_ids
 
 assignment_bp = Blueprint("assignment", __name__)
@@ -80,7 +81,12 @@ def create_assign():
                 "status": "failed"
             }), 400
 
-    result = add_assignment(title, description, teacher_id, due_date, subject.id, total_marks, section_id)
+    # Set on a syllabus topic: the topic must be this section's subject's
+    topic, topic_error = find_topic_for(data.get("topic_id"), section_id, subject.id)
+    if topic_error:
+        return jsonify({"message": topic_error, "status": "failed"}), 400
+
+    result = add_assignment(title, description, teacher_id, due_date, subject.id, total_marks, section_id, topic.id if topic else None)
     return result
 
 @assignment_bp.route("/api/get/assignments", methods=["GET"])

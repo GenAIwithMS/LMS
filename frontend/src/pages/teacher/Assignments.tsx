@@ -5,7 +5,7 @@ import { DeleteConfirmation } from '../../components/DeleteConfirmation';
 import { getAssignments, createAssignment, updateAssignment, deleteAssignment, getMyClasses } from '../../services/api';
 import type { Assignment, TeachingItem } from '../../types';
 import { showError, showSuccess } from '../../utils/errorHandler';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -65,6 +65,13 @@ const todayText = (): string => {
 interface SectionAssignment extends Assignment {
   section_id: number | null;
   section_name: string | null;
+  topic_title?: string | null;
+}
+
+// The syllabus topic a new assignment is set on (when it comes from a done topic)
+interface FromTopic {
+  id: number;
+  title: string;
 }
 
 const TeacherAssignments: React.FC = () => {
@@ -93,11 +100,40 @@ const TeacherAssignments: React.FC = () => {
     total_marks: 100,
   });
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [fromTopic, setFromTopic] = useState<FromTopic | null>(null);
 
   useEffect(() => {
     fetchAssignments();
     fetchTeaching();
   }, []);
+
+  // Sent here from a done topic in the syllabus (?new=1&section=..&subject=..&topic=..&topicTitle=..):
+  // open Create Assignment with the class, subject and topic filled in
+  useEffect(() => {
+    if (searchParams.get('new') !== '1' || teaching.length === 0) {
+      return;
+    }
+    const sectionId = searchParams.get('section') || '';
+    const subjectId = searchParams.get('subject') || '';
+    const topicId = Number(searchParams.get('topic'));
+    const topicTitle = searchParams.get('topicTitle') || '';
+
+    let subjectName = '';
+    for (const item of teaching) {
+      if (String(item.section_id) === sectionId && String(item.subject_id) === subjectId) {
+        subjectName = item.subject_name;
+      }
+    }
+    setEditingAssignment(null);
+    setFormData({ title: topicTitle, description: '', due_date: '', subject_id: subjectId, subject_name: subjectName, section_id: sectionId, total_marks: 100 });
+    if (topicId) {
+      setFromTopic({ id: topicId, title: topicTitle });
+    }
+    setIsModalOpen(true);
+    // So a reload doesn't open it again
+    setSearchParams({}, { replace: true });
+  }, [teaching, searchParams]);
 
   // Close options dropdown when clicking outside
   useEffect(() => {
@@ -150,6 +186,7 @@ const TeacherAssignments: React.FC = () => {
         section_name: assignment.section_name || null,
         teacher: assignment.teacher || assignment.teacher_name || '',
         total_marks: assignment.total_marks || assignment.totalMarks || 100,
+        topic_title: assignment.topic_title || null,
       }));
       
       setAssignments(assignmentsData);
@@ -207,6 +244,7 @@ const TeacherAssignments: React.FC = () => {
       total_marks: formData.total_marks,
       subject_id: formData.subject_id ? Number(formData.subject_id) : undefined,
       section_id: formData.section_id ? Number(formData.section_id) : undefined,
+      topic_id: fromTopic ? fromTopic.id : undefined,
     };
     try {
       if (editingAssignment) {
@@ -271,6 +309,7 @@ const TeacherAssignments: React.FC = () => {
   const resetForm = () => {
     setFormData({ title: '', description: '', due_date: '', subject_id: '', subject_name: '', section_id: '', total_marks: 100 });
     setEditingAssignment(null);
+    setFromTopic(null);
   };
 
   const filteredAssignments = assignments
@@ -441,6 +480,9 @@ const TeacherAssignments: React.FC = () => {
                   <p className="text-sm text-gray-500 mt-1">
                     {assignment.section_name ? `${assignment.section_name} · ${assignment.subject}` : assignment.subject}
                   </p>
+                  {assignment.topic_title && (
+                    <p className="text-xs text-primary-700 mt-1">Topic: {assignment.topic_title}</p>
+                  )}
                 </div>
                 <div className="flex items-center space-x-2">
                   <button onClick={() => navigate(`/teacher/submissions?assignmentId=${assignment.id}`)} className="p-2 text-green-600 hover:bg-green-50 rounded" title="View Submissions" aria-label={`View submissions for ${assignment.title}`}>
@@ -466,6 +508,9 @@ const TeacherAssignments: React.FC = () => {
 
       <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); resetForm(); }} title={editingAssignment ? 'Edit Assignment' : 'Create Assignment'}>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {fromTopic && !editingAssignment && (
+            <p className="text-sm text-primary-700 bg-primary-50 rounded-lg px-3 py-2">On topic: {fromTopic.title}</p>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
             <input type="text" required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="input" />

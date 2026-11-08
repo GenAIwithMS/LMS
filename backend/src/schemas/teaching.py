@@ -20,6 +20,36 @@ class ChapterProgressSchema(Schema):
     planned_date = fields.Date(required=False, allow_none=True)
 
 
+# ---------------- The section's syllabus (written by its subject teacher)
+
+class SectionChapterSchema(Schema):
+    title = fields.String(required=True, validate=validate.Length(min=1, max=255))
+    description = fields.String(required=False, allow_none=True)
+
+
+class UpdateSectionChapterSchema(Schema):
+    title = fields.String(required=False, validate=validate.Length(min=1, max=255))
+    description = fields.String(required=False, allow_none=True)
+
+
+class TopicSchema(Schema):
+    title = fields.String(required=True, validate=validate.Length(min=1, max=255))
+    planned_date = fields.Date(required=False, allow_none=True)
+
+
+class UpdateTopicSchema(Schema):
+    title = fields.String(required=False, validate=validate.Length(min=1, max=255))
+    planned_date = fields.Date(required=False, allow_none=True)
+
+
+class TopicDoneSchema(Schema):
+    done = fields.Boolean(required=True)
+
+
+class MoveSchema(Schema):
+    direction = fields.String(required=True, validate=validate.OneOf(["up", "down"]))
+
+
 # ---------------- Diary
 
 class DiaryEntrySchema(Schema):
@@ -27,6 +57,7 @@ class DiaryEntrySchema(Schema):
     date = fields.Date(required=True)
     classwork = fields.String(required=False, allow_none=True, validate=validate.Length(max=5000))
     homework = fields.String(required=False, allow_none=True, validate=validate.Length(max=5000))
+    topic_id = fields.Integer(required=False, allow_none=True)   # written from this syllabus topic
 
 
 # ---------------- Class tests
@@ -38,6 +69,7 @@ class ClassTestSchema(Schema):
     date = fields.Date(required=True)
     total_marks = fields.Decimal(required=True, validate=validate.Range(min=1, max=999))
     chapter_id = fields.Integer(required=False, allow_none=True)
+    topic_id = fields.Integer(required=False, allow_none=True)   # the syllabus topic it tests
 
 
 class UpdateClassTestSchema(Schema):

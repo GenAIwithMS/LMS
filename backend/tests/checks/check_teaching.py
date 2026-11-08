@@ -61,7 +61,8 @@ client.put(f"/api/school/sections/{A}/teachers", json={"subject_id": SCIENCE, "t
 client.put(f"/api/school/sections/{B}/teachers", json={"subject_id": MATHS, "teacher_id": OMAR}, headers=H["root"])
 CHAPTERS = []
 for title in ["Numbers", "Fractions", "Decimals", "Geometry"]:
-    CHAPTERS.append(client.post(f"/api/school/subjects/{MATHS}/chapters", json={"title": title}, headers=H["root"]).get_json()["chapter"]["id"])
+    # 5-A's Maths teacher writes 5-A's syllabus
+    CHAPTERS.append(client.post(f"/api/school/sections/{A}/subjects/{MATHS}/chapters", json={"title": title}, headers=H["sara"]).get_json()["chapter"]["id"])
 for name, uname, section, roll in [("Ali", "ali", A, "1"), ("Hina", "hina", A, "2"), ("Bilal", "bilal", B, "1")]:
     client.post("/api/add/student", json={"name": name, "username": uname, "email": f"{uname}@x.com", "password": "secret1",
                                           "section_id": section, "roll_number": roll}, headers=H["root"])
@@ -231,7 +232,7 @@ check("a period can be emptied", r.status_code == 200 and len(client.get(f"/api/
 check("Bilal can't see 5-A's timetable", client.get(f"/api/school/sections/{A}/timetable", headers=H["bilal"]).status_code == 403)
 
 print("--- Safe deletes")
-r = client.delete(f"/api/school/chapters/{CHAPTERS[0]}", headers=H["root"])
+r = client.delete(f"/api/school/chapters/{CHAPTERS[0]}", headers=H["sara"])
 check("deleting a chapter keeps its test (without the chapter)", r.status_code == 200 and client.get(f"/api/school/class-tests/{TEST}", headers=H["sara"]).get_json()["chapter_id"] is None)
 check("a test can be deleted by its teacher", client.delete(f"/api/school/class-tests/{TEST}", headers=H["sara"]).status_code == 200)
 EMPTY = client.post(f"/api/school/classes/{CLASS_5}/sections", json={"name": "C"}, headers=H["root"]).get_json()["section_id"]

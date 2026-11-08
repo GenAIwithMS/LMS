@@ -277,7 +277,7 @@ export const deleteEnrollment = async (id: number) => {
 };
 
 // Assignment
-export const createAssignment = async (data: { title: string; description: string; due_date: string; subject_name: string; total_marks: number; subject_id?: number; section_id?: number }) => {
+export const createAssignment = async (data: { title: string; description: string; due_date: string; subject_name: string; total_marks: number; subject_id?: number; section_id?: number; topic_id?: number | null }) => {
   const response = await api.post('/create/assignments', data);
   return response.data;
 };
@@ -538,23 +538,58 @@ export const deleteClassSubject = async (subjectId: number) => {
   return response.data;
 };
 
-export const getSubjectChapters = async (subjectId: number) => {
-  const response = await api.get(`/school/subjects/${subjectId}/chapters`);
+// ---------------- Each section's syllabus: chapters and daily topics
+// Written by the teacher who teaches the subject in the section; others can only see it.
+
+// The section's chapters (with their topics) for a subject, e.g. for a class test's chapter picker
+export const getSectionChapters = async (sectionId: number, subjectId: number) => {
+  const response = await api.get(`/school/sections/${sectionId}/subjects/${subjectId}/chapters`);
   return response.data;
 };
 
-export const addSubjectChapter = async (subjectId: number, data: { title: string; description?: string }) => {
-  const response = await api.post(`/school/subjects/${subjectId}/chapters`, data);
+export const addSectionChapter = async (sectionId: number, subjectId: number, data: { title: string; description?: string }) => {
+  const response = await api.post(`/school/sections/${sectionId}/subjects/${subjectId}/chapters`, data);
   return response.data;
 };
 
-export const updateSubjectChapter = async (chapterId: number, data: { title?: string; number?: number; description?: string }) => {
+export const updateChapter = async (chapterId: number, data: { title?: string; description?: string | null }) => {
   const response = await api.put(`/school/chapters/${chapterId}`, data);
   return response.data;
 };
 
-export const deleteSubjectChapter = async (chapterId: number) => {
+export const deleteChapter = async (chapterId: number) => {
   const response = await api.delete(`/school/chapters/${chapterId}`);
+  return response.data;
+};
+
+export const moveChapter = async (chapterId: number, direction: 'up' | 'down') => {
+  const response = await api.put(`/school/chapters/${chapterId}/move`, { direction });
+  return response.data;
+};
+
+export const addTopic = async (chapterId: number, data: { title: string; planned_date?: string | null }) => {
+  const response = await api.post(`/school/chapters/${chapterId}/topics`, data);
+  return response.data;
+};
+
+export const updateTopic = async (topicId: number, data: { title?: string; planned_date?: string | null }) => {
+  const response = await api.put(`/school/topics/${topicId}`, data);
+  return response.data;
+};
+
+export const deleteTopic = async (topicId: number) => {
+  const response = await api.delete(`/school/topics/${topicId}`);
+  return response.data;
+};
+
+export const moveTopic = async (topicId: number, direction: 'up' | 'down') => {
+  const response = await api.put(`/school/topics/${topicId}/move`, { direction });
+  return response.data;
+};
+
+// Tick a topic off (done = true) or back (done = false); the chapter's progress follows
+export const setTopicDone = async (topicId: number, done: boolean) => {
+  const response = await api.put(`/school/topics/${topicId}/done`, { done });
   return response.data;
 };
 
@@ -641,7 +676,7 @@ export const getSectionDiary = async (sectionId: number, date: string) => {
   return response.data;
 };
 
-export const saveDiaryEntry = async (sectionId: number, data: { subject_id: number; date: string; classwork?: string; homework?: string }) => {
+export const saveDiaryEntry = async (sectionId: number, data: { subject_id: number; date: string; classwork?: string; homework?: string; topic_id?: number | null }) => {
   const response = await api.post(`/school/sections/${sectionId}/diary`, data);
   return response.data;
 };
@@ -657,7 +692,7 @@ export const getClassTests = async (filters?: { section_id?: number; subject_id?
   return response.data;
 };
 
-export const addClassTest = async (data: { section_id: number; subject_id: number; title: string; date: string; total_marks: number; chapter_id?: number | null }) => {
+export const addClassTest = async (data: { section_id: number; subject_id: number; title: string; date: string; total_marks: number; chapter_id?: number | null; topic_id?: number | null }) => {
   const response = await api.post('/school/class-tests', data);
   return response.data;
 };

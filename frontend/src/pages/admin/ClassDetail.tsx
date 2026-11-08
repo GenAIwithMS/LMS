@@ -4,10 +4,10 @@ import { ArrowLeft, Plus, Trash2, Edit, BookOpen, Users, ListOrdered, ChevronRig
 import {
   getSchoolClass, getSchoolClasses, addClassSection, updateClassSection, deleteClassSection,
   addClassSubject, renameClassSubject, deleteClassSubject,
-  getSubjectChapters, addSubjectChapter, updateSubjectChapter, deleteSubjectChapter, getTeachers, setSubjectTeacher,
+  getTeachers, setSubjectTeacher,
   getTeacherSubjects,
 } from '../../services/api';
-import type { SchoolClassDetails, SchoolClassSummary, ClassSubject, SyllabusChapter, Teacher, TeacherSkills } from '../../types';
+import type { SchoolClassDetails, SchoolClassSummary, ClassSubject, Teacher, TeacherSkills } from '../../types';
 import { Modal } from '../../components/Modal';
 import { showError, showSuccess } from '../../utils/errorHandler';
 import toast from 'react-hot-toast';
@@ -37,11 +37,6 @@ const AdminClassDetail: React.FC = () => {
   const [newSectionName, setNewSectionName] = useState('');
   const [newSubjectName, setNewSubjectName] = useState('');
 
-  // Chapters window for one subject
-  const [chapterSubject, setChapterSubject] = useState<ClassSubject | null>(null);
-  const [chapters, setChapters] = useState<SyllabusChapter[]>([]);
-  const [newChapterTitle, setNewChapterTitle] = useState('');
-
   // The subjects each teacher teaches, so the teacher lists show them first
   const [teacherSkills, setTeacherSkills] = useState<TeacherSkills[]>([]);
 
@@ -53,10 +48,6 @@ const AdminClassDetail: React.FC = () => {
   // A change of subject teacher that replaces (or removes) the current teacher waits here for a yes
   const [teacherChange, setTeacherChange] = useState<{ sectionId: number; sectionName: string; subjectId: number; subjectName: string; currentName: string; newTeacherId: string; newName: string } | null>(null);
 
-  // Inside the chapters window: the chapter being renamed or about to be deleted
-  const [editingChapterId, setEditingChapterId] = useState<number | null>(null);
-  const [chapterTitleText, setChapterTitleText] = useState('');
-  const [chapterToDeleteId, setChapterToDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchClass();
@@ -280,80 +271,6 @@ const AdminClassDetail: React.FC = () => {
     }
   };
 
-  // ---------------- Chapters
-
-  const openChapters = async (subject: ClassSubject) => {
-    setChapterSubject(subject);
-    setNewChapterTitle('');
-    await fetchChapters(subject.id);
-  };
-
-  const fetchChapters = async (subjectId: number) => {
-    try {
-      const data = await getSubjectChapters(subjectId);
-      setChapters(Array.isArray(data.data) ? data.data : []);
-    } catch (error: any) {
-      showError(error, 'Failed to load chapters');
-    }
-  };
-
-  const handleAddChapter = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chapterSubject || !newChapterTitle.trim()) return;
-    try {
-      await addSubjectChapter(chapterSubject.id, { title: newChapterTitle.trim() });
-      setNewChapterTitle('');
-      fetchChapters(chapterSubject.id);
-      fetchClass();
-    } catch (error: any) {
-      showError(error, 'Failed to add the chapter');
-    }
-  };
-
-  const startRenameChapter = (chapter: SyllabusChapter) => {
-    setChapterToDeleteId(null);
-    setEditingChapterId(chapter.id);
-    setChapterTitleText(chapter.title);
-  };
-
-  const handleRenameChapter = async (chapter: SyllabusChapter) => {
-    if (!chapterSubject) return;
-    const newTitle = chapterTitleText.trim();
-    if (newTitle === '') {
-      toast.error('Write the chapter title');
-      return;
-    }
-    if (newTitle === chapter.title) {
-      setEditingChapterId(null);
-      return;
-    }
-    try {
-      await updateSubjectChapter(chapter.id, { title: newTitle });
-      setEditingChapterId(null);
-      fetchChapters(chapterSubject.id);
-    } catch (error: any) {
-      showError(error, 'Failed to rename the chapter');
-    }
-  };
-
-  const handleDeleteChapter = async (chapter: SyllabusChapter) => {
-    if (!chapterSubject) return;
-    try {
-      await deleteSubjectChapter(chapter.id);
-      setChapterToDeleteId(null);
-      fetchChapters(chapterSubject.id);
-      fetchClass();
-    } catch (error: any) {
-      showError(error, 'Failed to delete the chapter');
-    }
-  };
-
-  const closeChapters = () => {
-    setChapterSubject(null);
-    setEditingChapterId(null);
-    setChapterToDeleteId(null);
-  };
-
   if (loading || !schoolClass) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -446,25 +363,42 @@ const AdminClassDetail: React.FC = () => {
         {schoolClass.subjects.length === 0 ? (
           <p className="text-sm text-gray-500">No subjects yet. Add the subjects this class studies, e.g. English, Urdu, Maths.</p>
         ) : (
+          <>
+          <p className="text-xs text-gray-500 mb-3">Chapters and daily topics are written by each section's subject teacher.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {schoolClass.subjects.map((subject) => (
               <div key={subject.id} className="border border-gray-200 rounded-xl p-3">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="font-semibold text-gray-900">{subject.name}</div>
-                    <div className="text-xs text-gray-500">{subject.chapter_count} chapters</div>
+                    <div className="text-xs text-gray-500">
+                      {subject.section_chapters.length === 0
+                        ? 'No sections yet'
+                        : subject.section_chapters.map((item) => `${item.section_name}: ${item.chapter_count} ${item.chapter_count === 1 ? 'chapter' : 'chapters'}`).join(' · ')}
+                    </div>
                   </div>
                   <div className="flex">
                     <button onClick={() => openRenameSubject(subject)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title={`Rename ${subject.name}`} aria-label={`Rename ${subject.name}`}><Edit size={14} /></button>
                     <button onClick={() => setSubjectToDelete(subject)} className="p-1 text-red-600 hover:bg-red-50 rounded" title={`Delete ${subject.name}`} aria-label={`Delete ${subject.name}`}><Trash2 size={14} /></button>
                   </div>
                 </div>
-                <button onClick={() => openChapters(subject)} className="mt-2 text-sm text-primary-600 hover:underline flex items-center gap-1">
-                  <ListOrdered size={14} /> Chapters
-                </button>
+                {/* Each section's subject teacher writes its own syllabus; the admin can look at it */}
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                  {subject.section_chapters.map((item) => (
+                    <button
+                      key={item.section_id}
+                      onClick={() => navigate(`/admin/sections/${item.section_id}`)}
+                      className="text-sm text-primary-600 hover:underline flex items-center gap-1"
+                      title={`View the ${subject.name} syllabus of ${item.section_name}`}
+                    >
+                      <ListOrdered size={14} /> View syllabus ({item.section_name})
+                    </button>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
+          </>
         )}
       </div>
 
@@ -545,53 +479,6 @@ const AdminClassDetail: React.FC = () => {
           Open Timetable <ChevronRight size={16} />
         </button>
       </div>
-
-      <Modal isOpen={chapterSubject !== null} onClose={closeChapters} title={chapterSubject ? `${chapterSubject.name}: chapters` : ''}>
-        <div className="space-y-2 max-h-80 overflow-y-auto">
-          {chapters.length === 0 ? (
-            <p className="text-sm text-gray-500">No chapters yet.</p>
-          ) : (
-            chapters.map((chapter) => {
-              // Renaming: the title becomes a box with Save and Cancel
-              if (editingChapterId === chapter.id) {
-                return (
-                  <div key={chapter.id} className="flex items-center gap-2 border border-primary-200 rounded-lg px-3 py-2">
-                    <span className="text-sm font-semibold">{chapter.number}.</span>
-                    <input type="text" value={chapterTitleText} onChange={(e) => setChapterTitleText(e.target.value)} className="input py-1 text-sm flex-1" aria-label={`New title for chapter ${chapter.number}`} />
-                    <button onClick={() => handleRenameChapter(chapter)} className="btn btn-primary text-xs px-2 py-1">Save</button>
-                    <button onClick={() => setEditingChapterId(null)} className="btn btn-secondary text-xs px-2 py-1">Cancel</button>
-                  </div>
-                );
-              }
-              // Deleting: ask on the same row
-              if (chapterToDeleteId === chapter.id) {
-                return (
-                  <div key={chapter.id} className="flex items-center justify-between gap-2 border border-red-200 bg-red-50 rounded-lg px-3 py-2">
-                    <span className="text-sm text-red-800">Delete chapter {chapter.number}: {chapter.title}?</span>
-                    <div className="flex gap-1">
-                      <button onClick={() => handleDeleteChapter(chapter)} className="btn text-xs px-2 py-1 bg-red-600 hover:bg-red-700 text-white">Delete</button>
-                      <button onClick={() => setChapterToDeleteId(null)} className="btn btn-secondary text-xs px-2 py-1">Cancel</button>
-                    </div>
-                  </div>
-                );
-              }
-              return (
-                <div key={chapter.id} className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2">
-                  <span className="text-sm"><span className="font-semibold">{chapter.number}.</span> {chapter.title}</span>
-                  <div className="flex">
-                    <button onClick={() => startRenameChapter(chapter)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title={`Rename chapter ${chapter.number}`} aria-label={`Rename chapter ${chapter.number}`}><Edit size={14} /></button>
-                    <button onClick={() => { setEditingChapterId(null); setChapterToDeleteId(chapter.id); }} className="p-1 text-red-600 hover:bg-red-50 rounded" title={`Delete chapter ${chapter.number}`} aria-label={`Delete chapter ${chapter.number}`}><Trash2 size={14} /></button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-        <form onSubmit={handleAddChapter} className="flex gap-2 mt-4">
-          <input type="text" placeholder="Chapter title" value={newChapterTitle} onChange={(e) => setNewChapterTitle(e.target.value)} className="input" />
-          <button type="submit" className="btn btn-primary flex items-center gap-1"><Plus size={16} /> Add</button>
-        </form>
-      </Modal>
 
       {/* Delete a section */}
       <Modal isOpen={sectionToDelete !== null} onClose={() => setSectionToDelete(null)} title="Delete section">

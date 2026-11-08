@@ -54,9 +54,6 @@ client.post("/api/school/sessions", json={"name": "2026-27", "start_date": day(-
 A = client.post(f"/api/school/classes/{CLASS_5}/sections", json={"name": "A", "incharge_id": SARA}, headers=H["root"]).get_json()["section_id"]
 B = client.post(f"/api/school/classes/{CLASS_5}/sections", json={"name": "B", "incharge_id": OMAR}, headers=H["root"]).get_json()["section_id"]
 MATHS = client.post(f"/api/school/classes/{CLASS_5}/subjects", json={"name": "Maths"}, headers=H["root"]).get_json()["subject_id"]
-CHAPTERS = []
-for title in ["Numbers", "Fractions", "Decimals", "Geometry"]:
-    CHAPTERS.append(client.post(f"/api/school/subjects/{MATHS}/chapters", json={"title": title}, headers=H["root"]).get_json()["chapter"]["id"])
 client.put(f"/api/school/sections/{A}/teachers", json={"subject_id": MATHS, "teacher_id": SARA}, headers=H["root"])
 client.put(f"/api/school/sections/{B}/teachers", json={"subject_id": MATHS, "teacher_id": OMAR}, headers=H["root"])
 for name, uname, section, roll in [("Ali", "ali", A, "1"), ("Hina", "hina", A, "2"), ("Bilal", "bilal", B, "1")]:
@@ -72,6 +69,11 @@ print("--- Activity log: what gets written")
 client.post("/api/login", json={"email": "sara@x.com", "password": "wrong-password"})
 H["sara"] = login("sara")
 H["omar"] = login("omar")
+# Each section's Maths teacher writes its own 4 chapters
+CHAPTERS = []
+for title in ["Numbers", "Fractions", "Decimals", "Geometry"]:
+    CHAPTERS.append(client.post(f"/api/school/sections/{A}/subjects/{MATHS}/chapters", json={"title": title}, headers=H["sara"]).get_json()["chapter"]["id"])
+    client.post(f"/api/school/sections/{B}/subjects/{MATHS}/chapters", json={"title": title}, headers=H["omar"])
 client.post(f"/api/school/sections/{A}/attendance", json={"date": day(0), "records": [{"student_id": ALI, "status": "present"}, {"student_id": HINA, "status": "absent"}]}, headers=H["sara"])
 client.post(f"/api/school/sections/{A}/attendance", json={"date": day(-1), "records": [{"student_id": ALI, "status": "present"}, {"student_id": HINA, "status": "absent"}]}, headers=H["sara"])
 client.post(f"/api/school/sections/{A}/diary", json={"subject_id": MATHS, "date": day(0), "homework": "Ex 1"}, headers=H["sara"])

@@ -126,7 +126,7 @@ const StudentMyClass: React.FC = () => {
                     </div>
                     {isOpen && (
                       <div className="mt-3 pt-3 border-t border-gray-100">
-                        <SyllabusList subjectId={subject.subject_id} />
+                        {myClass.section_id && <SyllabusList sectionId={myClass.section_id} subjectId={subject.subject_id} />}
                       </div>
                     )}
                   </div>
