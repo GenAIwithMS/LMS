@@ -92,7 +92,7 @@ const Login: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="input py-2.5"
-                placeholder="name@school.edu.pk"
+                placeholder="name@example.com"
               />
             </div>
 
