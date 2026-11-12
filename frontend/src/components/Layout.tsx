@@ -13,7 +13,6 @@ import {
   LogOut,
   Menu,
   X,
-  UserCircle,
   Settings,
   ClipboardList,
   Award,
@@ -26,26 +25,11 @@ import {
   FileSpreadsheet,
   CalendarDays,
   Megaphone,
+  MessageSquare,
 } from 'lucide-react';
+import Crest from './Crest';
 import { getLatestAnnouncements, getEvents, getPublishedTimetableInfo, getAssignments, getSubmissionsByStudent, getClassTests, getExamTerms } from '../services/api';
 import toast from 'react-hot-toast';
-
-// Manus Icon Component
-const ManusIcon = ({ size = 20, className = "" }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-  </svg>
-);
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -283,24 +267,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [user, userRole]);
 
-  // The icon colour in the bell: class incharge announcements in amber, like on the pages
+  // The icon colour in the bell: class incharge announcements in amber, like on the pages;
+  // school announcements in green, everything else plain
   const notificationColour = (n: Notification): string => {
     if (n.type === 'announcement' && n.fromIncharge) {
-      return 'bg-amber-50 text-amber-600';
+      return 'bg-amber-50 text-amber-700';
     }
     if (n.type === 'announcement') {
-      return 'bg-blue-50 text-blue-600';
+      return 'bg-primary-50 text-primary-700';
     }
-    if (n.type === 'timetable') {
-      return 'bg-green-50 text-green-600';
-    }
-    if (n.type === 'assignment') {
-      return 'bg-orange-50 text-orange-600';
-    }
-    if (n.type === 'grade' || n.type === 'report') {
-      return 'bg-rose-50 text-rose-600';
-    }
-    return 'bg-purple-50 text-purple-600';
+    return 'bg-gray-100 text-gray-700';
   };
 
   // Remember the newest timetable as seen, so the bell stays quiet until the next one
@@ -452,64 +428,66 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, []);
 
   const collapsed = sidebarCollapsed && isWideScreen;
-  const sidebarWidth = collapsed ? 'w-20' : 'w-64';
+  const sidebarWidth = collapsed ? 'w-[4.5rem]' : 'w-60';
+
+  // "Classes / Section" -> "Classes" in grey, then "Section"
+  const titleParts = pageTitle().split(' / ');
 
   return (
     <div className="min-h-screen bg-gray-50 flex overflow-hidden">
-      {/* Mobile sidebar backdrop */}
+      {/* Phone menu backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-gray-900/40 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Navigation Sidebar */}
+      {/* The menu: the green cover of the register. The open page shows as a paper
+          index tab that runs into the page. */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarWidth} bg-white border-r border-gray-200 transition-all duration-300 ease-in-out flex flex-col ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 ${sidebarWidth} bg-primary-800 text-primary-100 transition-[width,transform] duration-200 ease-out flex flex-col ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Logo Section */}
-        <div className="h-16 flex items-center px-6 border-b border-gray-100 relative overflow-hidden bg-gradient-to-r from-primary-50/30 to-transparent">
+        {/* Name of the school */}
+        <div className={`h-16 flex items-center shrink-0 ${collapsed ? 'justify-center px-2' : 'px-5'}`}>
           {!collapsed ? (
-            <div className="flex items-center gap-3 shrink-0 w-full">
-              <div className="w-9 h-9 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center text-white font-bold shrink-0 shadow-lg">
-                L
-              </div>
-              <span className="text-xl font-bold text-gray-900 tracking-tight truncate">LMS Pro</span>
+            <div className="flex items-center gap-2.5 w-full min-w-0">
+              <Crest size={30} className="shrink-0" />
+              <span className="font-serif text-[1.3rem] font-semibold text-white tracking-tight truncate">The Lyceum</span>
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="hidden lg:block ml-auto p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
-                title="Collapse Sidebar"
+                className="hidden lg:flex ml-auto p-1.5 text-primary-300 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+                title="Collapse menu"
+                aria-label="Collapse menu"
               >
-                <PanelLeft size={18} />
+                <PanelLeft size={17} />
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-center w-full">
-              <button
-                onClick={() => setSidebarCollapsed(false)}
-                className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-all"
-                title="Expand Sidebar"
-              >
-                <PanelLeft size={18} className="rotate-180" />
-              </button>
-            </div>
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="p-1 rounded-md hover:bg-white/10 transition-colors"
+              title="Expand menu"
+              aria-label="Expand menu"
+            >
+              <Crest size={30} />
+            </button>
           )}
 
           <button
             onClick={() => setSidebarOpen(false)}
             title="Close menu"
             aria-label="Close menu"
-            className="lg:hidden ml-auto text-gray-400 hover:text-gray-600"
+            className="lg:hidden ml-auto p-2 text-primary-200 hover:text-white"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2">
+        {/* Menu */}
+        <nav className="flex-1 overflow-y-auto py-3 pl-3 space-y-0.5" aria-label="Main menu">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
@@ -517,123 +495,121 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden ${
+                aria-current={active ? 'page' : undefined}
+                className={`flex items-center gap-3 py-2 text-sm transition-colors ${
+                  collapsed ? 'justify-center pr-3' : 'px-3'
+                } ${
                   active
-                    ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-200'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-gray-50 text-primary-800 font-semibold rounded-l-md lg:mr-0 mr-3 lg:rounded-r-none rounded-r-md'
+                    : 'mr-3 rounded-md text-primary-100/85 hover:bg-white/10 hover:text-white'
                 }`}
                 title={collapsed ? item.label : ''}
               >
-                {active && (
-                  <div className="absolute inset-0 bg-white/10 animate-shimmer"></div>
-                )}
-                <Icon size={20} className={`relative z-10 ${active ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                {!collapsed && <span className="text-sm relative z-10">{item.label}</span>}
-                {active && !collapsed && (
-                  <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full relative z-10"></div>
-                )}
+                <Icon size={18} strokeWidth={active ? 2.2 : 1.8} className={active ? 'text-primary-600' : 'text-primary-300'} />
+                {!collapsed && <span>{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        {/* User Profile Section */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50/50">
-          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : 'px-2 py-2'}`}>
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl flex items-center justify-center text-primary-700 border-2 border-primary-300 shadow-md">
-              <UserCircle size={24} />
+        {/* Who is logged in */}
+        <div className="px-3 py-4 border-t border-white/10">
+          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : 'px-2'}`}>
+            <div className="w-9 h-9 rounded-full bg-primary-700 text-primary-100 flex items-center justify-center text-sm font-semibold shrink-0" aria-hidden="true">
+              {(user?.name || 'U').trim().charAt(0).toUpperCase()}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-gray-900 truncate">{user?.name || 'User'}</p>
-                <p className="text-xs text-gray-500 capitalize font-medium">{userRole}</p>
+                <p className="text-sm font-semibold text-white truncate">{user?.name || 'User'}</p>
+                <p className="text-xs text-primary-300 capitalize">{userRole}</p>
               </div>
             )}
           </div>
-          <Link
-            to="/account"
-            className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-semibold shadow-sm hover:shadow-md ${
-              isActive('/account') ? 'bg-primary-100 text-primary-700' : 'text-gray-700 bg-white hover:bg-gray-100'
-            } ${collapsed ? 'justify-center' : ''}`}
-            title={collapsed ? 'My Account' : ''}
-          >
-            <Settings size={18} />
-            {!collapsed && <span className="text-sm">My Account</span>}
-          </Link>
-          <button
-            onClick={handleLogout}
-            className={`mt-3 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-all font-semibold shadow-sm hover:shadow-md ${collapsed ? 'justify-center' : ''}`}
-            title={collapsed ? 'Logout' : ''}
-          >
-            <LogOut size={18} />
-            {!collapsed && <span className="text-sm">Logout</span>}
-          </button>
+          <div className={`mt-3 flex ${collapsed ? 'flex-col items-center gap-1' : 'gap-1'}`}>
+            <Link
+              to="/account"
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${
+                isActive('/account') ? 'bg-white/15 text-white' : 'text-primary-200 hover:bg-white/10 hover:text-white'
+              }`}
+              title="My Account"
+            >
+              <Settings size={16} />
+              {!collapsed && <span>My Account</span>}
+            </Link>
+            <button
+              onClick={handleLogout}
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-primary-200 hover:bg-white/10 hover:text-white transition-colors ${collapsed ? '' : 'ml-auto'}`}
+              title="Log out"
+            >
+              <LogOut size={16} />
+              {!collapsed && <span>Log out</span>}
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Page */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0 shadow-sm">
-          <div className="flex items-center gap-4">
+        {/* Top bar */}
+        <header className="h-16 bg-gray-50 border-b border-gray-200 flex items-center justify-between px-4 lg:px-8 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}
               title="Open menu"
               aria-label="Open menu"
-              className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+              className="lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-md"
             >
               <Menu size={20} />
             </button>
-            <div className="hidden lg:block">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-primary-600 rounded-full"></div>
-                <h2 className="text-sm font-bold text-gray-800">
-                  {pageTitle()}
-                </h2>
-              </div>
-            </div>
+            <p className="text-sm truncate">
+              {titleParts.map((part, index) => (
+                <span key={index}>
+                  {index > 0 && <span className="text-gray-400 mx-1.5">/</span>}
+                  <span className={index === titleParts.length - 1 ? 'font-semibold text-gray-900' : 'text-gray-500'}>{part}</span>
+                </span>
+              ))}
+            </p>
           </div>
-          
-          <div className="flex items-center gap-3">
-            {/* Notification Icon */}
+
+          <div className="flex items-center gap-1">
+            {/* Notifications */}
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowNotifications(!showNotifications)}
                 title="Notifications"
                 aria-label="Notifications"
-                className={`p-2.5 rounded-xl transition-all relative ${
-                  showNotifications 
-                    ? 'bg-primary-50 text-primary-600 shadow-md' 
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                aria-expanded={showNotifications}
+                className={`p-2.5 rounded-md transition-colors relative ${
+                  showNotifications ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
-                <Bell size={20} />
+                <Bell size={19} />
                 {hasUnread && (
-                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-600 rounded-full ring-2 ring-gray-50"></span>
                 )}
               </button>
-              
-              {/* Notification Dropdown */}
+
               {showNotifications && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)}></div>
-                  <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden animate-in fade-in zoom-in duration-200">
-                    <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                      <h3 className="font-bold text-gray-900">Notifications</h3>
-                      <button 
+                  <div className="absolute right-0 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] bg-white border border-gray-300 rounded-lg shadow-[0_8px_24px_-8px_rgba(28,27,24,0.25)] z-20 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                      <h3 className="font-semibold text-gray-900">Notifications</h3>
+                      <button
                         onClick={handleMarkAllRead}
-                        className="text-xs text-primary-600 font-medium hover:underline"
+                        className="text-xs text-primary-700 font-medium hover:underline"
                       >
                         Mark all as read
                       </button>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
                       {notifications.length > 0 ? (
-                        <div className="divide-y divide-gray-50">
+                        <div className="divide-y divide-gray-100">
                           {notifications.map((n) => (
-                            <div
+                            <button
+                              type="button"
                               key={n.id}
-                              className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                              className="block w-full text-left px-4 py-3 hover:bg-gray-50 focus-visible:bg-gray-50 transition-colors"
                               onClick={() => {
                                 setShowNotifications(false);
                                 // This one is now seen
@@ -660,30 +636,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                               }}
                             >
                               <div className="flex items-start gap-3">
-                                <div className={`mt-1 p-1.5 rounded-lg ${notificationColour(n)}`}>
+                                <div className={`mt-0.5 p-1.5 rounded-md ${notificationColour(n)}`}>
                                   {n.type === 'announcement' ? <Bell size={14} /> : n.type === 'timetable' ? <CalendarDays size={14} /> : n.type === 'event' ? <Calendar size={14} /> : n.type === 'report' ? <Award size={14} /> : <FileText size={14} />}
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium text-gray-900">{n.title}</p>
-                                  <p className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">{n.time}</p>
+                                  <p className="text-sm text-gray-900">{n.title}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">{n.time}</p>
                                 </div>
                               </div>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       ) : (
-                        <div className="p-8 text-center text-gray-500 text-sm">
-                          <Bell size={32} className="mx-auto text-gray-200 mb-2" />
-                          <p>No new notifications</p>
-                        </div>
+                        <p className="px-4 py-8 text-center text-gray-500 text-sm">Nothing new.</p>
                       )}
                     </div>
-                    <div className="p-3 bg-gray-50 border-t border-gray-100 text-center">
-                      <button 
+                    <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-200">
+                      <button
                         onClick={handleViewAll}
-                        className="text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-wider"
+                        className="text-sm font-medium text-primary-700 hover:underline"
                       >
-                        View All Announcements
+                        All announcements
                       </button>
                     </div>
                   </div>
@@ -691,32 +664,30 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               )}
             </div>
 
-            <div className="h-8 w-px bg-gray-200 mx-1"></div>
-            
-            {/* Manus Assistant Icon */}
-            <button 
+            {/* The assistant */}
+            <button
               onClick={() => setChatbotOpen(!chatbotOpen)}
-              className={`p-2.5 rounded-xl transition-all ${
-                chatbotOpen 
-                  ? 'bg-indigo-50 text-indigo-600 ring-2 ring-indigo-200 shadow-md' 
-                  : 'text-gray-400 hover:text-indigo-600 hover:bg-indigo-50'
+              className={`flex items-center gap-2 px-2.5 py-2 rounded-md text-sm transition-colors ${
+                chatbotOpen ? 'bg-primary-600 text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
-              title="Manus Assistant"
+              title="Assistant"
+              aria-label="Assistant"
+              aria-expanded={chatbotOpen}
             >
-              <ManusIcon size={20} />
+              <MessageSquare size={19} />
+              <span className="hidden sm:inline font-medium">Assistant</span>
             </button>
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Page content */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
           {children}
         </div>
 
-        {/* Chatbot Widget Integration */}
-        <ChatbotWidget 
-          isOpen={chatbotOpen} 
-          onClose={() => setChatbotOpen(false)} 
+        <ChatbotWidget
+          isOpen={chatbotOpen}
+          onClose={() => setChatbotOpen(false)}
         />
       </main>
     </div>

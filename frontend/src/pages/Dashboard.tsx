@@ -10,9 +10,7 @@ import {
   Bell,
   Award,
   ArrowRight,
-  Activity,
   Clock,
-  ClipboardList,
 } from 'lucide-react';
 import { getStudents, getTeachers, getSchoolClasses, getAssignments, getAnnouncements, getEvents, getMyDailyAttendance, getSubmissionsByStudent } from '../services/api';
 import toast from 'react-hot-toast';
@@ -184,361 +182,211 @@ const Dashboard: React.FC = () => {
   const allStatCards = [
     {
       roles: ['admin', 'teacher'],
-      title: userRole === 'teacher' ? 'My Students' : 'Total Students',
+      title: userRole === 'teacher' ? 'My students' : 'Students',
       value: stats.students,
-      icon: Users,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
       path: userRole === 'admin' ? '/admin/students' : undefined,
     },
     {
       roles: ['admin'],
-      title: 'Total Teachers',
+      title: 'Teachers',
       value: stats.teachers,
-      icon: GraduationCap,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
-      path: userRole === 'admin' ? '/admin/teachers' : undefined,
+      path: '/admin/teachers',
     },
     {
       roles: ['admin'],
       title: 'Sections',
       value: stats.courses,
-      icon: BookOpen,
-      color: 'text-violet-600',
-      bgColor: 'bg-violet-50',
-      path: userRole === 'admin' ? '/admin/classes' : undefined,
+      path: '/admin/classes',
     },
     {
       roles: ['admin', 'teacher', 'student'],
-      title: userRole === 'admin' ? 'Assignments' : 'My Assignments',
+      title: userRole === 'admin' ? 'Assignments set' : 'My assignments',
       value: stats.assignments,
-      icon: FileText,
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-50',
       // The admin sees each teacher's assignments on the Oversight page
       path: userRole === 'teacher' ? '/teacher/assignments' : userRole === 'student' ? '/student/assignments' : '/admin/oversight',
     },
     {
       roles: ['student'],
-      title: 'To Hand In',
+      title: 'To hand in',
       value: toHandIn,
-      icon: ClipboardList,
-      color: 'text-rose-600',
-      bgColor: 'bg-rose-50',
       path: '/student/assignments',
     },
     {
       roles: ['student'],
-      title: 'My Attendance',
+      title: 'My attendance',
       value: myAttendance,
-      icon: Clock,
-      color: 'text-indigo-600',
-      bgColor: 'bg-indigo-50',
       path: '/student/attendance',
     },
   ];
 
-  // Each role only sees the cards that make sense for it
+  // Each role only sees the figures that make sense for it
   const statCards = allStatCards.filter((card) => userRole !== null && card.roles.includes(userRole));
+
+  // The shortcuts for each role: the things people do most often
+  const adminShortcuts = [
+    { label: 'Students', note: 'Add, edit and move students', path: '/admin/students', icon: Users },
+    { label: 'Teachers', note: 'Staff and the subjects they teach', path: '/admin/teachers', icon: GraduationCap },
+    { label: 'Classes', note: 'Sections, subjects and class incharges', path: '/admin/classes', icon: BookOpen },
+    { label: 'Events', note: 'Holidays, meetings and school days', path: '/admin/events', icon: Calendar },
+  ];
+  const teacherShortcuts = [
+    { label: 'Mark attendance', note: "Today's register for your class", path: '/teacher/attendance', icon: Clock },
+    { label: 'Set an assignment', note: 'Homework with a due date', path: '/teacher/assignments', icon: FileText },
+    { label: 'Enter exam marks', note: 'Marks for the current term', path: '/teacher/exams', icon: Award },
+    { label: 'Post an announcement', note: 'To your classes', path: '/teacher/announcements', icon: Bell },
+  ];
+  const studentShortcuts = [
+    { label: 'Assignments', note: 'What to hand in and when', path: '/student/assignments', icon: FileText },
+    { label: 'Report card', note: 'Your marks for each term', path: '/student/report-card', icon: Award },
+    { label: 'Attendance', note: 'Days present and absent', path: '/student/attendance', icon: Clock },
+    { label: 'Announcements', note: 'From the school and your teachers', path: '/student/announcements', icon: Bell },
+  ];
+  const shortcuts = userRole === 'admin' ? adminShortcuts : userRole === 'teacher' ? teacherShortcuts : studentShortcuts;
+
+  // "Good morning" before 12, "Good afternoon" before 5, then "Good evening"
+  const now = new Date();
+  let greeting = 'Good evening';
+  if (now.getHours() < 12) {
+    greeting = 'Good morning';
+  } else if (now.getHours() < 17) {
+    greeting = 'Good afternoon';
+  }
+  const todayText = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-primary-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      {/* Welcome Header with gradient background */}
-      <div className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 rounded-3xl p-8 text-white overflow-hidden shadow-2xl">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/5 rounded-full -ml-48 -mb-48 blur-3xl"></div>
-        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                <GraduationCap className="w-6 h-6" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight">
-                  Welcome back, {user?.name || user?.username || 'User'}!
-                </h1>
-                <p className="text-primary-100 text-sm mt-1">
-                  Here's your overview for today
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-sm font-semibold capitalize">{userRole} Mode</span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="max-w-6xl mx-auto space-y-8">
+      {/* Title */}
+      <header className="register-rule pb-5">
+        <p className="text-sm text-gray-500">{todayText}</p>
+        <h1 className="mt-1 text-3xl sm:text-[2.1rem] font-semibold text-gray-900">
+          {greeting}, {user?.name || user?.username || 'there'}
+        </h1>
+      </header>
 
-      {/* Stats Grid with improved design */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((card, idx) => {
-          const Icon = card.icon;
-          const gradients = [
-            'from-blue-500 to-blue-600',
-            'from-emerald-500 to-emerald-600',
-            'from-violet-500 to-violet-600',
-            'from-amber-500 to-amber-600'
-          ];
-          return (
-            <div
-              key={card.title}
-              onClick={card.path ? () => navigate(card.path!) : undefined}
-              className={`group relative bg-white rounded-2xl border-2 border-gray-100 shadow-sm overflow-hidden transition-all duration-300 ${
-                card.path ? 'cursor-pointer hover:shadow-2xl hover:border-primary-200 hover:-translate-y-2' : ''
-              }`}
-              style={{ animationDelay: `${idx * 0.1}s` }}
-            >
-              {/* Gradient overlay on hover */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx]} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
-              
-              <div className="relative p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`${card.bgColor} ${card.color} p-3 rounded-xl group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
-                    <Icon size={24} />
-                  </div>
-                  {card.path && (
-                    <ArrowRight size={18} className="text-gray-300 group-hover:text-primary-600 group-hover:translate-x-1 transition-all" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-gray-900 mb-1 group-hover:text-primary-600 transition-colors">{card.value}</p>
-                  <p className="text-sm font-semibold text-gray-500">{card.title}</p>
-                </div>
-                {/* Progress bar animation */}
-                <div className="mt-4 h-1 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full bg-gradient-to-r ${gradients[idx]} rounded-full transition-all duration-1000 ease-out`} style={{ width: card.path ? '75%' : '50%' }}></div>
-                </div>
+      {/* The figures, in one ruled row */}
+      <section aria-label="Summary">
+        <dl className={`grid grid-cols-2 ${statCards.length >= 4 ? 'lg:grid-cols-4' : statCards.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} bg-white border border-gray-200 rounded-lg overflow-hidden`}>
+          {statCards.map((card, index) => {
+            const inner = (
+              <>
+                <dt className="text-sm text-gray-600">{card.title}</dt>
+                <dd className="mt-1 font-serif text-[2rem] leading-none font-semibold text-gray-900 tabular">{card.value}</dd>
+              </>
+            );
+            const borders = `${index % 2 === 1 ? 'border-l' : ''} ${index >= 2 ? 'border-t lg:border-t-0' : ''} ${index > 0 ? 'lg:border-l' : ''} border-gray-200`;
+            if (card.path) {
+              return (
+                <button
+                  key={card.title}
+                  onClick={() => navigate(card.path!)}
+                  className={`group text-left px-5 py-4 hover:bg-gray-50 transition-colors ${borders}`}
+                >
+                  {inner}
+                  <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary-700 opacity-80 group-hover:opacity-100">
+                    Open <ArrowRight size={12} />
+                  </span>
+                </button>
+              );
+            }
+            return (
+              <div key={card.title} className={`px-5 py-4 ${borders}`}>
+                {inner}
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </dl>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Content Area */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Quick Actions with enhanced styling */}
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Activity className="w-6 h-6 text-primary-600" />
-                Quick Actions
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        {/* Shortcuts */}
+        <section className="lg:col-span-3">
+          <h2 className="text-base font-semibold text-gray-900 mb-3">Shortcuts</h2>
+          <ul className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200">
+            {shortcuts.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.path}>
+                  <button
+                    onClick={() => navigate(item.path)}
+                    className="group w-full flex items-center gap-4 px-5 py-3.5 text-left hover:bg-gray-50 transition-colors"
+                  >
+                    <Icon size={18} className="text-primary-600 shrink-0" />
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-semibold text-gray-900">{item.label}</span>
+                      <span className="block text-sm text-gray-500 truncate">{item.note}</span>
+                    </span>
+                    <ArrowRight size={16} className="text-gray-400 group-hover:text-primary-600 transition-colors" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+
+        {/* Coming up */}
+        <section className="lg:col-span-2 space-y-6">
+          <div>
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 className="text-base font-semibold text-gray-900">Coming up</h2>
+              {/* Only the admin has an Events page to manage them */}
               {userRole === 'admin' && (
-                <>
-                  <button onClick={() => navigate('/admin/students')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-blue-50 to-blue-100/50 border-2 border-blue-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <Users size={22} className="text-blue-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">Manage Students</span>
-                    </div>
-                    <ArrowRight size={18} className="text-blue-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                  <button onClick={() => navigate('/admin/teachers')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-2 border-emerald-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <GraduationCap size={22} className="text-emerald-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">Manage Teachers</span>
-                    </div>
-                    <ArrowRight size={18} className="text-emerald-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                  <button onClick={() => navigate('/admin/classes')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-violet-50 to-violet-100/50 border-2 border-violet-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <BookOpen size={22} className="text-violet-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">Manage Classes</span>
-                    </div>
-                    <ArrowRight size={18} className="text-violet-400 group-hover:text-violet-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                  <button onClick={() => navigate('/admin/events')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-amber-50 to-amber-100/50 border-2 border-amber-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <FileText size={22} className="text-amber-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">Manage Events</span>
-                    </div>
-                    <ArrowRight size={18} className="text-amber-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                </>
-              )}
-              {userRole === 'teacher' && (
-                <>
-                  <button onClick={() => navigate('/teacher/assignments')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-amber-50 to-amber-100/50 border-2 border-amber-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <FileText size={22} className="text-amber-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">Create Assignment</span>
-                    </div>
-                    <ArrowRight size={18} className="text-amber-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                  <button onClick={() => navigate('/teacher/attendance')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border-2 border-indigo-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <Clock size={22} className="text-indigo-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">Mark Attendance</span>
-                    </div>
-                    <ArrowRight size={18} className="text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                  <button onClick={() => navigate('/teacher/exams')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border-2 border-rose-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <Award size={22} className="text-rose-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">Exam Marks</span>
-                    </div>
-                    <ArrowRight size={18} className="text-rose-400 group-hover:text-rose-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                  <button onClick={() => navigate('/teacher/announcements')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-blue-50 to-blue-100/50 border-2 border-blue-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <Bell size={22} className="text-blue-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">Post Announcement</span>
-                    </div>
-                    <ArrowRight size={18} className="text-blue-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                </>
-              )}
-              {userRole === 'student' && (
-                <>
-                  <button onClick={() => navigate('/student/assignments')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-amber-50 to-amber-100/50 border-2 border-amber-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <FileText size={22} className="text-amber-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">View Assignments</span>
-                    </div>
-                    <ArrowRight size={18} className="text-amber-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                  <button onClick={() => navigate('/student/report-card')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-rose-50 to-rose-100/50 border-2 border-rose-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <Award size={22} className="text-rose-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">Report Card</span>
-                    </div>
-                    <ArrowRight size={18} className="text-rose-400 group-hover:text-rose-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                  <button onClick={() => navigate('/student/attendance')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-indigo-50 to-indigo-100/50 border-2 border-indigo-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <Clock size={22} className="text-indigo-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">View Attendance</span>
-                    </div>
-                    <ArrowRight size={18} className="text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                  <button onClick={() => navigate('/student/announcements')} className="group flex items-center justify-between p-5 bg-gradient-to-br from-blue-50 to-blue-100/50 border-2 border-blue-200 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-white rounded-xl shadow-md group-hover:scale-110 transition-transform">
-                        <Bell size={22} className="text-blue-600" />
-                      </div>
-                      <span className="font-bold text-gray-800">View Announcements</span>
-                    </div>
-                    <ArrowRight size={18} className="text-blue-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
-                  </button>
-                </>
+                <button onClick={() => navigate('/admin/events')} className="text-sm font-medium text-primary-700 hover:underline">
+                  Manage events
+                </button>
               )}
             </div>
-          </section>
-        </div>
-
-        {/* Sidebar Area */}
-        <div className="space-y-8">
-          {/* Announcements / Events with improved design */}
-          <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-primary-600" />
-              Upcoming Events
-            </h2>
-            <div className="space-y-4">
-              {stats.events > 0 ? (
-                <div className="bg-gradient-to-br from-primary-50 to-primary-100/50 p-6 rounded-2xl border-2 border-primary-200 shadow-lg hover:shadow-xl transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white rounded-xl shadow-md">
-                      <Calendar size={24} className="text-primary-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-lg font-bold text-gray-900">{stats.events} {stats.events === 1 ? 'Upcoming Event' : 'Upcoming Events'}</p>
-                      <p className="text-sm text-gray-600 mt-1">Stay updated with upcoming activities</p>
-                    </div>
-                  </div>
-                  {/* The next few events, so everyone can see what and when */}
-                  <ul className="mt-4 space-y-2">
-                    {upcomingEvents.slice(0, 5).map((event) => (
-                      <li key={event.id} className="bg-white rounded-xl px-4 py-2 shadow-sm">
+            {stats.events > 0 ? (
+              <ul className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200">
+                {upcomingEvents.slice(0, 5).map((event) => {
+                  const date = new Date(event.event_date + 'T00:00:00');
+                  return (
+                    <li key={event.id} className="flex items-center gap-4 px-5 py-3">
+                      <div className="w-11 shrink-0 text-center border-r border-gray-200 pr-4">
+                        <p className="font-serif text-xl leading-none font-semibold text-gray-900 tabular">{date.getDate()}</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-brass-600 mt-1">
+                          {date.toLocaleDateString('en-GB', { month: 'short' })}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900">{event.title}</p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(event.event_date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                        <p className="text-sm text-gray-500">
+                          {date.toLocaleDateString('en-GB', { weekday: 'long' })}
                           {event.event_time ? ` · ${event.event_time}` : ''}
                         </p>
-                      </li>
-                    ))}
-                  </ul>
-                  {/* Only the admin has an Events page to manage them */}
-                  {userRole === 'admin' && (
-                    <button 
-                      onClick={() => navigate('/admin/events')} 
-                      className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-colors shadow-md"
-                    >
-                      Manage Events
-                      <ArrowRight size={18} />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-white border-2 border-dashed border-gray-200 p-8 rounded-2xl text-center hover:border-gray-300 transition-colors">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Calendar size={32} className="text-gray-300" />
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900 mb-1">No Upcoming Events</p>
-                  <p className="text-xs text-gray-500">Events will appear here when scheduled</p>
-                </div>
-              )}
-              
-              {stats.announcements > 0 && (
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 rounded-2xl border-2 border-blue-200 shadow-lg hover:shadow-xl transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white rounded-xl shadow-md">
-                      <Bell size={24} className="text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-lg font-bold text-gray-900">{stats.announcements} {stats.announcements === 1 ? 'Announcement' : 'Announcements'}</p>
-                      <p className="text-sm text-gray-600 mt-1">Check the latest updates</p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => navigate(`/${userRole}/announcements`)} 
-                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-md"
-                  >
-                    View All
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="bg-white border border-gray-200 rounded-lg px-5 py-6 text-sm text-gray-500">
+                No events coming up.{userRole === 'admin' ? ' Holidays, meetings and school days you add will be listed here.' : ''}
+              </p>
+            )}
+          </div>
+
+          {stats.announcements > 0 && (
+            <button
+              onClick={() => navigate(`/${userRole}/announcements`)}
+              className="group w-full flex items-center gap-4 bg-white border border-gray-200 rounded-lg px-5 py-3.5 text-left hover:bg-gray-50 transition-colors"
+            >
+              <Bell size={18} className="text-primary-600 shrink-0" />
+              <span className="flex-1 text-sm">
+                <span className="font-semibold text-gray-900 tabular">{stats.announcements}</span>{' '}
+                <span className="text-gray-700">{stats.announcements === 1 ? 'announcement' : 'announcements'}</span>
+              </span>
+              <ArrowRight size={16} className="text-gray-400 group-hover:text-primary-600 transition-colors" />
+            </button>
+          )}
+        </section>
       </div>
     </div>
   );

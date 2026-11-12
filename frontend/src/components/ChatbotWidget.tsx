@@ -1,26 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Trash2, Minimize2 } from 'lucide-react';
+import { Send, User, Trash2, Minimize2, MessageSquare } from 'lucide-react';
 import { useChat } from '../hooks/useChat';
 import { ChatPendingActions } from './ChatPendingActions';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
-// Manus Icon Component
-const ManusIcon = ({ size = 20, className = "" }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-  </svg>
-);
 
 interface ChatbotWidgetProps {
   isOpen: boolean;
@@ -97,29 +80,26 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
 
   return (
     <div 
-      className={`fixed inset-y-0 right-0 bg-white shadow-2xl z-[60] flex flex-col border-l border-gray-200 transition-transform duration-500 ease-in-out ${
-        isOpen ? 'translate-x-0' : 'translate-x-full'
+      className={`fixed inset-y-0 right-0 bg-white z-[60] flex flex-col border-l border-gray-200 transition-transform duration-200 ease-out ${
+        isOpen ? 'translate-x-0 shadow-[-12px_0_32px_-16px_rgba(28,27,24,0.3)]' : 'translate-x-full'
       }`}
       style={{ width: `${width}px` }}
     >
       {/* Resize Handle */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-indigo-400/30 transition-colors z-10"
+        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-primary-400/30 transition-colors z-10"
         onMouseDown={handleResizeStart}
       />
 
       {/* Header */}
       <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-            <ManusIcon size={24} />
+          <div className="w-9 h-9 bg-primary-600 rounded-md flex items-center justify-center text-white">
+            <MessageSquare size={18} />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900">Manus Assistant</h3>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Online</span>
-            </div>
+            <h3 className="font-serif text-lg font-semibold text-gray-900 leading-tight">Assistant</h3>
+            <p className="text-xs text-gray-500">Answers from the school's records</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -138,9 +118,9 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
           <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex gap-3 max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
               <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${
-                message.role === 'user' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-indigo-600 shadow-sm'
+                message.role === 'user' ? 'bg-primary-600 text-white' : 'bg-white border border-gray-200 text-primary-600 shadow-sm'
               }`}>
-                {message.role === 'user' ? <User size={16} /> : <ManusIcon size={18} />}
+                {message.role === 'user' ? <User size={16} /> : <MessageSquare size={16} />}
               </div>
               <div className={`p-3.5 rounded-2xl text-sm shadow-sm ${
                 message.role === 'user' 
@@ -158,14 +138,14 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
         {loading && (
           <div className="flex justify-start">
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 text-indigo-600 flex items-center justify-center shadow-sm">
-                <ManusIcon size={18} />
+              <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 text-primary-600 flex items-center justify-center shadow-sm">
+                <MessageSquare size={16} />
               </div>
               <div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-tl-none shadow-sm">
                 <div className="flex gap-1">
-                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+                  <div className="w-1.5 h-1.5 bg-primary-400 rounded-full animate-pulse"></div>
+                  <div className="w-1.5 h-1.5 bg-primary-400 rounded-full animate-pulse [animation-delay:0.2s]"></div>
+                  <div className="w-1.5 h-1.5 bg-primary-400 rounded-full animate-pulse [animation-delay:0.4s]"></div>
                 </div>
               </div>
             </div>
@@ -182,19 +162,19 @@ const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({ isOpen, onClose }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask anything..."
-            className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+            className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all text-sm"
             disabled={loading}
           />
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-md shadow-indigo-100"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:hover:bg-primary-600 transition-colors "
           >
             <Send size={16} />
           </button>
         </form>
         <p className="text-[10px] text-center text-gray-400 mt-3 font-medium">
-          Powered by Manus AI • Always here to help
+          The assistant can make mistakes. Check anything important.
         </p>
       </div>
     </div>

@@ -305,7 +305,7 @@ const TeacherAnnouncements: React.FC = () => {
                     <div className="mt-2">
                       <button
                         onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                        className="btn btn-secondary text-sm px-3 py-1.5 w-full transition-all duration-200 hover:scale-105"
+                        className="btn btn-secondary text-sm px-3 py-1.5 w-full transition-all duration-200"
                       >
                         {sortOrder === 'asc' ? '↑ Ascending' : '↓ Descending'}
                       </button>
